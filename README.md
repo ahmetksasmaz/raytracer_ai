@@ -1,1 +1,1 @@
-# ray_tracer
+# METU Ceng Advanced Ray Tracing CENG795 - Ray Tracer
