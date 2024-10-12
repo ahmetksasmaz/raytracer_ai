@@ -26,7 +26,7 @@ TraceRay(ray, inside_object_ptr, remaining (max), max)
 					pixel değeri += return_pixel_value * katsayılar
 				conductor ise
 					geliş açısı ile yansıyan ray oluştur (remaining-1, max)
-					return_pixel_value = TraceRay(reflected_ray, inside_object_ptr remaining-1, max)
+					return_pixel_value = TraceRay(reflected_ray, inside_object_ptr, remaining-1, max)
 					
 					pixel değeri += return_pixel_value * katsayılar
 				dielectric ise
