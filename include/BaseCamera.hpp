@@ -3,8 +3,7 @@
 
 #include "../extern/parser.h"
 #include "BaseExporter.hpp"
-#include "CameraRay.hpp"
-#include "Pixel.hpp"
+#include "Ray.hpp"
 
 using namespace parser;
 
@@ -15,7 +14,7 @@ class BaseCamera {
              int image_height, std::string image_name);
   virtual ~BaseCamera();
 
-  virtual CameraRay GenerateRay(Vec2i pixel_coordinate) = 0;
+  virtual Ray GenerateRay(Vec2i pixel_coordinate) = 0;
 
   virtual void ExportView(std::shared_ptr<BaseExporter> exporter) = 0;
 
@@ -29,5 +28,5 @@ class BaseCamera {
   int image_width_;
   int image_height_;
   std::string image_name_;
-  std::vector<std::shared_ptr<Pixel>> image_data_;
+  std::vector<unsigned char> image_data_;
 };

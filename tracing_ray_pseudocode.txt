@@ -1,0 +1,47 @@
+TraceRay(ray, inside_object_ptr, remaining (max), max)
+	pixel_değeri = 0,0,0
+	t = 0.0
+	
+	if inside_object_ptr == nullptr
+		bütün nesneler ile kesişme kontrolü yap
+			sphere için tek fonksiyon (nearest intersection)
+			triangle için tek fonksiyon (backface culling)
+			mesh için her bir triangle için tek fonksiyon (backface culling) (nearest intersection)
+	else:
+		inside_object_ptr ile kesişme kontrolü yap (frontface culling)
+	eğer kesişme varsa
+		t = distance
+		pixel değeri = ambient_light
+		her bir ışık kaynağı için
+			-> nokta ile ışık kaynağı arasında herhangi bir nesne ile intersection var mı bak (backface culling yok kesinlikle)
+			-> intersection yok ise
+				-> diffuse ve specular shading hesapla
+				pixel değeri += shading değeri 
+		eğer remaining > 1
+			eğer materyal
+				mirror ise
+					geliş açısı ile yansıyan ray oluştur (remaining-1, max)
+					return_pixel_value = TraceRay(reflected_ray, inside_object_ptr, remaining-1, max)
+					
+					pixel değeri += return_pixel_value * katsayılar
+				conductor ise
+					geliş açısı ile yansıyan ray oluştur (remaining-1, max)
+					return_pixel_value = TraceRay(reflected_ray, inside_object_ptr remaining-1, max)
+					
+					pixel değeri += return_pixel_value * katsayılar
+				dielectric ise
+					geliş açısı ile yansıyan ray oluştur (remaining-1, max)
+					return_pixel_value1 = TraceRay(reflected_ray, inside_object_ptr, remaining-1, max)
+					
+					kırılma açısı ile giden ray oluştur (remaining-1, max)
+					return_pixel_value2 = TraceRay(refracted_ray, inside_object_ptr ? nullptr : intersected_object_ptr , remaining-1, max)
+					
+					pixel değeri += return_pixel_value1 * katsayılar1 + return_pixel_value2 * katsayılar2
+					
+	eğer kesişme yoksa
+		remaining == max ise
+			pixel değeri = background color
+		remaining != max ise
+			pixel değeri = 0,0,0
+	
+	return inside_object_ptr ? pixel değeri * (e^(-attenuation *  t)) :  

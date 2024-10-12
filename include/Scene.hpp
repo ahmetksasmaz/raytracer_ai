@@ -13,6 +13,7 @@ using namespace parser;
 class Scene {
  public:
   Scene(std::string filename);
+  void Render();
   ~Scene();
 
  private:
