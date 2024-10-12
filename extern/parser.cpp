@@ -107,7 +107,15 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   element = element->FirstChildElement("Material");
   RawMaterial material;
   while (element) {
-    material.is_mirror = (element->Attribute("type", "mirror") != NULL);
+    if (element->Attribute("type", "mirror") != NULL) {
+      material.material_type = RawMaterialType::kMirror;
+    } else if (element->Attribute("type", "conductor") != NULL) {
+      material.material_type = RawMaterialType::kConductor;
+    } else if (element->Attribute("type", "dielectric") != NULL) {
+      material.material_type = RawMaterialType::kDielectric;
+    } else {
+      throw std::runtime_error("Error: Material type is not found.");
+    }
 
     child = element->FirstChildElement("AmbientReflectance");
     stream << child->GetText() << std::endl;
@@ -117,7 +125,26 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream << child->GetText() << std::endl;
     child = element->FirstChildElement("MirrorReflectance");
     if (child) {
-      assert(material.is_mirror == true);
+      assert(material.material_type == RawMaterialType::kMirror);
+      stream << child->GetText() << std::endl;
+    }
+
+    child = element->FirstChildElement("AbsorptionCoefficient");
+    if (child) {
+      assert(material.material_type == RawMaterialType::kDielectric);
+      stream << child->GetText() << std::endl;
+    }
+
+    child = element->FirstChildElement("RefractionIndex");
+    if (child) {
+      assert(material.material_type == RawMaterialType::kConductor ||
+             material.material_type == RawMaterialType::kDielectric);
+      stream << child->GetText() << std::endl;
+    }
+
+    child = element->FirstChildElement("AbsorptionIndex");
+    if (child) {
+      assert(material.material_type == RawMaterialType::kConductor);
       stream << child->GetText() << std::endl;
     }
     child = element->FirstChildElement("PhongExponent");
@@ -126,8 +153,20 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream >> material.ambient.x >> material.ambient.y >> material.ambient.z;
     stream >> material.diffuse.x >> material.diffuse.y >> material.diffuse.z;
     stream >> material.specular.x >> material.specular.y >> material.specular.z;
-    if (material.is_mirror) {
+    if (material.material_type == RawMaterialType::kMirror) {
       stream >> material.mirror.x >> material.mirror.y >> material.mirror.z;
+    }
+    if (material.material_type == RawMaterialType::kDielectric) {
+      stream >> material.absorption_coefficient.x >>
+          material.absorption_coefficient.y >>
+          material.absorption_coefficient.z;
+    }
+    if (material.material_type == RawMaterialType::kConductor ||
+        material.material_type == RawMaterialType::kDielectric) {
+      stream >> material.refraction_index;
+    }
+    if (material.material_type == RawMaterialType::kConductor) {
+      stream >> material.absorption_index;
     }
     stream >> material.phong_exponent;
 

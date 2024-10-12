@@ -7,6 +7,8 @@
 namespace parser {
 // Notice that all the structures are as simple as possible
 // so that you are not enforced to adopt any style or design.
+enum RawMaterialType { kMirror, kConductor, kDielectric };
+
 struct Vec3f {
   float x, y, z;
 };
@@ -39,11 +41,14 @@ struct RawPointLight {
 };
 
 struct RawMaterial {
-  bool is_mirror;
+  RawMaterialType material_type;
   Vec3f ambient;
   Vec3f diffuse;
   Vec3f specular;
   Vec3f mirror;
+  Vec3f absorption_coefficient;
+  float refraction_index;
+  float absorption_index;
   float phong_exponent;
 };
 
