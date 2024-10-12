@@ -113,8 +113,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       material.material_type = RawMaterialType::kConductor;
     } else if (element->Attribute("type", "dielectric") != NULL) {
       material.material_type = RawMaterialType::kDielectric;
-    } else {
-      throw std::runtime_error("Error: Material type is not found.");
     }
 
     child = element->FirstChildElement("AmbientReflectance");
@@ -125,7 +123,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream << child->GetText() << std::endl;
     child = element->FirstChildElement("MirrorReflectance");
     if (child) {
-      assert(material.material_type == RawMaterialType::kMirror);
+      assert(material.material_type == RawMaterialType::kMirror ||
+             material.material_type == RawMaterialType::kConductor);
       stream << child->GetText() << std::endl;
     }
 
@@ -148,7 +147,10 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       stream << child->GetText() << std::endl;
     }
     child = element->FirstChildElement("PhongExponent");
-    stream << child->GetText() << std::endl;
+    bool phong_exponent_exists = child != NULL;
+    if (phong_exponent_exists) {
+      stream << child->GetText() << std::endl;
+    }
 
     stream >> material.ambient.x >> material.ambient.y >> material.ambient.z;
     stream >> material.diffuse.x >> material.diffuse.y >> material.diffuse.z;
@@ -168,7 +170,11 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     if (material.material_type == RawMaterialType::kConductor) {
       stream >> material.absorption_index;
     }
-    stream >> material.phong_exponent;
+    if (phong_exponent_exists) {
+      stream >> material.phong_exponent;
+    } else {
+      material.phong_exponent = -1.0f;
+    }
 
     materials.push_back(material);
     element = element->NextSiblingElement("Material");
