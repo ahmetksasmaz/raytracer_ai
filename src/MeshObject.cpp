@@ -1,5 +1,7 @@
 #include "MeshObject.hpp"
 
+#include <iostream>
+
 MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
                        const std::vector<RawFace>& raw_face_data,
                        const std::vector<Vec3f>& raw_vertex_data)
@@ -28,13 +30,14 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
 };
 
 bool MeshObject::Intersect(const Ray& ray, float& t_hit,
+                           Vec3f& intersection_normal,
                            bool backface_culling) const {
   bool hit = false;
   for (size_t i = 0; i < face_data_.size(); i++) {
     const Vec3f& v0 = vertex_data_[face_data_[i].x];
     const Vec3f& v1 = vertex_data_[face_data_[i].y];
     const Vec3f& v2 = vertex_data_[face_data_[i].z];
-    const Vec3f& normal = normals_[i];
+    const Vec3f normal = normals_[i];
 
     if (backface_culling && dot(ray.direction_, normal) > 0) {
       continue;
@@ -44,10 +47,6 @@ bool MeshObject::Intersect(const Ray& ray, float& t_hit,
     Vec3f edge2 = v2 - v0;
     Vec3f ray_cross_e2 = cross(ray.direction_, edge2);
     float det = dot(edge1, ray_cross_e2);
-
-    if (det > -1e-5 && det < 1e-5) {
-      continue;
-    }
 
     float inv_det = 1.0 / det;
     Vec3f s = ray.origin_ - v0;
@@ -69,8 +68,10 @@ bool MeshObject::Intersect(const Ray& ray, float& t_hit,
     if (t > 1e-5) {
       if (t < t_hit) {
         t_hit = t;
+        intersection_normal = normal;
       }
       hit = true;
+    } else {
     }
   }
   return hit;

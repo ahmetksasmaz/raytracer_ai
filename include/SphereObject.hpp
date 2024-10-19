@@ -9,7 +9,7 @@ class SphereObject : public BaseObject {
                const float radius)
       : BaseObject(material), center_(center), radius_(radius) {};
 
-  bool Intersect(const Ray& ray, float& t_hit,
+  bool Intersect(const Ray& ray, float& t_hit, Vec3f& intersection_normal,
                  bool backface_culling = true) const override;
 
   virtual ~SphereObject() = default;

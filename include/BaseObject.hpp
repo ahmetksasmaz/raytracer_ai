@@ -13,6 +13,7 @@ class BaseObject {
   BaseObject(std::shared_ptr<BaseMaterial> material) : material_(material) {}
 
   virtual bool Intersect(const Ray& ray, float& t_hit,
+                         Vec3f& intersection_normal,
                          bool backface_culling = true) const = 0;
 
   std::shared_ptr<BaseMaterial> material_;

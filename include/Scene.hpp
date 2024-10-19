@@ -28,7 +28,12 @@ enum class RayTracingAlgorithm {
   kMax = 2
 };
 
-enum class SchedulingAlgorithm { kNonThread = 0, kBest = 0, kMax = 0 };
+enum class SchedulingAlgorithm {
+  kNonThread = 0,
+  kThreadQueue = 1,
+  kBest = 1,
+  kMax = 1
+};
 
 enum class ToneMappingAlgorithm { kClamp = 0, kBest = 0, kMax = 0 };
 
@@ -76,6 +81,7 @@ class Scene {
       int remaining_recursion, int max_recursion);
 
   void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera);
+  void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera);
 
   void ClampToneMappingAlgorithm(const std::vector<Vec3f>&,
                                  std::vector<unsigned char>&);

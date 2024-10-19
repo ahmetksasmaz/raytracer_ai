@@ -11,7 +11,7 @@ class MeshObject : public BaseObject {
              const std::vector<RawFace>& raw_face_data,
              const std::vector<Vec3f>& raw_vertex_data);
 
-  bool Intersect(const Ray& ray, float& t_hit,
+  bool Intersect(const Ray& ray, float& t_hit, Vec3f& intersection_normal,
                  bool backface_culling = true) const override;
 
   virtual ~MeshObject() = default;

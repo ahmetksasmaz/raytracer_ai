@@ -1,6 +1,7 @@
 #include "TriangleObject.hpp"
 
 bool TriangleObject::Intersect(const Ray& ray, float& t_hit,
+                               Vec3f& intersection_normal,
                                bool backface_culling) const {
   if (backface_culling && dot(ray.direction_, normal_) > 0) {
     return false;
@@ -34,6 +35,7 @@ bool TriangleObject::Intersect(const Ray& ray, float& t_hit,
 
   if (t > 1e-5) {
     t_hit = t;
+    intersection_normal = normal_;
     return true;
   } else {
     return false;
