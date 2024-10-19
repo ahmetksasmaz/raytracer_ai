@@ -4,8 +4,8 @@
 
 class PointLightSource : public BaseLightSource {
  public:
-  PointLightSource(Vec3f position, Vec3f intensity)
+  PointLightSource(const Vec3f& position, const Vec3f& intensity)
       : BaseLightSource(intensity), position_(position) {}
 
-  Vec3f position_;
+  const Vec3f position_;
 };

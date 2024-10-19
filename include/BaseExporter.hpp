@@ -4,7 +4,7 @@
 class BaseExporter {
  public:
   BaseExporter() {}
-  virtual void Export(std::string filename, unsigned char* data, int width,
-                      int height) = 0;
+  virtual void Export(const std::string& filename, const unsigned char* data,
+                      const int width, const int height) const = 0;
   virtual ~BaseExporter() {}
 };

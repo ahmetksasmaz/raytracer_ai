@@ -2,8 +2,8 @@
 
 #include <stdexcept>
 
-void write_ppm(const char* filename, unsigned char* data, int width,
-               int height) {
+void write_ppm(const char* filename, const unsigned char* data, const int width,
+               const int height) {
   FILE* outfile;
 
   if ((outfile = fopen(filename, "w")) == NULL) {

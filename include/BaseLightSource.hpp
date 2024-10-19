@@ -1,10 +1,12 @@
 #pragma once
 #include "../extern/parser.h"
 
+using namespace parser;
+
 class BaseLightSource {
  public:
-  BaseLightSource(Vec3f intensity) : intensity_(intensity) {}
+  BaseLightSource(const Vec3f& intensity) : intensity_(intensity) {}
   virtual ~BaseLightSource() = default;
 
-  Vec3f intensity_;
+  const Vec3f intensity_;
 };

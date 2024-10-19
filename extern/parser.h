@@ -7,7 +7,7 @@
 namespace parser {
 // Notice that all the structures are as simple as possible
 // so that you are not enforced to adopt any style or design.
-enum RawMaterialType { kMirror, kConductor, kDielectric };
+enum RawMaterialType { kDefault, kMirror, kConductor, kDielectric };
 
 struct Vec3f {
   float x, y, z;
@@ -19,6 +19,10 @@ struct Vec2i {
 
 struct Vec3i {
   int x, y, z;
+};
+
+struct Vec3uc {
+  unsigned char r, g, b;
 };
 
 struct Vec4f {
@@ -75,6 +79,16 @@ struct RawSphere {
 };
 
 struct RawScene {
+  ~RawScene() {
+    cameras.clear();
+    point_lights.clear();
+    materials.clear();
+    vertex_data.clear();
+    meshes.clear();
+    triangles.clear();
+    spheres.clear();
+  }
+
   // Data
   Vec3i background_color;
   float shadow_ray_epsilon;

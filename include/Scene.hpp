@@ -1,19 +1,26 @@
 #pragma once
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 
 #include "../extern/parser.h"
 #include "AmbientLightSource.hpp"
 #include "BaseCamera.hpp"
 #include "BaseMaterial.hpp"
 #include "BaseObject.hpp"
+#include "ConductorMaterial.hpp"
+#include "DielectricMaterial.hpp"
+#include "MeshObject.hpp"
+#include "MirrorMaterial.hpp"
 #include "PointLightSource.hpp"
+#include "SphereObject.hpp"
+#include "TriangleObject.hpp"
 
 using namespace parser;
 
 class Scene {
  public:
-  Scene(std::string filename);
+  Scene(const std::string& filename);
   void Render();
   ~Scene();
 
@@ -21,9 +28,8 @@ class Scene {
   void LoadScene();
   void PreprocessScene();
 
-  std::string filename_;
+  const std::string filename_;
 
-  RawScene raw_scene_;
   Vec3i background_color_;
   float shadow_ray_epsilon_;
   int max_recursion_depth_;

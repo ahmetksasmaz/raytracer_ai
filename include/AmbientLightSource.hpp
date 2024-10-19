@@ -4,6 +4,5 @@
 
 class AmbientLightSource : public BaseLightSource {
  public:
-  AmbientLightSource(Vec3f position, Vec3f intensity)
-      : BaseLightSource(intensity) {}
+  AmbientLightSource(const Vec3f& intensity) : BaseLightSource(intensity) {}
 };

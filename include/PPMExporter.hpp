@@ -5,7 +5,7 @@
 class PPMExporter : public BaseExporter {
  public:
   PPMExporter() {}
-  void Export(std::string filename, unsigned char* data, int width,
-              int height) override;
+  void Export(const std::string& filename, const unsigned char* data,
+              const int width, const int height) const override;
   ~PPMExporter() {}
 };

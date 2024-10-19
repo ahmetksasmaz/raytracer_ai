@@ -113,6 +113,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       material.material_type = RawMaterialType::kConductor;
     } else if (element->Attribute("type", "dielectric") != NULL) {
       material.material_type = RawMaterialType::kDielectric;
+    } else {
+      material.material_type = RawMaterialType::kDefault;
     }
 
     child = element->FirstChildElement("AmbientReflectance");
