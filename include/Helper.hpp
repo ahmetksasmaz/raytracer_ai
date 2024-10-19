@@ -1,6 +1,6 @@
 #pragma once
 
-#include <math>
+#include <cmath>
 #include <memory>
 
 #include "../extern/parser.h"

@@ -1,6 +1,48 @@
 #include "Scene.hpp"
 
-Scene::Scene(const std::string &filename) : filename_(filename) {
+Scene::Scene(const std::string &filename,
+             const RayTracingAlgorithm ray_tracing_algorithm,
+             const SchedulingAlgorithm scheduling_algorithm,
+             const ToneMappingAlgorithm tone_mapping_algorithm,
+             const ExporterType exporter_type)
+    : filename_(filename) {
+  switch (exporter_type) {
+    case ExporterType::kPPM:
+      exporter_ = std::make_shared<PPMExporter>();
+      break;
+    case ExporterType::kSTB:
+      exporter_ = std::make_shared<STBExporter>();
+      break;
+  }
+
+  switch (ray_tracing_algorithm) {
+    case RayTracingAlgorithm::kDefault:
+      ray_tracing_algorithm_ = std::bind(
+          &Scene::DefaultRayTracingAlgorithm, this, std::placeholders::_1,
+          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+      break;
+    case RayTracingAlgorithm::kRecursive:
+      ray_tracing_algorithm_ = std::bind(
+          &Scene::RecursiveRayTracingAlgorithm, this, std::placeholders::_1,
+          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+      break;
+  }
+
+  switch (scheduling_algorithm) {
+    case SchedulingAlgorithm::kNonThread:
+      scheduling_algorithm_ = std::bind(&Scene::NonThreadSchedulingAlgorithm,
+                                        this, std::placeholders::_1);
+      break;
+  }
+
+  switch (tone_mapping_algorithm) {
+    case ToneMappingAlgorithm::kClamp:
+      tone_mapping_algorithm_ =
+          std::bind(&Scene::ClampToneMappingAlgorithm, this,
+                    std::placeholders::_1, std::placeholders::_2);
+      break;
+  }
+
   LoadScene();
   PreprocessScene();
 }
@@ -67,48 +109,37 @@ void Scene::LoadScene() {
 
   for (const auto &raw_sphere : raw_scene.spheres) {
     objects_.push_back(std::make_shared<SphereObject>(
-        materials_[raw_sphere.material_id],
-        raw_scene.vertex_data[raw_sphere.center_vertex_id], raw_sphere.radius));
+        materials_[raw_sphere.material_id - 1],
+        raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
+        raw_sphere.radius));
   }
 
   for (const auto &raw_triangle : raw_scene.triangles) {
     objects_.push_back(std::make_shared<TriangleObject>(
-        materials_[raw_triangle.material_id],
-        raw_scene.vertex_data[raw_triangle.indices.v0_id],
-        raw_scene.vertex_data[raw_triangle.indices.v1_id],
-        raw_scene.vertex_data[raw_triangle.indices.v2_id]));
+        materials_[raw_triangle.material_id - 1],
+        raw_scene.vertex_data[raw_triangle.indices.v0_id - 1],
+        raw_scene.vertex_data[raw_triangle.indices.v1_id - 1],
+        raw_scene.vertex_data[raw_triangle.indices.v2_id - 1]));
   }
 
   for (const auto &raw_mesh : raw_scene.meshes) {
-    auto mesh_object =
-        std::make_shared<MeshObject>(materials_[raw_mesh.material_id]);
-    std::unordered_map<int, int> face_id_map;
-    for (const auto &raw_face : raw_mesh.faces) {
-      int v0_id = raw_face.v0_id;
-      int v1_id = raw_face.v1_id;
-      int v2_id = raw_face.v2_id;
-
-      if (face_id_map.find(v0_id) == face_id_map.end()) {
-        face_id_map[v0_id] = mesh_object->vertex_data_.size();
-        mesh_object->vertex_data_.push_back(raw_scene.vertex_data[v0_id]);
-      }
-      if (face_id_map.find(v1_id) == face_id_map.end()) {
-        face_id_map[v1_id] = mesh_object->vertex_data_.size();
-        mesh_object->vertex_data_.push_back(raw_scene.vertex_data[v1_id]);
-      }
-      if (face_id_map.find(v2_id) == face_id_map.end()) {
-        face_id_map[v2_id] = mesh_object->vertex_data_.size();
-        mesh_object->vertex_data_.push_back(raw_scene.vertex_data[v2_id]);
-      }
-      mesh_object->face_data_.push_back(
-          {face_id_map[v0_id], face_id_map[v1_id], face_id_map[v2_id]});
-    }
-    objects_.push_back(mesh_object);
+    objects_.push_back(
+        std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1],
+                                     raw_mesh.faces, raw_scene.vertex_data));
   }
 }
 
 void Scene::PreprocessScene() {
   for (const auto &object : objects_) {
     object->Preprocess();
+  }
+}
+
+void Scene::Render() {
+  for (const auto &camera : cameras_) {
+    scheduling_algorithm_(camera);
+    tone_mapping_algorithm_(camera->GetImageDataReference(),
+                            camera->GetTonemappedImageDataReference());
+    camera->ExportView(exporter_);
   }
 }

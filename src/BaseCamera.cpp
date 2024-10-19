@@ -12,10 +12,12 @@ BaseCamera::BaseCamera(const Vec3f& position, const Vec3f& gaze,
       r_(near_plane.y),
       b_(near_plane.z),
       t_(near_plane.w),
-      v_(normalize(up)) {
-  image_data_.resize(image_width_ * image_height_ * 3);
-  u_ = normalize(cross(normalize(gaze), v_));
-  q_ = (v_ * t_) + (position_ + (normalize(gaze) * near_distance) + (u_ * l_));
+      v_(normalize(up)),
+      u_(normalize(cross(normalize(gaze), v_))),
+      q_((v_ * t_) +
+         (position_ + (normalize(gaze) * near_distance) + (u_ * l_))) {
+  image_data_.resize(image_width_ * image_height_);
+  tonemapped_image_data_.resize(image_width_ * image_height_ * 3);
 }
 
 Ray BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
@@ -28,14 +30,13 @@ Ray BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
 }
 
 void BaseCamera::UpdatePixelValue(const Vec2i& pixel_coordinate,
-                                  const Vec3uc& pixel_value) {
-  int index = (pixel_coordinate.y * image_width_ + pixel_coordinate.x) * 3;
-  image_data_[index] = pixel_value.r;
-  image_data_[index + 1] = pixel_value.g;
-  image_data_[index + 2] = pixel_value.b;
+                                  const Vec3f& pixel_value) {
+  int index = (pixel_coordinate.y * image_width_ + pixel_coordinate.x);
+  image_data_[index] = pixel_value;
 }
 
 void BaseCamera::ExportView(
     const std::shared_ptr<BaseExporter>& exporter) const {
-  exporter->Export(image_name_, image_width_, image_height_, image_data_);
+  exporter->Export(image_name_, tonemapped_image_data_.data(), image_width_,
+                   image_height_);
 }

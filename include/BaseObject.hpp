@@ -1,18 +1,21 @@
 #pragma once
 
+#include <memory>
+
 #include "../extern/parser.h"
+#include "BaseMaterial.hpp"
 #include "Ray.hpp"
 
 using namespace parser;
 
 class BaseObject {
  public:
-  BaseObject(const std::shared_ptr<BaseMaterial>& material)
-      : material_(material) {}
+  BaseObject(std::shared_ptr<BaseMaterial> material) : material_(material) {}
 
-  virtual bool Intersect(const Ray& ray, float& t_hit) const = 0;
+  virtual bool Intersect(const Ray& ray, float& t_hit,
+                         bool backface_culling = true) const = 0;
 
-  const std::shared_ptr<BaseMaterial> material_;
+  std::shared_ptr<BaseMaterial> material_;
 
   virtual ~BaseObject() = default;
   virtual void Preprocess() {};

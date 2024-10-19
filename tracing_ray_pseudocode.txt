@@ -8,7 +8,7 @@ TraceRay(ray, inside_object_ptr, remaining (max), max)
 			triangle için tek fonksiyon (backface culling)
 			mesh için her bir triangle için tek fonksiyon (backface culling) (nearest intersection)
 	else:
-		inside_object_ptr ile kesişme kontrolü yap (frontface culling)
+		inside_object_ptr ile kesişme kontrolü yap (frontface culling -> backface_culling kapatınca otomatik oluyor)
 	eğer kesişme varsa
 		t = distance
 		pixel değeri = ambient_light
@@ -44,4 +44,4 @@ TraceRay(ray, inside_object_ptr, remaining (max), max)
 		remaining != max ise
 			pixel değeri = 0,0,0
 	
-	return inside_object_ptr ? pixel değeri * (e^(-attenuation *  t)) :  
+	return inside_object_ptr ? pixel değeri * (e^(-attenuation *  t)) : pixel_değeri

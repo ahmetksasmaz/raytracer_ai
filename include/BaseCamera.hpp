@@ -19,15 +19,21 @@ class BaseCamera {
   virtual Ray GenerateRay(const Vec2i& pixel_coordinate) const;
 
   virtual void UpdatePixelValue(const Vec2i& pixel_coordinate,
-                                const Vec3uc& pixel_value);
+                                const Vec3f& pixel_value);
+
+  std::vector<Vec3f>& GetImageDataReference() { return image_data_; };
+  std::vector<unsigned char>& GetTonemappedImageDataReference() {
+    return tonemapped_image_data_;
+  };
 
   virtual void ExportView(const std::shared_ptr<BaseExporter>& exporter) const;
 
- private:
-  const Vec3f position_;
   const int image_width_;
   const int image_height_;
+
+ private:
   const std::string image_name_;
+  const Vec3f position_;
   const float l_;
   const float r_;
   const float b_;
@@ -36,5 +42,6 @@ class BaseCamera {
   const Vec3f u_;
   const Vec3f q_;
 
-  std::vector<unsigned char> image_data_;
+  std::vector<Vec3f> image_data_;
+  std::vector<unsigned char> tonemapped_image_data_;
 };
