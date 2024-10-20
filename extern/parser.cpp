@@ -1,10 +1,17 @@
 #include "parser.h"
 
+#include <algorithm>
 #include <cassert>
 #include <sstream>
 #include <stdexcept>
 
 #include "tinyxml2.h"
+
+// #define PARSER_DEBUG
+
+#ifdef PARSER_DEBUG
+#include <iostream>
+#endif
 
 void parser::RawScene::loadFromXml(const std::string &filepath) {
   tinyxml2::XMLDocument file;
@@ -23,29 +30,38 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   // Get BackgroundColor
   auto element = root->FirstChildElement("BackgroundColor");
   if (element) {
-    stream << element->GetText() << std::endl;
+    std::string elem_text = element->GetText();
+    std::replace(elem_text.begin(), elem_text.end(), '\t', ' ');
+    stream << elem_text << std::endl;
   } else {
     stream << "0 0 0" << std::endl;
   }
   stream >> background_color.x >> background_color.y >> background_color.z;
+  stream.clear();
 
   // Get ShadowRayEpsilon
   element = root->FirstChildElement("ShadowRayEpsilon");
   if (element) {
-    stream << element->GetText() << std::endl;
+    std::string elem_text = element->GetText();
+    std::replace(elem_text.begin(), elem_text.end(), '\t', ' ');
+    stream << elem_text << std::endl;
   } else {
     stream << "0.001" << std::endl;
   }
   stream >> shadow_ray_epsilon;
+  stream.clear();
 
   // Get MaxRecursionDepth
   element = root->FirstChildElement("MaxRecursionDepth");
   if (element) {
-    stream << element->GetText() << std::endl;
+    std::string elem_text = element->GetText();
+    std::replace(elem_text.begin(), elem_text.end(), '\t', ' ');
+    stream << elem_text << std::endl;
   } else {
     stream << "0" << std::endl;
   }
   stream >> max_recursion_depth;
+  stream.clear();
 
   // Get Cameras
   element = root->FirstChildElement("Cameras");
@@ -79,6 +95,11 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     cameras.push_back(camera);
     element = element->NextSiblingElement("Camera");
   }
+  stream.clear();
+
+#ifdef PARSER_DEBUG
+  std::cout << "\t\tCameras parsed." << std::endl;
+#endif
 
   // Get Lights
   element = root->FirstChildElement("Lights");
@@ -101,6 +122,10 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     point_lights.push_back(point_light);
     element = element->NextSiblingElement("PointLight");
   }
+
+#ifdef PARSER_DEBUG
+  std::cout << "\t\tLights parsed." << std::endl;
+#endif
 
   // Get Materials
   element = root->FirstChildElement("Materials");
@@ -182,15 +207,25 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     element = element->NextSiblingElement("Material");
   }
 
+#ifdef PARSER_DEBUG
+  std::cout << "\t\tMaterials parsed." << std::endl;
+#endif
+
   // Get VertexData
   element = root->FirstChildElement("VertexData");
-  stream << element->GetText() << std::endl;
+  std::string elem_text = element->GetText();
+  std::replace(elem_text.begin(), elem_text.end(), '\t', ' ');
+  stream << elem_text << std::endl;
   Vec3f vertex;
   while (!(stream >> vertex.x).eof()) {
     stream >> vertex.y >> vertex.z;
     vertex_data.push_back(vertex);
   }
   stream.clear();
+
+#ifdef PARSER_DEBUG
+  std::cout << "\t\tVertex data parsed." << std::endl;
+#endif
 
   // Get Meshes
   element = root->FirstChildElement("Objects");
@@ -215,6 +250,9 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     element = element->NextSiblingElement("Mesh");
   }
   stream.clear();
+#ifdef PARSER_DEBUG
+  std::cout << "\t\tMeshes parsed." << std::endl;
+#endif
 
   // Get Triangles
   element = root->FirstChildElement("Objects");
@@ -233,6 +271,10 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     triangles.push_back(triangle);
     element = element->NextSiblingElement("Triangle");
   }
+
+#ifdef PARSER_DEBUG
+  std::cout << "\t\tTriangles parsed." << std::endl;
+#endif
 
   // Get Spheres
   element = root->FirstChildElement("Objects");
@@ -254,4 +296,7 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     spheres.push_back(sphere);
     element = element->NextSiblingElement("Sphere");
   }
+#ifdef PARSER_DEBUG
+  std::cout << "\t\tSpheres parsed." << std::endl;
+#endif
 }

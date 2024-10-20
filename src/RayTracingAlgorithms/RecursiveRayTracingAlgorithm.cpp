@@ -139,7 +139,26 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 #endif
     }
 
-    if (remaining_recursion > 1) {
+    if (remaining_recursion > 0) {
+      MirrorMaterial* mirror_material_ptr =
+          dynamic_cast<MirrorMaterial*>(material_ptr.get());
+      ConductorMaterial* conductor_material_ptr =
+          dynamic_cast<ConductorMaterial*>(material_ptr.get());
+      DielectricMaterial* dielectric_material_ptr =
+          dynamic_cast<DielectricMaterial*>(material_ptr.get());
+      if (mirror_material_ptr) {
+        Vec3f reflection_direction =
+            ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
+        Ray reflection_ray = {
+            intersection_point + shadow_ray_epsilon_ * hit_normal,
+            reflection_direction};
+        Vec3f reflection_color = RecursiveRayTracingAlgorithm(
+            reflection_ray, inside_object_ptr, remaining_recursion - 1,
+            max_recursion);
+        pixel_value += hadamard(reflection_color, mirror_material_ptr->mirror_);
+      } else if (conductor_material_ptr) {
+      } else if (dielectric_material_ptr) {
+      }
     }
 
     if (inside_object_ptr) {

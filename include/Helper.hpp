@@ -33,6 +33,10 @@ inline Vec3f operator*(Vec3f a, float b) {
   return Vec3f{a.x * b, a.y * b, a.z * b};
 }
 
+inline Vec3f operator*(float a, Vec3f b) {
+  return Vec3f{a * b.x, a * b.y, a * b.z};
+};
+
 inline Vec3f operator/(Vec3f a, float b) {
   return Vec3f{a.x / b, a.y / b, a.z / b};
 }
