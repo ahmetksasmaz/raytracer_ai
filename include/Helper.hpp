@@ -45,6 +45,8 @@ inline Vec3f operator+(Vec3f a, Vec3f b) {
   return Vec3f{a.x + b.x, a.y + b.y, a.z + b.z};
 }
 
+inline Vec3f operator-(Vec3f a) { return Vec3f{-a.x, -a.y, -a.z}; }
+
 inline Vec3f operator+=(Vec3f& a, Vec3f b) {
   a.x += b.x;
   a.y += b.y;

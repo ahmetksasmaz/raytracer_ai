@@ -171,7 +171,71 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             max_recursion);
         pixel_value += hadamard(reflection_color, mirror_material_ptr->mirror_);
       } else if (conductor_material_ptr) {
+        Vec3f reflection_direction =
+            ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
+        Ray reflection_ray = {
+            intersection_point + shadow_ray_epsilon_ * hit_normal,
+            reflection_direction};
+        Vec3f reflection_color = RecursiveRayTracingAlgorithm(
+            reflection_ray, inside_object_ptr, remaining_recursion - 1,
+            max_recursion);
+
+        float n2 = conductor_material_ptr->refraction_index_;
+        float k2 = conductor_material_ptr->absorption_index_;
+        float cos_theta = -dot(ray.direction_, hit_normal);
+        float n2_k2_2 = n2 * n2 + k2 * k2;
+        float n2_cos_theta_tw = 2 * n2 * cos_theta;
+        float cos_theta_2 = cos_theta * cos_theta;
+        float rs = (n2_k2_2 - n2_cos_theta_tw + cos_theta_2) /
+                   (n2_k2_2 + n2_cos_theta_tw + cos_theta_2);
+        float rp = (n2_k2_2 * cos_theta_2 - n2_cos_theta_tw + 1) /
+                   (n2_k2_2 * cos_theta_2 + n2_cos_theta_tw + 1);
+        float fresnel_reflection_ratio = (rs + rp) / 2;
+
+        pixel_value +=
+            hadamard(reflection_color, conductor_material_ptr->mirror_ *
+                                           fresnel_reflection_ratio);
       } else if (dielectric_material_ptr) {
+        if (inside_object_ptr) {
+          hit_normal = -hit_normal;
+        }
+        Vec3f reflection_direction =
+            ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
+        Ray reflection_ray = {
+            intersection_point + shadow_ray_epsilon_ * hit_normal,
+            reflection_direction};
+        Vec3f reflection_color = RecursiveRayTracingAlgorithm(
+            reflection_ray, inside_object_ptr, remaining_recursion - 1,
+            max_recursion);
+
+        float n1 = 1.0f;
+        float n2 = dielectric_material_ptr->refraction_index_;
+
+        float cos_theta = -dot(ray.direction_, hit_normal);
+        float cos_phi =
+            sqrt(1 - (n1 * n1 / (n2 * n2)) * (1 - cos_theta * cos_theta));
+
+        float r_p =
+            (n1 * cos_theta - n2 * cos_phi) / (n1 * cos_theta + n2 * cos_phi);
+        float r_s =
+            (n1 * cos_phi - n2 * cos_theta) / (n1 * cos_phi + n2 * cos_theta);
+
+        float fresnel_reflection_ratio = (r_p * r_p + r_s * r_s) / 2;
+        float fresnel_transmission_ratio = 1.0 - fresnel_reflection_ratio;
+
+        pixel_value += reflection_color * fresnel_reflection_ratio;
+
+        Vec3f refraction_direction =
+            normalize((n1 / n2) * ray.direction_ +
+                      (n1 / n2 * cos_theta - cos_phi) * hit_normal);
+        Ray refraction_ray = {
+            intersection_point - shadow_ray_epsilon_ * hit_normal,
+            refraction_direction};
+        Vec3f refraction_color = RecursiveRayTracingAlgorithm(
+            refraction_ray, inside_object_ptr ? nullptr : hit_object_ptr,
+            remaining_recursion - 1, max_recursion);
+
+        pixel_value += refraction_color * fresnel_transmission_ratio;
       }
     }
 
