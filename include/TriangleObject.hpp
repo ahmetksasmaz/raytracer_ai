@@ -10,7 +10,8 @@ class TriangleObject : public BaseObject {
       : BaseObject(material), v0_(v0), v1_(v1), v2_(v2) {};
 
   bool Intersect(const Ray& ray, float& t_hit, Vec3f& intersection_normal,
-                 bool backface_culling = true) const override;
+                 bool backface_culling = true,
+                 bool stop_at_any_hit = false) const override;
 
   virtual ~TriangleObject() = default;
   void Preprocess() override;

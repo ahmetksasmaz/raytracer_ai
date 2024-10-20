@@ -1,8 +1,7 @@
 #include "SphereObject.hpp"
 
 bool SphereObject::Intersect(const Ray& ray, float& t_hit,
-                             Vec3f& intersection_normal,
-                             bool backface_culling) const {
+                             Vec3f& intersection_normal, bool, bool) const {
   // Calculate the discriminant
   Vec3f oc = ray.origin_ - center_;
   float a = dot(ray.direction_, ray.direction_);

@@ -2,7 +2,7 @@
 
 bool TriangleObject::Intersect(const Ray& ray, float& t_hit,
                                Vec3f& intersection_normal,
-                               bool backface_culling) const {
+                               bool backface_culling, bool) const {
   if (backface_culling && dot(ray.direction_, normal_) > 0) {
     return false;
   }

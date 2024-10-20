@@ -14,7 +14,8 @@ class BaseObject {
 
   virtual bool Intersect(const Ray& ray, float& t_hit,
                          Vec3f& intersection_normal,
-                         bool backface_culling = true) const = 0;
+                         bool backface_culling = true,
+                         bool stop_at_any_hit = false) const = 0;
 
   std::shared_ptr<BaseMaterial> material_;
 

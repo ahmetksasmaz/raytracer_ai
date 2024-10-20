@@ -68,17 +68,30 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 #ifdef DEBUG
       std::cout << "\t\tCalculating point light : " << point_light_index
                 << std::endl;
+      std::cout << "\t\tLight position : " << "(" << point_light->position_.x
+                << "," << point_light->position_.y << ","
+                << point_light->position_.z << ")" << std::endl;
 #endif
       Ray shadow_ray = {intersection_point,
                         normalize(point_light->position_ - intersection_point)};
+      float distance_to_light =
+          norm2(point_light->position_ - intersection_point);
       bool is_in_shadow = false;
+#ifdef DEBUG
+      int object_index = 0;
+#endif
       for (auto object : objects_) {
-        float shadow_hit;
+        float shadow_hit = std::numeric_limits<float>::max();
         Vec3f shadow_normal;
-        if (object->Intersect(shadow_ray, shadow_hit, shadow_normal)) {
-          is_in_shadow = true;
-          break;
+        if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, false)) {
+          if (shadow_hit < sqrt(distance_to_light)) {
+            is_in_shadow = true;
+            break;
+          }
         }
+#ifdef DEBUG
+        object_index++;
+#endif
       }
       if (!is_in_shadow) {
 #ifdef DEBUG
@@ -90,8 +103,6 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                   << point_light->intensity_.y << ","
                   << point_light->intensity_.z << ")" << std::endl;
 #endif
-        float distance_to_light =
-            norm2(point_light->position_ - intersection_point);
 #ifdef DEBUG
         std::cout << "\t\tDistance to light : " << sqrt(distance_to_light)
                   << std::endl;
@@ -103,11 +114,14 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             hadamard(material_ptr->diffuse_,
                      point_light->intensity_ / distance_to_light) *
             std::max(0.0f, dot(hit_normal, light_direction));
-        Vec3f specular_term =
-            hadamard(material_ptr->specular_,
-                     point_light->intensity_ / distance_to_light) *
-            pow(std::max(0.0f, dot(hit_normal, half_vector)),
-                material_ptr->phong_exponent_);
+        Vec3f specular_term = {0, 0, 0};
+        if (material_ptr->phong_exponent_ >= 0.0f) {
+          specular_term =
+              hadamard(material_ptr->specular_,
+                       point_light->intensity_ / distance_to_light) *
+              pow(std::max(0.0f, dot(hit_normal, half_vector)),
+                  material_ptr->phong_exponent_);
+        }
         pixel_value += diffuse_term + specular_term;
 #ifdef DEBUG
         std::cout << "\t\tLight direction : " << "(" << light_direction.x << ","

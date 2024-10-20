@@ -182,7 +182,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream >> material.ambient.x >> material.ambient.y >> material.ambient.z;
     stream >> material.diffuse.x >> material.diffuse.y >> material.diffuse.z;
     stream >> material.specular.x >> material.specular.y >> material.specular.z;
-    if (material.material_type == RawMaterialType::kMirror) {
+    if (material.material_type == RawMaterialType::kMirror ||
+        material.material_type == RawMaterialType::kConductor) {
       stream >> material.mirror.x >> material.mirror.y >> material.mirror.z;
     }
     if (material.material_type == RawMaterialType::kDielectric) {

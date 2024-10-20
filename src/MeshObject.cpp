@@ -30,8 +30,8 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
 };
 
 bool MeshObject::Intersect(const Ray& ray, float& t_hit,
-                           Vec3f& intersection_normal,
-                           bool backface_culling) const {
+                           Vec3f& intersection_normal, bool backface_culling,
+                           bool stop_at_any_hit) const {
   bool hit = false;
   for (size_t i = 0; i < face_data_.size(); i++) {
     const Vec3f& v0 = vertex_data_[face_data_[i].x];
@@ -71,7 +71,9 @@ bool MeshObject::Intersect(const Ray& ray, float& t_hit,
         intersection_normal = normal;
       }
       hit = true;
-    } else {
+      if (stop_at_any_hit) {
+        break;
+      }
     }
   }
   return hit;
