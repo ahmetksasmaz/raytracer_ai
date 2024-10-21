@@ -26,7 +26,7 @@ Ray BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
 
   Vec3f d = normalize((q_ + (u_ * su)) - (v_ * sv) - position_);
 
-  return Ray(position_, d);
+  return Ray(pixel_coordinate, position_, d);
 }
 
 void BaseCamera::UpdatePixelValue(const Vec2i& pixel_coordinate,
