@@ -1,0 +1,25 @@
+{
+    "shading": {
+        "ambient": true,
+        "diffuse": true,
+        "specular": true,
+        "__comment": "Enable or disable shading components"
+    },
+    "materials": {
+        "mirror": true,
+        "conductor": true,
+        "dielectric": true,
+        "__comment": "Enable or disable material types"
+    },
+    "strategies": {
+        "ray_tracing": "recursive",
+        "scheduling": "thread_queue",
+        "tone_mapping": "clamp",
+        "exporter": "stb",
+        "__comment": "Select the strategy algorithms",
+        "__comment2": "ray_tracing: default, recursive",
+        "__comment3": "scheduling: non_thread, thread_queue",
+        "__comment4": "tone_mapping: clamp",
+        "__comment5": "exporter: ppm, stb"
+    }
+}

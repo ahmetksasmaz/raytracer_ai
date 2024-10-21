@@ -10,6 +10,7 @@
 #include "BaseMaterial.hpp"
 #include "BaseObject.hpp"
 #include "ConductorMaterial.hpp"
+#include "Configuration.hpp"
 #include "DielectricMaterial.hpp"
 #include "MeshObject.hpp"
 #include "MirrorMaterial.hpp"
@@ -21,31 +22,9 @@
 
 using namespace parser;
 
-enum class RayTracingAlgorithm {
-  kDefault = 0,
-  kRecursive = 1,
-  kBest = 1,
-  kMax = 2
-};
-
-enum class SchedulingAlgorithm {
-  kNonThread = 0,
-  kThreadQueue = 1,
-  kBest = 1,
-  kMax = 1
-};
-
-enum class ToneMappingAlgorithm { kClamp = 0, kBest = 0, kMax = 0 };
-
-enum class ExporterType { kPPM = 0, kSTB = 1, kBest = 1, kMax = 1 };
-
 class Scene {
  public:
-  Scene(const std::string& filename,
-        const RayTracingAlgorithm ray_tracing_algorithm,
-        const SchedulingAlgorithm scheduling_algorithm,
-        const ToneMappingAlgorithm tone_mapping_algorithm,
-        const ExporterType exporter_type);
+  Scene(const std::string& filename, const Configuration& configuration);
   void Render();
   ~Scene();
 
@@ -54,6 +33,7 @@ class Scene {
   void PreprocessScene();
 
   const std::string filename_;
+  const Configuration configuration_;
 
   Vec3i background_color_;
   float shadow_ray_epsilon_;

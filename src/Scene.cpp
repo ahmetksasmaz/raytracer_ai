@@ -1,12 +1,8 @@
 #include "Scene.hpp"
 
-Scene::Scene(const std::string &filename,
-             const RayTracingAlgorithm ray_tracing_algorithm,
-             const SchedulingAlgorithm scheduling_algorithm,
-             const ToneMappingAlgorithm tone_mapping_algorithm,
-             const ExporterType exporter_type)
-    : filename_(filename) {
-  switch (exporter_type) {
+Scene::Scene(const std::string &filename, const Configuration &configuration)
+    : filename_(filename), configuration_(configuration) {
+  switch (configuration_.strategies_.exporter_type_) {
     case ExporterType::kPPM:
       exporter_ = std::make_shared<PPMExporter>();
       break;
@@ -15,7 +11,7 @@ Scene::Scene(const std::string &filename,
       break;
   }
 
-  switch (ray_tracing_algorithm) {
+  switch (configuration_.strategies_.ray_tracing_algorithm_) {
     case RayTracingAlgorithm::kDefault:
       ray_tracing_algorithm_ = std::bind(
           &Scene::DefaultRayTracingAlgorithm, this, std::placeholders::_1,
@@ -28,7 +24,7 @@ Scene::Scene(const std::string &filename,
       break;
   }
 
-  switch (scheduling_algorithm) {
+  switch (configuration_.strategies_.scheduling_algorithm_) {
     case SchedulingAlgorithm::kNonThread:
       scheduling_algorithm_ = std::bind(&Scene::NonThreadSchedulingAlgorithm,
                                         this, std::placeholders::_1);
@@ -39,7 +35,7 @@ Scene::Scene(const std::string &filename,
       break;
   }
 
-  switch (tone_mapping_algorithm) {
+  switch (configuration_.strategies_.tone_mapping_algorithm_) {
     case ToneMappingAlgorithm::kClamp:
       tone_mapping_algorithm_ =
           std::bind(&Scene::ClampToneMappingAlgorithm, this,

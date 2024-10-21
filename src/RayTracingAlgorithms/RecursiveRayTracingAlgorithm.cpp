@@ -79,19 +79,22 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     std::cout << "\t\tCalculating ambient." << std::endl;
 #endif
     if (!inside_object_ptr) {
-      for (auto ambient_light : ambient_lights_) {
+      if (configuration_.shading_.ambient_) {
+        for (auto ambient_light : ambient_lights_) {
 #ifdef DEBUG
-        std::cout << "\t\tAmbient light intensity : " << "("
-                  << ambient_light->intensity_.x << ","
-                  << ambient_light->intensity_.y << ","
-                  << ambient_light->intensity_.z << ")" << std::endl;
+          std::cout << "\t\tAmbient light intensity : " << "("
+                    << ambient_light->intensity_.x << ","
+                    << ambient_light->intensity_.y << ","
+                    << ambient_light->intensity_.z << ")" << std::endl;
 #endif
-        pixel_value +=
-            hadamard(material_ptr->ambient_, ambient_light->intensity_);
+          pixel_value +=
+              hadamard(material_ptr->ambient_, ambient_light->intensity_);
 #ifdef DEBUG
-        std::cout << "\t\tPixel value after : " << "(" << pixel_value.x << ","
-                  << pixel_value.y << "," << pixel_value.z << ")" << std::endl;
+          std::cout << "\t\tPixel value after : " << "(" << pixel_value.x << ","
+                    << pixel_value.y << "," << pixel_value.z << ")"
+                    << std::endl;
 #endif
+        }
       }
     }
 
@@ -148,20 +151,27 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 #endif
           Vec3f light_direction =
               normalize(point_light->position_ - intersection_point);
-          Vec3f half_vector = normalize(light_direction - ray.direction_);
-          Vec3f diffuse_term =
-              hadamard(material_ptr->diffuse_,
-                       point_light->intensity_ / distance_to_light) *
-              std::max(0.0f, dot(hit_normal, light_direction));
-          Vec3f specular_term = {0, 0, 0};
-          if (material_ptr->phong_exponent_ >= 0.0f) {
-            specular_term =
-                hadamard(material_ptr->specular_,
+
+          if (configuration_.shading_.diffuse_) {
+            Vec3f diffuse_term =
+                hadamard(material_ptr->diffuse_,
                          point_light->intensity_ / distance_to_light) *
-                pow(std::max(0.0f, dot(hit_normal, half_vector)),
-                    material_ptr->phong_exponent_);
+                std::max(0.0f, dot(hit_normal, light_direction));
+            pixel_value += diffuse_term;
           }
-          pixel_value += diffuse_term + specular_term;
+
+          if (configuration_.shading_.specular_) {
+            if (material_ptr->phong_exponent_ >= 0.0f) {
+              Vec3f half_vector = normalize(light_direction - ray.direction_);
+              Vec3f specular_term = {0, 0, 0};
+              specular_term =
+                  hadamard(material_ptr->specular_,
+                           point_light->intensity_ / distance_to_light) *
+                  pow(std::max(0.0f, dot(hit_normal, half_vector)),
+                      material_ptr->phong_exponent_);
+              pixel_value += specular_term;
+            }
+          }
 #ifdef DEBUG
           std::cout << "\t\tLight direction : " << "(" << light_direction.x
                     << "," << light_direction.y << "," << light_direction.z
@@ -203,7 +213,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           dynamic_cast<ConductorMaterial*>(material_ptr.get());
       DielectricMaterial* dielectric_material_ptr =
           dynamic_cast<DielectricMaterial*>(material_ptr.get());
-      if (mirror_material_ptr) {
+      if (mirror_material_ptr && configuration_.materials_.mirror_) {
         Vec3f reflection_direction =
             ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
         Ray reflection_ray = {ray.pixel_, intersection_point,
@@ -212,7 +222,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
         pixel_value += hadamard(reflection_color, mirror_material_ptr->mirror_);
-      } else if (conductor_material_ptr) {
+      } else if (conductor_material_ptr &&
+                 configuration_.materials_.conductor_) {
         Vec3f reflection_direction =
             ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
         Ray reflection_ray = {ray.pixel_, intersection_point,
@@ -236,7 +247,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         pixel_value +=
             hadamard(reflection_color, conductor_material_ptr->mirror_ *
                                            fresnel_reflection_ratio);
-      } else if (dielectric_material_ptr) {
+      } else if (dielectric_material_ptr &&
+                 configuration_.materials_.dielectric_) {
         Vec3f reflection_color = {0, 0, 0};
         Vec3f reflection_direction =
             ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
