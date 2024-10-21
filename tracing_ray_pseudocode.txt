@@ -9,12 +9,6 @@ TraceRay(ray, inside_object_ptr, remaining (max), max)
 			mesh için her bir triangle için tek fonksiyon (backface culling) (nearest intersection)
 	else:
 		inside_object_ptr ile kesişme kontrolü yap (frontface culling -> backface_culling kapatınca otomatik oluyor)
-
-
-
-
-
-
 	eğer kesişme varsa
 		t = distance
 		pixel değeri = ambient_light
@@ -42,13 +36,7 @@ TraceRay(ray, inside_object_ptr, remaining (max), max)
 					kırılma açısı ile giden ray oluştur (remaining-1, max)
 					return_pixel_value2 = TraceRay(refracted_ray, inside_object_ptr ? nullptr : intersected_object_ptr , remaining-1, max)
 					
-					pixel değeri += return_pixel_value1 * katsayılar1 + return_pixel_value2 * katsayılar2
-
-
-
-
-					
-					
+					pixel değeri += return_pixel_value1 * katsayılar1 + return_pixel_value2 * katsayılar2	
 	eğer kesişme yoksa
 		remaining == max ise
 			pixel değeri = background color
