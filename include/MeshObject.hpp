@@ -10,6 +10,8 @@ class MeshObject : public BaseObject {
   MeshObject(std::shared_ptr<BaseMaterial> material,
              const std::vector<RawFace>& raw_face_data,
              const std::vector<Vec3f>& raw_vertex_data);
+  MeshObject(std::shared_ptr<BaseMaterial> material,
+             const std::string& ply_filename);
 
   bool Intersect(const Ray& ray, float& t_hit, Vec3f& intersection_normal,
                  bool backface_culling = true,

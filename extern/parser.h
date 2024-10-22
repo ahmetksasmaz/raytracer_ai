@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "ply.h"
 
 namespace parser {
 // Notice that all the structures are as simple as possible
@@ -65,6 +66,7 @@ struct RawFace {
 struct RawMesh {
   int material_id;
   std::vector<RawFace> faces;
+  std::string ply_filepath = "";
 };
 
 struct RawTriangle {

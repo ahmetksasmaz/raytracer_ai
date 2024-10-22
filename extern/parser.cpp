@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "tinyxml2.h"
+#include <iostream>
 
 // #define PARSER_DEBUG
 
@@ -149,9 +150,10 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     child = element->FirstChildElement("SpecularReflectance");
     stream << child->GetText() << std::endl;
     child = element->FirstChildElement("MirrorReflectance");
-    if (child) {
-      assert(material.material_type == RawMaterialType::kMirror ||
-             material.material_type == RawMaterialType::kConductor);
+    bool mirror_reflectance_exists = child != NULL;
+    if (mirror_reflectance_exists) {
+      // assert(material.material_type == RawMaterialType::kMirror ||
+      //        material.material_type == RawMaterialType::kConductor);
       stream << child->GetText() << std::endl;
     }
 
@@ -182,8 +184,7 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream >> material.ambient.x >> material.ambient.y >> material.ambient.z;
     stream >> material.diffuse.x >> material.diffuse.y >> material.diffuse.z;
     stream >> material.specular.x >> material.specular.y >> material.specular.z;
-    if (material.material_type == RawMaterialType::kMirror ||
-        material.material_type == RawMaterialType::kConductor) {
+    if (mirror_reflectance_exists) {
       stream >> material.mirror.x >> material.mirror.y >> material.mirror.z;
     }
     if (material.material_type == RawMaterialType::kDielectric) {
@@ -238,13 +239,19 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream >> mesh.material_id;
 
     child = element->FirstChildElement("Faces");
-    stream << child->GetText() << std::endl;
-    RawFace face;
-    while (!(stream >> face.v0_id).eof()) {
-      stream >> face.v1_id >> face.v2_id;
-      mesh.faces.push_back(face);
+    if (child->Attribute("plyFile") != NULL) {
+       mesh.ply_filepath = std::string{child->Attribute("plyFile")};
+    }
+    else{
+      stream << child->GetText() << std::endl;
+      RawFace face;
+      while (!(stream >> face.v0_id).eof()) {
+        stream >> face.v1_id >> face.v2_id;
+        mesh.faces.push_back(face);
+      }
     }
     stream.clear();
+    
 
     meshes.push_back(mesh);
     mesh.faces.clear();

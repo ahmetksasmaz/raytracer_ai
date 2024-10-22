@@ -158,9 +158,15 @@ void Scene::LoadScene() {
   std::cout << "\tLoading meshes." << std::endl;
 #endif
   for (const auto &raw_mesh : raw_scene.meshes) {
-    objects_.push_back(
-        std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1],
-                                     raw_mesh.faces, raw_scene.vertex_data));
+    if(raw_mesh.ply_filepath != ""){
+      objects_.push_back(
+          std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1], raw_mesh.ply_filepath));
+    }
+    else{
+      objects_.push_back(
+          std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1],
+                                      raw_mesh.faces, raw_scene.vertex_data));
+    }
   }
 }
 

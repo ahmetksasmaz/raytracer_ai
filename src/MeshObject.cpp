@@ -29,6 +29,13 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
   }
 };
 
+MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
+             const std::string& ply_filename) : BaseObject(material){
+// vertex_data_;
+// face_data_;
+
+             }
+
 bool MeshObject::Intersect(const Ray& ray, float& t_hit,
                            Vec3f& intersection_normal, bool backface_culling,
                            bool stop_at_any_hit) const {
