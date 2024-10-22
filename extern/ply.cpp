@@ -37,6 +37,7 @@ WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 #include <math.h>
 #include <string.h>
 #include <ply.h>
+#include <iostream>
 
 const char *type_names[] = {
 "invalid",
@@ -798,7 +799,7 @@ Exit:
 ******************************************************************************/
 
 PlyFile *ply_open_for_reading(
-  char *filename,
+  const char *filename,
   int *nelems,
   char ***elem_names,
   int *file_type,
@@ -968,9 +969,11 @@ void ply_get_property(
              prop->name, elem_name);
     return;
   }
+  prop_ptr->external_type  = prop->external_type; // fix
   prop_ptr->internal_type  = prop->internal_type;
   prop_ptr->offset         = prop->offset;
   prop_ptr->count_internal = prop->count_internal;
+  prop_ptr->count_external = prop->count_external; // fix
   prop_ptr->count_offset   = prop->count_offset;
 
   /* specify that the user wants this property */

@@ -144,7 +144,7 @@ extern void ply_put_element(PlyFile *, void *);
 extern void ply_put_comment(PlyFile *, char *);
 extern void ply_put_obj_info(PlyFile *, char *);
 extern PlyFile *ply_read(FILE *, int *, char ***);
-extern PlyFile *ply_open_for_reading( char *, int *, char ***, int *, float *);
+extern PlyFile *ply_open_for_reading( const char *, int *, char ***, int *, float *);
 extern PlyProperty **ply_get_element_description(PlyFile *, char *, int*, int*);
 extern void ply_get_element_setup( PlyFile *, char *, int, PlyProperty *);
 extern void ply_get_property(PlyFile *, char *, PlyProperty *);

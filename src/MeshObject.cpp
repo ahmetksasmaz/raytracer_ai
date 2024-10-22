@@ -1,6 +1,27 @@
 #include "MeshObject.hpp"
 
 #include <iostream>
+#include <cstring>
+
+typedef struct Vertex {
+  float x,y,z;             /* the usual 3-space position of a vertex */
+} Vertex;
+
+typedef struct Face {
+  unsigned char nverts;    /* number of vertex indices in list */
+  int *verts;              /* vertex index list */
+} Face;
+
+PlyProperty vert_props[] = { /* list of property information for a vertex */
+  {const_cast<char*>("x"), PLY_FLOAT, PLY_FLOAT, offsetof(Vertex,x), 0, 0, 0, 0},
+  {const_cast<char*>("y"), PLY_FLOAT, PLY_FLOAT, offsetof(Vertex,y), 0, 0, 0, 0},
+  {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(Vertex,z), 0, 0, 0, 0},
+};
+
+PlyProperty face_props[] = { /* list of property information for a vertex */
+  {const_cast<char*>("vertex_indices"), PLY_INT, PLY_INT, offsetof(Face,verts),
+   1, PLY_UCHAR, PLY_UCHAR, offsetof(Face,nverts)},
+};
 
 MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
                        const std::vector<RawFace>& raw_face_data,
@@ -31,9 +52,43 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
 
 MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
              const std::string& ply_filename) : BaseObject(material){
-// vertex_data_;
-// face_data_;
 
+              int nelems;
+              char **elem_names;
+              int file_type;
+              float version;
+
+              PlyFile* ply_file =  ply_open_for_reading(ply_filename.c_str(), &nelems, &elem_names, &file_type, &version);
+
+              if(ply_file == NULL){
+                std::cout << "Error reading file" << std::endl;
+              }
+
+              for (int i = 0; i < nelems; i++) {
+                PlyElement* elem = ply_file->elems[i];
+                if (strcmp(elem->name, "vertex") == 0) {
+                  ply_get_property (ply_file, elem->name, &vert_props[0]);
+                  ply_get_property (ply_file, elem->name, &vert_props[1]);
+                  ply_get_property (ply_file, elem->name, &vert_props[2]);
+                  for (size_t j = 0; j < elem->num; j++) {
+                    Vertex vertex;
+                    ply_get_element (ply_file, (void *) &vertex);
+
+                    vertex_data_.push_back({vertex.x, vertex.y, vertex.z});
+                  }
+                } else if (strcmp(elem->name, "face") == 0) {
+                  ply_get_property (ply_file, elem->name, &face_props[0]);
+
+                  for (size_t j = 0; j < elem->num; j++) {
+                    Face face;
+                    ply_get_element (ply_file, (void *) &face);
+
+                    face_data_.push_back({face.verts[0], face.verts[1], face.verts[2]});
+                  }
+                }
+              }
+
+              ply_close(ply_file);
              }
 
 bool MeshObject::Intersect(const Ray& ray, float& t_hit,
