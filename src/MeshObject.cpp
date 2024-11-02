@@ -126,7 +126,8 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
 }
 
 void MeshObject::Preprocess(bool high_level_bvh_enabled,
-                            bool low_level_bvh_enabled) {
+                            bool low_level_bvh_enabled,
+                            bool transform_enabled) {
   float x_min = std::numeric_limits<float>::max();
   float y_min = std::numeric_limits<float>::max();
   float z_min = std::numeric_limits<float>::max();
@@ -139,7 +140,7 @@ void MeshObject::Preprocess(bool high_level_bvh_enabled,
         std::dynamic_pointer_cast<TriangleObject>(triangle_object);
 
     triangle_object_casted->Preprocess(high_level_bvh_enabled,
-                                       low_level_bvh_enabled);
+                                       low_level_bvh_enabled, false);
 
     x_min = std::min(x_min, triangle_object->min_point_.x);
     y_min = std::min(y_min, triangle_object->min_point_.y);
@@ -158,6 +159,17 @@ void MeshObject::Preprocess(bool high_level_bvh_enabled,
     Vec3f p5 = Vec3f{x_max, y_min, z_max};
     Vec3f p6 = Vec3f{x_min, y_max, z_max};
     Vec3f p7 = Vec3f{x_max, y_max, z_max};
+
+    if (transform_enabled) {
+      p0 = transform_matrix_ * p0;
+      p1 = transform_matrix_ * p1;
+      p2 = transform_matrix_ * p2;
+      p3 = transform_matrix_ * p3;
+      p4 = transform_matrix_ * p4;
+      p5 = transform_matrix_ * p5;
+      p6 = transform_matrix_ * p6;
+      p7 = transform_matrix_ * p7;
+    }
 
     Vec3f min_point = bounding_volume_min({p0, p1, p2, p3, p4, p5, p6, p7});
     Vec3f max_point = bounding_volume_max({p0, p1, p2, p3, p4, p5, p6, p7});

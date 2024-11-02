@@ -20,8 +20,8 @@ class MeshObject : public BaseObject {
 
   virtual ~MeshObject() = default;
 
-  void Preprocess(bool high_level_bvh_enabled,
-                  bool low_level_bvh_enabled) override;
+  void Preprocess(bool high_level_bvh_enabled, bool low_level_bvh_enabled,
+                  bool transform_enabled = true) override;
 
   std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>>
       triangle_objects_;

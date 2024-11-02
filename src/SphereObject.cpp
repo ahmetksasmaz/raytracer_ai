@@ -36,7 +36,8 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
 }
 
 void SphereObject::Preprocess(bool high_level_bvh_enabled,
-                              bool low_level_bvh_enabled) {
+                              bool low_level_bvh_enabled,
+                              bool transform_enabled) {
   if (high_level_bvh_enabled) {
     float x_min = center_.x - radius_;
     float y_min = center_.y - radius_;
@@ -54,14 +55,16 @@ void SphereObject::Preprocess(bool high_level_bvh_enabled,
     Vec3f p6 = Vec3f{x_min, y_max, z_max};
     Vec3f p7 = Vec3f{x_max, y_max, z_max};
 
-    p0 = transform_matrix_ * p0;
-    p1 = transform_matrix_ * p1;
-    p2 = transform_matrix_ * p2;
-    p3 = transform_matrix_ * p3;
-    p4 = transform_matrix_ * p4;
-    p5 = transform_matrix_ * p5;
-    p6 = transform_matrix_ * p6;
-    p7 = transform_matrix_ * p7;
+    if (transform_enabled) {
+      p0 = transform_matrix_ * p0;
+      p1 = transform_matrix_ * p1;
+      p2 = transform_matrix_ * p2;
+      p3 = transform_matrix_ * p3;
+      p4 = transform_matrix_ * p4;
+      p5 = transform_matrix_ * p5;
+      p6 = transform_matrix_ * p6;
+      p7 = transform_matrix_ * p7;
+    }
 
     Vec3f min_point = bounding_volume_min({p0, p1, p2, p3, p4, p5, p6, p7});
     Vec3f max_point = bounding_volume_max({p0, p1, p2, p3, p4, p5, p6, p7});

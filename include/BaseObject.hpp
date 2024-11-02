@@ -29,7 +29,8 @@ class BaseObject : public BoundingVolumeHierarchyElement,
 
   virtual ~BaseObject() = default;
   virtual void Preprocess(bool high_level_bvh_enabled,
-                          bool low_level_bvh_enabled) {};
+                          bool low_level_bvh_enabled,
+                          bool transform_enabled = true) {};
 
   Mat4x4f transform_matrix_;
   Mat4x4f inverse_transform_matrix_;

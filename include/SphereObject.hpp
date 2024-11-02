@@ -17,8 +17,8 @@ class SphereObject : public BaseObject {
 
   virtual ~SphereObject() = default;
 
-  void Preprocess(bool high_level_bvh_enabled,
-                  bool low_level_bvh_enabled) override;
+  void Preprocess(bool high_level_bvh_enabled, bool low_level_bvh_enabled,
+                  bool transform_enabled = true) override;
 
  private:
   const float radius_;

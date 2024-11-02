@@ -16,8 +16,8 @@ class TriangleObject : public BaseObject {
       bool stop_at_any_hit = false) const override;
 
   virtual ~TriangleObject() = default;
-  void Preprocess(bool high_level_bvh_enabled,
-                  bool low_level_bvh_enabled) override;
+  void Preprocess(bool high_level_bvh_enabled, bool low_level_bvh_enabled,
+                  bool transform_enabled = true) override;
 
  private:
   const Vec3f v0_;
