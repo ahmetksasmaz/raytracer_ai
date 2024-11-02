@@ -130,13 +130,22 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 #ifdef DEBUG
         int object_index = 0;
 #endif
-        for (auto object : objects_) {
-          float shadow_hit = std::numeric_limits<float>::max();
-          Vec3f shadow_normal;
-          if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, false)) {
-            if (shadow_hit < sqrt(distance_to_light)) {
-              is_in_shadow = true;
-              break;
+        float shadow_hit = std::numeric_limits<float>::max();
+        Vec3f shadow_normal;
+        if (configuration_.acceleration_.bvh_high_level_) {
+          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal,
+                                          false);
+          if (ret && shadow_hit < sqrt(distance_to_light)) {
+            is_in_shadow = true;
+          }
+        } else {
+          for (auto object : objects_) {
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal,
+                                  false)) {
+              if (shadow_hit < sqrt(distance_to_light)) {
+                is_in_shadow = true;
+                break;
+              }
             }
           }
 #ifdef DEBUG
