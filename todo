@@ -1,0 +1,11 @@
+1. implement low level bvh triangle
+2. implement low level bvh sphere
+3. implement low level bvh mesh
+
+4. implement triangle transforms
+5. implement sphere transforms
+6. implement mesh transforms
+
+7. implement mesh instance
+
+8. implement high level bvh
