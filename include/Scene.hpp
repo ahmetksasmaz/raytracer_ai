@@ -43,7 +43,9 @@ class Scene {
   std::vector<std::shared_ptr<PointLightSource>> point_lights_;
   std::vector<std::shared_ptr<AmbientLightSource>> ambient_lights_;
   std::vector<std::shared_ptr<BaseMaterial>> materials_;
-  std::vector<std::shared_ptr<BaseObject>> objects_;
+  std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> objects_;
+
+  std::shared_ptr<BoundingVolumeHierarchyElement> bvh_root_ = nullptr;
 
   std::function<void(const std::shared_ptr<BaseCamera>)> scheduling_algorithm_;
   std::function<Vec3f(const Ray&, const std::shared_ptr<BaseObject>, int, int)>
@@ -54,10 +56,12 @@ class Scene {
   std::shared_ptr<BaseExporter> exporter_;
 
   Vec3f DefaultRayTracingAlgorithm(
-      const Ray& ray, const std::shared_ptr<BaseObject> inside_object_ptr, int,
-      int);
+      const Ray& ray,
+      const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
+      int, int);
   Vec3f RecursiveRayTracingAlgorithm(
-      const Ray& ray, const std::shared_ptr<BaseObject> inside_object_ptr,
+      const Ray& ray,
+      const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
       int remaining_recursion, int max_recursion);
 
   void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera);

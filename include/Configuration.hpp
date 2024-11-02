@@ -42,6 +42,11 @@ struct Configuration {
     ExporterType exporter_type_ = ExporterType::kBest;
   } strategies_;
 
+  struct Acceleration {
+    bool bvh_low_level_ = true;
+    bool bvh_high_level_ = true;
+  } acceleration_;
+
   void ParseFromFile(const std::string& filename) {
     using json = nlohmann::json;
 
@@ -85,5 +90,12 @@ struct Configuration {
     } else if (exporter_type == "stb") {
       strategies_.exporter_type_ = ExporterType::kSTB;
     }
+
+    data.at("acceleration")
+        .at("bvh_low_level")
+        .get_to(acceleration_.bvh_low_level_);
+    data.at("acceleration")
+        .at("bvh_high_level")
+        .get_to(acceleration_.bvh_high_level_);
   }
 };

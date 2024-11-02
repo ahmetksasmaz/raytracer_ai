@@ -1,8 +1,10 @@
 #ifndef __HW1__PARSER__
 #define __HW1__PARSER__
 
+#include <ostream>
 #include <string>
 #include <vector>
+
 #include "ply.h"
 
 namespace parser {
@@ -12,6 +14,24 @@ enum RawMaterialType { kDefault, kMirror, kConductor, kDielectric };
 
 struct Vec3f {
   float x, y, z;
+
+  float operator[](size_t index) {
+    switch (index) {
+      case 0:
+        return x;
+      case 1:
+        return y;
+      case 2:
+        return z;
+      default:
+        return 0;
+    }
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Vec3f& vec) {
+    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
+    return os;
+  }
 };
 
 struct Vec2i {
@@ -20,10 +40,36 @@ struct Vec2i {
 
 struct Vec3i {
   int x, y, z;
+
+  float operator[](size_t index) {
+    switch (index) {
+      case 0:
+        return x;
+      case 1:
+        return y;
+      case 2:
+        return z;
+      default:
+        return 0;
+    }
+  }
 };
 
 struct Vec3uc {
   unsigned char r, g, b;
+
+  float operator[](size_t index) {
+    switch (index) {
+      case 0:
+        return r;
+      case 1:
+        return g;
+      case 2:
+        return b;
+      default:
+        return 0;
+    }
+  }
 };
 
 struct Vec4f {
@@ -67,17 +113,68 @@ struct RawMesh {
   int material_id;
   std::vector<RawFace> faces;
   std::string ply_filepath = "";
+  std::string transformations = "";
 };
 
 struct RawTriangle {
   int material_id;
   RawFace indices;
+  std::string transformations = "";
 };
 
 struct RawSphere {
   int material_id;
   int center_vertex_id;
   float radius;
+  std::string transformations = "";
+};
+
+struct RawTranslation {
+  float tx, ty, tz;
+};
+
+struct RawScaling {
+  float sx, sy, sz;
+};
+
+struct RawRotation {
+  float angle, x, y, z;
+};
+
+struct RawComposite {
+  float m[4][4];
+};
+
+struct Mat4x4f {
+  Mat4x4f() {}
+  Mat4x4f(std::vector<std::vector<float>> a) {
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 4; j++) {
+        m[i][j] = a[i][j];
+      }
+    }
+  }
+  Mat4x4f(RawComposite c) {
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 4; j++) {
+        m[i][j] = c.m[i][j];
+      }
+    }
+  }
+
+  float m[4][4];
+
+  friend std::ostream& operator<<(std::ostream& os, const Mat4x4f& matrix) {
+    for (int i = 0; i < 4; i++) {
+      os << " | ";
+      for (int j = 0; j < 4; j++) {
+        os << matrix.m[i][j] << " | ";
+      }
+      os << std::endl;
+    }
+
+    return os;
+  }
 };
 
 struct RawScene {
@@ -104,8 +201,13 @@ struct RawScene {
   std::vector<RawTriangle> triangles;
   std::vector<RawSphere> spheres;
 
+  std::vector<RawTranslation> translations;
+  std::vector<RawScaling> scalings;
+  std::vector<RawRotation> rotations;
+  std::vector<RawComposite> composites;
+
   // Functions
-  void loadFromXml(const std::string &filepath);
+  void loadFromXml(const std::string& filepath);
 };
 }  // namespace parser
 

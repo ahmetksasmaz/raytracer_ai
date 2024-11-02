@@ -6,15 +6,18 @@
 class TriangleObject : public BaseObject {
  public:
   TriangleObject(std::shared_ptr<BaseMaterial> material, const Vec3f& v0,
-                 const Vec3f& v1, const Vec3f& v2)
-      : BaseObject(material), v0_(v0), v1_(v1), v2_(v2) {};
+                 const Vec3f& v1, const Vec3f& v2,
+                 const Mat4x4f& transform_matrix)
+      : BaseObject(material, transform_matrix), v0_(v0), v1_(v1), v2_(v2) {};
 
-  bool Intersect(const Ray& ray, float& t_hit, Vec3f& intersection_normal,
-                 bool backface_culling = true,
-                 bool stop_at_any_hit = false) const override;
+  std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
+      const Ray& ray, float& t_hit, Vec3f& intersection_normal,
+      bool backface_culling = true,
+      bool stop_at_any_hit = false) const override;
 
   virtual ~TriangleObject() = default;
-  void Preprocess() override;
+  void Preprocess(bool high_level_bvh_enabled,
+                  bool low_level_bvh_enabled) override;
 
  private:
   const Vec3f v0_;

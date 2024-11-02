@@ -21,5 +21,12 @@
         "__comment3": "scheduling: non_thread, thread_queue",
         "__comment4": "tone_mapping: clamp",
         "__comment5": "exporter: ppm, stb"
+    },
+    "acceleration": {
+        "bvh_low_level": true,
+        "bvh_high_level": true,
+        "__comment": "Enable or disable acceleration structures",
+        "__comment2": "Low level BVH : BVH for object primitives",
+        "__comment3": "High level BVH : BVH for objects"
     }
 }

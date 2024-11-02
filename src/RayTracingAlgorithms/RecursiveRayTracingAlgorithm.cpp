@@ -11,22 +11,27 @@
 #endif
 
 Vec3f Scene::RecursiveRayTracingAlgorithm(
-    const Ray& ray, const std::shared_ptr<BaseObject> inside_object_ptr,
+    const Ray& ray,
+    const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
     int remaining_recursion, int max_recursion) {
   Vec3f pixel_value = {0, 0, 0};
   float t_hit = std::numeric_limits<float>::max();
   Vec3f hit_normal;
-  std::shared_ptr<BaseObject> hit_object_ptr = nullptr;
+  std::shared_ptr<BoundingVolumeHierarchyElement> hit_object_ptr = nullptr;
 
   if (inside_object_ptr == nullptr) {
-    for (auto object : objects_) {
-      float temp_hit = std::numeric_limits<float>::max();
-      Vec3f normal;
-      if (object->Intersect(ray, temp_hit, normal)) {
-        if (t_hit > temp_hit) {
-          t_hit = temp_hit;
-          hit_object_ptr = object;
-          hit_normal = normal;
+    if (configuration_.acceleration_.bvh_high_level_) {
+      hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal);
+    } else {
+      for (auto object : objects_) {
+        float temp_hit = std::numeric_limits<float>::max();
+        Vec3f normal;
+        if (object->Intersect(ray, temp_hit, normal)) {
+          if (t_hit > temp_hit) {
+            t_hit = temp_hit;
+            hit_object_ptr = object;
+            hit_normal = normal;
+          }
         }
       }
     }
@@ -64,6 +69,9 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 #endif
 
   if (hit_object_ptr) {
+    std::shared_ptr<BaseObject> hit_object_casted =
+        std::dynamic_pointer_cast<BaseObject>(hit_object_ptr);
+
 #ifdef DEBUG
     std::cout << "\t\tHit object!" << std::endl;
 #endif
@@ -73,7 +81,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 #endif
     // This is where the fun begins
 
-    std::shared_ptr<BaseMaterial> material_ptr = hit_object_ptr->material_;
+    std::shared_ptr<BaseMaterial> material_ptr = hit_object_casted->material_;
 
 #ifdef DEBUG
     std::cout << "\t\tCalculating ambient." << std::endl;
@@ -288,7 +296,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           // If the object type is triangle, inside_object_ptr is nullptr, check
           // later
           Vec3f refraction_color = RecursiveRayTracingAlgorithm(
-              refraction_ray, inside_object_ptr ? nullptr : hit_object_ptr,
+              refraction_ray, inside_object_ptr ? nullptr : hit_object_casted,
               remaining_recursion - 1, max_recursion);
           pixel_value += reflection_color * fresnel_reflection_ratio;
           pixel_value += refraction_color * fresnel_transmission_ratio;
@@ -299,9 +307,13 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     }
 
     if (inside_object_ptr) {
-      Vec3f absorption_coefficient = dynamic_cast<DielectricMaterial*>(
-                                         (inside_object_ptr->material_).get())
-                                         ->absorption_coefficient_;
+      std::shared_ptr<BaseObject> inside_object_casted =
+          std::dynamic_pointer_cast<BaseObject>(inside_object_ptr);
+
+      Vec3f absorption_coefficient =
+          dynamic_cast<DielectricMaterial*>(
+              (inside_object_casted->material_).get())
+              ->absorption_coefficient_;
       pixel_value.x *= exp(-absorption_coefficient.x * t_hit);
       pixel_value.y *= exp(-absorption_coefficient.y * t_hit);
       pixel_value.z *= exp(-absorption_coefficient.z * t_hit);

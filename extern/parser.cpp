@@ -2,11 +2,11 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 
 #include "tinyxml2.h"
-#include <iostream>
 
 // #define PARSER_DEBUG
 
@@ -209,6 +209,57 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     element = element->NextSiblingElement("Material");
   }
 
+  // Get Transformations
+  element = root->FirstChildElement("Transformations");
+  if (element) {
+    auto transformation_element = element->FirstChildElement("Translation");
+    RawTranslation translation;
+    while (transformation_element) {
+      stream << transformation_element->GetText() << std::endl;
+      stream >> translation.tx >> translation.ty >> translation.tz;
+      translations.push_back(translation);
+      transformation_element =
+          transformation_element->NextSiblingElement("Translation");
+    }
+
+    transformation_element = element->FirstChildElement("Scaling");
+    RawScaling scaling;
+    while (transformation_element) {
+      stream << transformation_element->GetText() << std::endl;
+      stream >> scaling.sx >> scaling.sy >> scaling.sz;
+      scalings.push_back(scaling);
+      transformation_element =
+          transformation_element->NextSiblingElement("Scaling");
+    }
+
+    transformation_element = element->FirstChildElement("Rotation");
+    RawRotation rotation;
+    while (transformation_element) {
+      stream << transformation_element->GetText() << std::endl;
+      stream >> rotation.angle >> rotation.x >> rotation.y >> rotation.z;
+      rotations.push_back(rotation);
+      transformation_element =
+          transformation_element->NextSiblingElement("Rotation");
+    }
+
+    transformation_element = element->FirstChildElement("Composite");
+    RawComposite composite;
+    while (transformation_element) {
+      stream << transformation_element->GetText() << std::endl;
+      stream >> composite.m[0][0] >> composite.m[0][1] >> composite.m[0][2] >>
+          composite.m[0][3];
+      stream >> composite.m[1][0] >> composite.m[1][1] >> composite.m[1][2] >>
+          composite.m[1][3];
+      stream >> composite.m[2][0] >> composite.m[2][1] >> composite.m[2][2] >>
+          composite.m[2][3];
+      stream >> composite.m[3][0] >> composite.m[3][1] >> composite.m[3][2] >>
+          composite.m[3][3];
+      composites.push_back(composite);
+      transformation_element =
+          transformation_element->NextSiblingElement("Composite");
+    }
+  }
+
 #ifdef PARSER_DEBUG
   std::cout << "\t\tMaterials parsed." << std::endl;
 #endif
@@ -238,11 +289,15 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream << child->GetText() << std::endl;
     stream >> mesh.material_id;
 
+    child = element->FirstChildElement("Transformations");
+    if (child) {
+      mesh.transformations = std::string{child->GetText()};
+    }
+
     child = element->FirstChildElement("Faces");
     if (child->Attribute("plyFile") != NULL) {
-       mesh.ply_filepath = std::string{child->Attribute("plyFile")};
-    }
-    else{
+      mesh.ply_filepath = std::string{child->Attribute("plyFile")};
+    } else {
       stream << child->GetText() << std::endl;
       RawFace face;
       while (!(stream >> face.v0_id).eof()) {
@@ -251,7 +306,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       }
     }
     stream.clear();
-    
 
     meshes.push_back(mesh);
     mesh.faces.clear();
@@ -270,6 +324,11 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     child = element->FirstChildElement("Material");
     stream << child->GetText() << std::endl;
     stream >> triangle.material_id;
+
+    child = element->FirstChildElement("Transformations");
+    if (child) {
+      triangle.transformations = std::string{child->GetText()};
+    }
 
     child = element->FirstChildElement("Indices");
     stream << child->GetText() << std::endl;
@@ -292,6 +351,11 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     child = element->FirstChildElement("Material");
     stream << child->GetText() << std::endl;
     stream >> sphere.material_id;
+
+    child = element->FirstChildElement("Transformations");
+    if (child) {
+      sphere.transformations = std::string{child->GetText()};
+    }
 
     child = element->FirstChildElement("Center");
     stream << child->GetText() << std::endl;

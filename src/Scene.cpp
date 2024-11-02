@@ -138,34 +138,52 @@ void Scene::LoadScene() {
   std::cout << "\tLoading spheres." << std::endl;
 #endif
   for (const auto &raw_sphere : raw_scene.spheres) {
-    objects_.push_back(std::make_shared<SphereObject>(
-        materials_[raw_sphere.material_id - 1],
-        raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
-        raw_sphere.radius));
+    Mat4x4f transformation_matrix = parse_transformation(
+        raw_sphere.transformations, raw_scene.translations, raw_scene.scalings,
+        raw_scene.rotations, raw_scene.composites);
+    objects_.push_back(
+        std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+            std::make_shared<SphereObject>(
+                materials_[raw_sphere.material_id - 1],
+                raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
+                raw_sphere.radius, transformation_matrix)));
   }
 #ifdef DEBUG
   std::cout << "\tLoading triangles." << std::endl;
 #endif
   for (const auto &raw_triangle : raw_scene.triangles) {
-    objects_.push_back(std::make_shared<TriangleObject>(
-        materials_[raw_triangle.material_id - 1],
-        raw_scene.vertex_data[raw_triangle.indices.v0_id - 1],
-        raw_scene.vertex_data[raw_triangle.indices.v1_id - 1],
-        raw_scene.vertex_data[raw_triangle.indices.v2_id - 1]));
+    Mat4x4f transformation_matrix = parse_transformation(
+        raw_triangle.transformations, raw_scene.translations,
+        raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    objects_.push_back(
+        std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+            std::make_shared<TriangleObject>(
+                materials_[raw_triangle.material_id - 1],
+                raw_scene.vertex_data[raw_triangle.indices.v0_id - 1],
+                raw_scene.vertex_data[raw_triangle.indices.v1_id - 1],
+                raw_scene.vertex_data[raw_triangle.indices.v2_id - 1],
+                transformation_matrix)));
   }
 
 #ifdef DEBUG
   std::cout << "\tLoading meshes." << std::endl;
 #endif
   for (const auto &raw_mesh : raw_scene.meshes) {
-    if(raw_mesh.ply_filepath != ""){
+    Mat4x4f transformation_matrix = parse_transformation(
+        raw_mesh.transformations, raw_scene.translations, raw_scene.scalings,
+        raw_scene.rotations, raw_scene.composites);
+    if (raw_mesh.ply_filepath != "") {
       objects_.push_back(
-          std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1], raw_mesh.ply_filepath));
-    }
-    else{
+          std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+              std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1],
+                                           raw_mesh.ply_filepath,
+                                           transformation_matrix)));
+    } else {
       objects_.push_back(
-          std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1],
-                                      raw_mesh.faces, raw_scene.vertex_data));
+          std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+              std::make_shared<MeshObject>(
+                  materials_[raw_mesh.material_id - 1], raw_mesh.faces,
+                  raw_scene.vertex_data, transformation_matrix)));
     }
   }
 }
@@ -179,7 +197,16 @@ void Scene::PreprocessScene() {
 #ifdef DEBUG
     std::cout << "\tPreprocessing for object : " << object_index << std::endl;
 #endif
-    object->Preprocess();
+    std::shared_ptr<BaseObject> object_casted =
+        std::dynamic_pointer_cast<BaseObject>(object);
+
+    object_casted->Preprocess(configuration_.acceleration_.bvh_high_level_,
+                              configuration_.acceleration_.bvh_low_level_);
+  }
+
+  if (configuration_.acceleration_.bvh_high_level_) {
+    bvh_root_ = BoundingVolumeHierarchyElement::Construct(objects_, 0,
+                                                          objects_.size(), 0);
   }
 }
 
