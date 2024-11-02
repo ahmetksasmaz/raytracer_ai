@@ -12,6 +12,7 @@
 #include "ConductorMaterial.hpp"
 #include "Configuration.hpp"
 #include "DielectricMaterial.hpp"
+#include "MeshInstanceObject.hpp"
 #include "MeshObject.hpp"
 #include "MirrorMaterial.hpp"
 #include "PPMExporter.hpp"

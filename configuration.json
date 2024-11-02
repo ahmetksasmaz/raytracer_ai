@@ -27,6 +27,7 @@
         "bvh_high_level": true,
         "__comment": "Enable or disable acceleration structures",
         "__comment2": "Low level BVH : BVH for object primitives",
-        "__comment3": "High level BVH : BVH for objects"
+        "__comment3": "High level BVH : BVH for objects",
+        "__comment4": "Instance referencing: true for using reference of object (primitives also), false for deep copy"
     }
 }

@@ -138,7 +138,7 @@ void Scene::LoadScene() {
   std::cout << "\tLoading spheres." << std::endl;
 #endif
   for (const auto &raw_sphere : raw_scene.spheres) {
-    Mat4x4f transformation_matrix = parse_transformation(
+    Mat4x4f transform_matrix = parse_transformation(
         raw_sphere.transformations, raw_scene.translations, raw_scene.scalings,
         raw_scene.rotations, raw_scene.composites);
     objects_.push_back(
@@ -146,13 +146,13 @@ void Scene::LoadScene() {
             std::make_shared<SphereObject>(
                 materials_[raw_sphere.material_id - 1],
                 raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
-                raw_sphere.radius, transformation_matrix)));
+                raw_sphere.radius, transform_matrix)));
   }
 #ifdef DEBUG
   std::cout << "\tLoading triangles." << std::endl;
 #endif
   for (const auto &raw_triangle : raw_scene.triangles) {
-    Mat4x4f transformation_matrix = parse_transformation(
+    Mat4x4f transform_matrix = parse_transformation(
         raw_triangle.transformations, raw_scene.translations,
         raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
     objects_.push_back(
@@ -162,14 +162,16 @@ void Scene::LoadScene() {
                 raw_scene.vertex_data[raw_triangle.indices.v0_id - 1],
                 raw_scene.vertex_data[raw_triangle.indices.v1_id - 1],
                 raw_scene.vertex_data[raw_triangle.indices.v2_id - 1],
-                transformation_matrix)));
+                transform_matrix)));
   }
 
 #ifdef DEBUG
   std::cout << "\tLoading meshes." << std::endl;
 #endif
+
+  int meshes_start_index = objects_.size();
   for (const auto &raw_mesh : raw_scene.meshes) {
-    Mat4x4f transformation_matrix = parse_transformation(
+    Mat4x4f transform_matrix = parse_transformation(
         raw_mesh.transformations, raw_scene.translations, raw_scene.scalings,
         raw_scene.rotations, raw_scene.composites);
     if (raw_mesh.ply_filepath != "") {
@@ -177,14 +179,79 @@ void Scene::LoadScene() {
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1],
                                            raw_mesh.ply_filepath,
-                                           transformation_matrix)));
+                                           transform_matrix)));
     } else {
       objects_.push_back(
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
                   materials_[raw_mesh.material_id - 1], raw_mesh.faces,
-                  raw_scene.vertex_data, transformation_matrix)));
+                  raw_scene.vertex_data, transform_matrix)));
     }
+  }
+
+#ifdef DEBUG
+  std::cout << "\tLoading mesh instances." << std::endl;
+#endif
+
+  for (auto &raw_mesh_instance : raw_scene.mesh_instances) {
+    Mat4x4f transform_matrix =
+        raw_mesh_instance.reset_transform
+            ? parse_transformation(raw_mesh_instance.transformations,
+                                   raw_scene.translations, raw_scene.scalings,
+                                   raw_scene.rotations, raw_scene.composites)
+            : IDENTITY_MATRIX;
+
+    std::shared_ptr<MeshObject> mesh_object = nullptr;
+    std::shared_ptr<BaseMaterial> material = nullptr;
+
+    // Search for the root mesh objects
+    auto &current_raw_mesh = raw_mesh_instance;
+    bool any_reset = false;
+    while (!mesh_object) {
+      if (!current_raw_mesh.reset_transform && !any_reset) {
+        transform_matrix =
+            transform_matrix *
+            parse_transformation(current_raw_mesh.transformations,
+                                 raw_scene.translations, raw_scene.scalings,
+                                 raw_scene.rotations, raw_scene.composites);
+      } else {
+        any_reset = true;
+      }
+
+      int base_object_id = current_raw_mesh.base_object_id;
+
+      int counter = 0;
+      for (auto &temp_raw_mesh : raw_scene.meshes) {
+        if (temp_raw_mesh.object_id == base_object_id) {
+          mesh_object = std::dynamic_pointer_cast<MeshObject>(
+              objects_[meshes_start_index + counter]);
+          break;
+        }
+        counter++;
+      }
+
+      for (auto &temp_raw_mesh_instance : raw_scene.mesh_instances) {
+        if (temp_raw_mesh_instance.object_id == base_object_id) {
+          current_raw_mesh = temp_raw_mesh_instance;
+          break;
+        }
+      }
+    }
+
+    if (!any_reset) {
+      transform_matrix = transform_matrix * mesh_object->transform_matrix_;
+    }
+
+    if (raw_mesh_instance.material_id != -1) {
+      material = materials_[raw_mesh_instance.material_id - 1];
+    } else {
+      material = mesh_object->material_;
+    }
+
+    objects_.push_back(
+        std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+            std::make_shared<MeshInstanceObject>(material, mesh_object,
+                                                 transform_matrix)));
   }
 }
 

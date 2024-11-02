@@ -285,6 +285,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   element = element->FirstChildElement("Mesh");
   RawMesh mesh;
   while (element) {
+    mesh.object_id = std::stoi(element->Attribute("id"));
+
     child = element->FirstChildElement("Material");
     stream << child->GetText() << std::endl;
     stream >> mesh.material_id;
@@ -316,11 +318,45 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   std::cout << "\t\tMeshes parsed." << std::endl;
 #endif
 
+  // Get Mesh Instances
+  element = root->FirstChildElement("Objects");
+  element = element->FirstChildElement("MeshInstance");
+  RawMeshInstance mesh_instance;
+  while (element) {
+    mesh_instance.object_id = std::stoi(element->Attribute("id"));
+    mesh_instance.base_object_id = std::stoi(element->Attribute("baseMeshId"));
+    mesh_instance.reset_transform =
+        element->BoolAttribute("resetTransform", false);
+
+    child = element->FirstChildElement("Material");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> mesh_instance.material_id;
+
+    } else {
+      mesh_instance.material_id = -1;
+    }
+
+    child = element->FirstChildElement("Transformations");
+    if (child) {
+      mesh_instance.transformations = std::string{child->GetText()};
+    }
+
+    mesh_instances.push_back(mesh_instance);
+    element = element->NextSiblingElement("MeshInstance");
+  }
+  stream.clear();
+
+#ifdef PARSER_DEBUG
+  std::cout << "\t\tMesh Instances parsed." << std::endl;
+#endif
+
   // Get Triangles
   element = root->FirstChildElement("Objects");
   element = element->FirstChildElement("Triangle");
   RawTriangle triangle;
   while (element) {
+    triangle.object_id = std::stoi(element->Attribute("id"));
     child = element->FirstChildElement("Material");
     stream << child->GetText() << std::endl;
     stream >> triangle.material_id;
@@ -348,6 +384,7 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   element = element->FirstChildElement("Sphere");
   RawSphere sphere;
   while (element) {
+    sphere.object_id = std::stoi(element->Attribute("id"));
     child = element->FirstChildElement("Material");
     stream << child->GetText() << std::endl;
     stream >> sphere.material_id;

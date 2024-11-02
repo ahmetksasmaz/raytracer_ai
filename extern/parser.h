@@ -110,19 +110,30 @@ struct RawFace {
 };
 
 struct RawMesh {
+  int object_id;
   int material_id;
   std::vector<RawFace> faces;
   std::string ply_filepath = "";
   std::string transformations = "";
 };
 
+struct RawMeshInstance {
+  int object_id;
+  int material_id;
+  int base_object_id;
+  bool reset_transform;
+  std::string transformations = "";
+};
+
 struct RawTriangle {
+  int object_id;
   int material_id;
   RawFace indices;
   std::string transformations = "";
 };
 
 struct RawSphere {
+  int object_id;
   int material_id;
   int center_vertex_id;
   float radius;
@@ -198,6 +209,7 @@ struct RawScene {
   std::vector<RawMaterial> materials;
   std::vector<Vec3f> vertex_data;
   std::vector<RawMesh> meshes;
+  std::vector<RawMeshInstance> mesh_instances;
   std::vector<RawTriangle> triangles;
   std::vector<RawSphere> spheres;
 
