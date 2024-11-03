@@ -114,6 +114,16 @@ inline Mat4x4f operator*(Mat4x4f a, Mat4x4f b) {
   return result;
 }
 
+inline Mat4x4f operator*(Mat4x4f a, float b) {
+  Mat4x4f result;
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      result.m[i][j] = a.m[i][j] * b;
+    }
+  }
+  return result;
+}
+
 inline Mat4x4f operator!(Mat4x4f a) {
   Mat4x4f result;
   for (int i = 0; i < 4; i++) {
@@ -126,34 +136,76 @@ inline Mat4x4f operator!(Mat4x4f a) {
 
 inline Mat4x4f operator~(Mat4x4f a) {
   Mat4x4f result;
-  float det = a.m[0][0] * (a.m[1][1] * a.m[2][2] - a.m[1][2] * a.m[2][1]) -
-              a.m[0][1] * (a.m[1][0] * a.m[2][2] - a.m[1][2] * a.m[2][0]) +
-              a.m[0][2] * (a.m[1][0] * a.m[2][1] - a.m[1][1] * a.m[2][0]);
+  result.m[0][0] = a[5] * a[10] * a[15] - a[5] * a[11] * a[14] -
+                   a[9] * a[6] * a[15] + a[9] * a[7] * a[14] +
+                   a[13] * a[6] * a[11] - a[13] * a[7] * a[10];
 
-  float invDet = 1.0f / det;
+  result.m[1][0] = -a[4] * a[10] * a[15] + a[4] * a[11] * a[14] +
+                   a[8] * a[6] * a[15] - a[8] * a[7] * a[14] -
+                   a[12] * a[6] * a[11] + a[12] * a[7] * a[10];
 
-  result.m[0][0] = (a.m[1][1] * a.m[2][2] - a.m[1][2] * a.m[2][1]) * invDet;
-  result.m[0][1] = (a.m[0][2] * a.m[2][1] - a.m[0][1] * a.m[2][2]) * invDet;
-  result.m[0][2] = (a.m[0][1] * a.m[1][2] - a.m[0][2] * a.m[1][1]) * invDet;
-  result.m[0][3] = 0.0f;
+  result.m[2][0] = a[4] * a[9] * a[15] - a[4] * a[11] * a[13] -
+                   a[8] * a[5] * a[15] + a[8] * a[7] * a[13] +
+                   a[12] * a[5] * a[11] - a[12] * a[7] * a[9];
 
-  result.m[1][0] = (a.m[1][2] * a.m[2][0] - a.m[1][0] * a.m[2][2]) * invDet;
-  result.m[1][1] = (a.m[0][0] * a.m[2][2] - a.m[0][2] * a.m[2][0]) * invDet;
-  result.m[1][2] = (a.m[0][2] * a.m[1][0] - a.m[0][0] * a.m[1][2]) * invDet;
-  result.m[1][3] = 0.0f;
+  result.m[3][0] = -a[4] * a[9] * a[14] + a[4] * a[10] * a[13] +
+                   a[8] * a[5] * a[14] - a[8] * a[6] * a[13] -
+                   a[12] * a[5] * a[10] + a[12] * a[6] * a[9];
 
-  result.m[2][0] = (a.m[1][0] * a.m[2][1] - a.m[1][1] * a.m[2][0]) * invDet;
-  result.m[2][1] = (a.m[0][1] * a.m[2][0] - a.m[0][0] * a.m[2][1]) * invDet;
-  result.m[2][2] = (a.m[0][0] * a.m[1][1] - a.m[0][1] * a.m[1][0]) * invDet;
-  result.m[2][3] = 0.0f;
+  result.m[0][1] = -a[1] * a[10] * a[15] + a[1] * a[11] * a[14] +
+                   a[9] * a[2] * a[15] - a[9] * a[3] * a[14] -
+                   a[13] * a[2] * a[11] + a[13] * a[3] * a[10];
 
-  result.m[3][0] = -(a.m[3][0] * result.m[0][0] + a.m[3][1] * result.m[1][0] +
-                     a.m[3][2] * result.m[2][0]);
-  result.m[3][1] = -(a.m[3][0] * result.m[0][1] + a.m[3][1] * result.m[1][1] +
-                     a.m[3][2] * result.m[2][1]);
-  result.m[3][2] = -(a.m[3][0] * result.m[0][2] + a.m[3][1] * result.m[1][2] +
-                     a.m[3][2] * result.m[2][2]);
-  result.m[3][3] = 1.0f;
+  result.m[1][1] = a[0] * a[10] * a[15] - a[0] * a[11] * a[14] -
+                   a[8] * a[2] * a[15] + a[8] * a[3] * a[14] +
+                   a[12] * a[2] * a[11] - a[12] * a[3] * a[10];
+
+  result.m[2][1] = -a[0] * a[9] * a[15] + a[0] * a[11] * a[13] +
+                   a[8] * a[1] * a[15] - a[8] * a[3] * a[13] -
+                   a[12] * a[1] * a[11] + a[12] * a[3] * a[9];
+
+  result.m[3][1] = a[0] * a[9] * a[14] - a[0] * a[10] * a[13] -
+                   a[8] * a[1] * a[14] + a[8] * a[2] * a[13] +
+                   a[12] * a[1] * a[10] - a[12] * a[2] * a[9];
+
+  result.m[0][2] = a[1] * a[6] * a[15] - a[1] * a[7] * a[14] -
+                   a[5] * a[2] * a[15] + a[5] * a[3] * a[14] +
+                   a[13] * a[2] * a[7] - a[13] * a[3] * a[6];
+
+  result.m[1][2] = -a[0] * a[6] * a[15] + a[0] * a[7] * a[14] +
+                   a[4] * a[2] * a[15] - a[4] * a[3] * a[14] -
+                   a[12] * a[2] * a[7] + a[12] * a[3] * a[6];
+
+  result.m[2][2] = a[0] * a[5] * a[15] - a[0] * a[7] * a[13] -
+                   a[4] * a[1] * a[15] + a[4] * a[3] * a[13] +
+                   a[12] * a[1] * a[7] - a[12] * a[3] * a[5];
+
+  result.m[3][2] = -a[0] * a[5] * a[14] + a[0] * a[6] * a[13] +
+                   a[4] * a[1] * a[14] - a[4] * a[2] * a[13] -
+                   a[12] * a[1] * a[6] + a[12] * a[2] * a[5];
+
+  result.m[0][3] = -a[1] * a[6] * a[11] + a[1] * a[7] * a[10] +
+                   a[5] * a[2] * a[11] - a[5] * a[3] * a[10] -
+                   a[9] * a[2] * a[7] + a[9] * a[3] * a[6];
+
+  result.m[1][3] = a[0] * a[6] * a[11] - a[0] * a[7] * a[10] -
+                   a[4] * a[2] * a[11] + a[4] * a[3] * a[10] +
+                   a[8] * a[2] * a[7] - a[8] * a[3] * a[6];
+
+  result.m[2][3] = -a[0] * a[5] * a[11] + a[0] * a[7] * a[9] +
+                   a[4] * a[1] * a[11] - a[4] * a[3] * a[9] -
+                   a[8] * a[1] * a[7] + a[8] * a[3] * a[5];
+
+  result.m[3][3] = a[0] * a[5] * a[10] - a[0] * a[6] * a[9] -
+                   a[4] * a[1] * a[10] + a[4] * a[2] * a[9] +
+                   a[8] * a[1] * a[6] - a[8] * a[2] * a[5];
+
+  float det = a[0] * result[0] + a[1] * result[4] + a[2] * result[8] +
+              a[3] * result[12];
+
+  det = 1.0 / det;
+
+  result = result * det;
 
   return result;
 }
@@ -213,6 +265,7 @@ inline Mat4x4f rotation_matrix(RawRotation r) {
 }
 
 inline Mat4x4f parse_transformation(std::string tranformation_text,
+                                    RawScalingFlip& scaling_flip,
                                     std::vector<RawTranslation>& translations,
                                     std::vector<RawScaling>& scalings,
                                     std::vector<RawRotation>& rotations,
@@ -227,8 +280,17 @@ inline Mat4x4f parse_transformation(std::string tranformation_text,
       multiplier_matrix = translation_matrix(
           translations[std::stoi(transformation.substr(1)) - 1]);
     } else if (transformation[0] == 's') {
-      multiplier_matrix =
-          scaling_matrix(scalings[std::stoi(transformation.substr(1)) - 1]);
+      auto scaling = scalings[std::stoi(transformation.substr(1)) - 1];
+      multiplier_matrix = scaling_matrix(scaling);
+      if (scaling.sx < 0) {
+        scaling_flip.sx = !scaling_flip.sx;
+      }
+      if (scaling.sy < 0) {
+        scaling_flip.sy = !scaling_flip.sy;
+      }
+      if (scaling.sz < 0) {
+        scaling_flip.sz = !scaling_flip.sz;
+      }
     } else if (transformation[0] == 'r') {
       multiplier_matrix =
           rotation_matrix(rotations[std::stoi(transformation.substr(1)) - 1]);

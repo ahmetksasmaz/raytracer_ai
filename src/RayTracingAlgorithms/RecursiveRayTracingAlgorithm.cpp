@@ -2,14 +2,6 @@
 
 #include "Scene.hpp"
 
-// #define RAY_DEBUG
-
-#ifdef RAY_DEBUG
-
-#include <fstream>
-
-#endif
-
 Vec3f Scene::RecursiveRayTracingAlgorithm(
     const Ray& ray,
     const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
@@ -44,92 +36,32 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     }
   }
 
-#ifdef RAY_DEBUG
-
-  std::ofstream output_file("rays/" + std::to_string(ray.pixel_.x) + "_" +
-                                std::to_string(ray.pixel_.y) + ".txt",
-                            std::ios::app);
-
-  int current_recursion = max_recursion - remaining_recursion;
-
-  output_file << current_recursion << "\t" << ray.origin_.x << "\t"
-              << ray.origin_.y << "\t" << ray.origin_.z << "\t"
-              << ray.direction_.x << "\t" << ray.direction_.y << "\t"
-              << ray.direction_.z;
-
-  if (hit_object_ptr) {
-    output_file << "\t" << t_hit << "\t" << hit_normal.x << "\t" << hit_normal.y
-                << "\t" << hit_normal.z;
-  }
-
-  output_file << std::endl;
-
-  output_file.close();
-
-#endif
-
   if (hit_object_ptr) {
     std::shared_ptr<BaseObject> hit_object_casted =
         std::dynamic_pointer_cast<BaseObject>(hit_object_ptr);
-
-#ifdef DEBUG
-    std::cout << "\t\tHit object!" << std::endl;
-#endif
-#ifdef DEBUG
-    std::cout << "\t\tHit normal : " << "(" << hit_normal.x << ","
-              << hit_normal.y << "," << hit_normal.z << ")" << std::endl;
-#endif
     // This is where the fun begins
 
     std::shared_ptr<BaseMaterial> material_ptr = hit_object_casted->material_;
 
-#ifdef DEBUG
-    std::cout << "\t\tCalculating ambient." << std::endl;
-#endif
     if (!inside_object_ptr) {
       if (configuration_.shading_.ambient_) {
         for (auto ambient_light : ambient_lights_) {
-#ifdef DEBUG
-          std::cout << "\t\tAmbient light intensity : " << "("
-                    << ambient_light->intensity_.x << ","
-                    << ambient_light->intensity_.y << ","
-                    << ambient_light->intensity_.z << ")" << std::endl;
-#endif
           pixel_value +=
               hadamard(material_ptr->ambient_, ambient_light->intensity_);
-#ifdef DEBUG
-          std::cout << "\t\tPixel value after : " << "(" << pixel_value.x << ","
-                    << pixel_value.y << "," << pixel_value.z << ")"
-                    << std::endl;
-#endif
         }
       }
     }
 
     Vec3f intersection_point =
         ray.origin_ + ray.direction_ * t_hit + hit_normal * shadow_ray_epsilon_;
-
-#ifdef DEBUG
-    int point_light_index = 0;
-#endif
     if (!inside_object_ptr) {
       for (auto point_light : point_lights_) {
-#ifdef DEBUG
-        std::cout << "\t\tCalculating point light : " << point_light_index
-                  << std::endl;
-        std::cout << "\t\tLight position : " << "(" << point_light->position_.x
-                  << "," << point_light->position_.y << ","
-                  << point_light->position_.z << ")" << std::endl;
-#endif
         Ray shadow_ray = {
             ray.pixel_, intersection_point,
             normalize(point_light->position_ - intersection_point)};
         float distance_to_light =
             norm2(point_light->position_ - intersection_point);
         bool is_in_shadow = false;
-#ifdef DEBUG
-        int object_index = 0;
-#endif
         float shadow_hit = std::numeric_limits<float>::max();
         Vec3f shadow_normal;
         if (configuration_.acceleration_.bvh_high_level_) {
@@ -148,24 +80,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
               }
             }
           }
-#ifdef DEBUG
-          object_index++;
-#endif
         }
         if (!is_in_shadow) {
-#ifdef DEBUG
-          std::cout << "\t\tI saw the light." << std::endl;
-#endif
-#ifdef DEBUG
-          std::cout << "\t\tPoint light intensity : " << "("
-                    << point_light->intensity_.x << ","
-                    << point_light->intensity_.y << ","
-                    << point_light->intensity_.z << ")" << std::endl;
-#endif
-#ifdef DEBUG
-          std::cout << "\t\tDistance to light : " << sqrt(distance_to_light)
-                    << std::endl;
-#endif
           Vec3f light_direction =
               normalize(point_light->position_ - intersection_point);
 
@@ -189,37 +105,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
               pixel_value += specular_term;
             }
           }
-#ifdef DEBUG
-          std::cout << "\t\tLight direction : " << "(" << light_direction.x
-                    << "," << light_direction.y << "," << light_direction.z
-                    << ")" << std::endl;
-#endif
-#ifdef DEBUG
-          std::cout << "\t\tHalf vector : " << "(" << half_vector.x << ","
-                    << half_vector.y << "," << half_vector.z << ")"
-                    << std::endl;
-#endif
-#ifdef DEBUG
-          std::cout << "\t\tShadow direction vector : " << "("
-                    << shadow_ray.direction_.x << "," << shadow_ray.direction_.y
-                    << "," << shadow_ray.direction_.z << ")" << std::endl;
-#endif
-#ifdef DEBUG
-          std::cout << "\t\tDiffuse - specular : " << "(" << diffuse_term.x
-                    << "," << diffuse_term.y << "," << diffuse_term.z << ")"
-                    << ","
-                    << "(" << diffuse_term.x << "," << diffuse_term.y << ","
-                    << diffuse_term.z << ")" << std::endl;
-#endif
-#ifdef DEBUG
-          std::cout << "\t\tPixel value after : " << "(" << pixel_value.x << ","
-                    << pixel_value.y << "," << pixel_value.z << ")"
-                    << std::endl;
-#endif
         }
-#ifdef DEBUG
-        point_light_index++;
-#endif
       }
     }
 

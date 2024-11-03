@@ -32,22 +32,25 @@ PlyProperty face_props[] = {
 MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
                        const std::vector<RawFace>& raw_face_data,
                        const std::vector<Vec3f>& raw_vertex_data,
-                       const Mat4x4f& transform_matrix)
-    : BaseObject(material, transform_matrix) {
+                       const Mat4x4f& transform_matrix,
+                       RawScalingFlip scaling_flip)
+    : BaseObject(material, transform_matrix, scaling_flip) {
   for (const auto& raw_face : raw_face_data) {
     triangle_objects_.push_back(
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<TriangleObject>(
                 material, raw_vertex_data[raw_face.v0_id - 1],
                 raw_vertex_data[raw_face.v1_id - 1],
-                raw_vertex_data[raw_face.v2_id - 1], transform_matrix)));
+                raw_vertex_data[raw_face.v2_id - 1], IDENTITY_MATRIX,
+                RawScalingFlip{false, false, false})));
   }
 };
 
 MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
                        const std::string& ply_filename,
-                       const Mat4x4f& transform_matrix)
-    : BaseObject(material, transform_matrix) {
+                       const Mat4x4f& transform_matrix,
+                       RawScalingFlip scaling_flip)
+    : BaseObject(material, transform_matrix, scaling_flip) {
   int nelems;
   char** elem_names;
   int file_type;
@@ -86,7 +89,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
                 std::make_shared<TriangleObject>(
                     material, vertex_data_[face.verts[0]],
                     vertex_data_[face.verts[1]], vertex_data_[face.verts[2]],
-                    transform_matrix)));
+                    IDENTITY_MATRIX, RawScalingFlip{false, false, false})));
       }
     }
   }
@@ -97,32 +100,59 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
     const Ray& ray, float& t_hit, Vec3f& intersection_normal,
     bool backface_culling, bool stop_at_any_hit) const {
-  std::shared_ptr<BoundingVolumeHierarchyElement> hit = nullptr;
+  bool hit = false;
 
+  Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
+  Vec3f transformed_ray_direction =
+      inverse_transpose_transform_matrix_ * ray.direction_;
+  Ray transformed_ray{ray.pixel_, transformed_ray_origin,
+                      transformed_ray_direction};
+
+  float mesh_hit = std::numeric_limits<float>::max();
   if (left_) {
-    hit = left_->Intersect(ray, t_hit, intersection_normal, backface_culling,
-                           stop_at_any_hit);
+    if (left_->Intersect(transformed_ray, mesh_hit, intersection_normal,
+                         backface_culling, stop_at_any_hit)) {
+      hit = true;
+    }
   } else {
     for (size_t i = 0; i < triangle_objects_.size(); i++) {
-      float t;
+      float temp_hit;
       Vec3f normal;
-      if (!triangle_objects_[i]->Intersect(ray, t, normal, backface_culling,
-                                           stop_at_any_hit)) {
+      if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal,
+                                           backface_culling, stop_at_any_hit)) {
         continue;
       }
 
-      if (t < t_hit) {
-        t_hit = t;
+      if (temp_hit < mesh_hit) {
+        mesh_hit = temp_hit;
         intersection_normal = normal;
       }
-      hit = std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
-          std::const_pointer_cast<BaseObject>(this->shared_from_this()));
+      hit = true;
       if (stop_at_any_hit) {
         break;
       }
     }
   }
-  return hit;
+  if (hit) {
+    if (scaling_flip_.sx) {
+      intersection_normal.x = -intersection_normal.x;
+    }
+    if (scaling_flip_.sy) {
+      intersection_normal.y = -intersection_normal.y;
+    }
+    if (scaling_flip_.sz) {
+      intersection_normal.z = -intersection_normal.z;
+    }
+    Vec3f local_point =
+        transformed_ray.origin_ + mesh_hit * transformed_ray.direction_;
+    Vec3f global_point = transform_matrix_ * local_point;
+    t_hit = norm(ray.origin_ - global_point);
+  }
+
+  return hit ? std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+                   std::const_pointer_cast<BaseObject>(
+                       this->shared_from_this()))
+             : nullptr;
 }
 
 void MeshObject::Preprocess(bool high_level_bvh_enabled,
@@ -177,9 +207,5 @@ void MeshObject::Preprocess(bool high_level_bvh_enabled,
   if (low_level_bvh_enabled) {
     left_ = BoundingVolumeHierarchyElement::Construct(
         triangle_objects_, 0, triangle_objects_.size(), 0);
-
-    if (!left_) {
-      std::cout << "Error constructing BVH" << std::endl;
-    }
   }
 }

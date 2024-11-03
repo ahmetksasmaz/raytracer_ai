@@ -7,8 +7,11 @@ class TriangleObject : public BaseObject {
  public:
   TriangleObject(std::shared_ptr<BaseMaterial> material, const Vec3f& v0,
                  const Vec3f& v1, const Vec3f& v2,
-                 const Mat4x4f& transform_matrix)
-      : BaseObject(material, transform_matrix), v0_(v0), v1_(v1), v2_(v2) {};
+                 const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip)
+      : BaseObject(material, transform_matrix, scaling_flip),
+        v0_(v0),
+        v1_(v1),
+        v2_(v2) {};
 
   std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
       const Ray& ray, float& t_hit, Vec3f& intersection_normal,

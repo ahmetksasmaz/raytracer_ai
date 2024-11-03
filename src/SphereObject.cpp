@@ -3,10 +3,16 @@
 std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
     const Ray& ray, float& t_hit, Vec3f& intersection_normal, bool,
     bool) const {
+  Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
+  Vec3f transformed_ray_direction =
+      inverse_transpose_transform_matrix_ * ray.direction_;
+  Ray transformed_ray{ray.pixel_, transformed_ray_origin,
+                      transformed_ray_direction};
+
   // Calculate the discriminant
-  Vec3f oc = ray.origin_ - center_;
-  float a = dot(ray.direction_, ray.direction_);
-  float b = 2.0f * dot(oc, ray.direction_);
+  Vec3f oc = transformed_ray.origin_ - center_;
+  float a = dot(transformed_ray.direction_, transformed_ray.direction_);
+  float b = 2.0f * dot(oc, transformed_ray.direction_);
   float c = dot(oc, oc) - radius_ * radius_;
   float discriminant = b * b - 4 * a * c;
 
@@ -15,18 +21,40 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
     // Find the closest intersection point
     float t = (-b - sqrt(discriminant)) / (2.0f * a);
     if (t > 1e-5) {
-      t_hit = t;
-      intersection_normal =
-          normalize(ray.origin_ + ray.direction_ * t_hit - center_);
+      Vec3f local_point =
+          transformed_ray.origin_ + t * transformed_ray.direction_;
+      Vec3f global_point = transform_matrix_ * local_point;
+      t_hit = norm(ray.origin_ - global_point);
+      intersection_normal = normalize(local_point - center_);
+      if (scaling_flip_.sx) {
+        intersection_normal.x = -intersection_normal.x;
+      }
+      if (scaling_flip_.sy) {
+        intersection_normal.y = -intersection_normal.y;
+      }
+      if (scaling_flip_.sz) {
+        intersection_normal.z = -intersection_normal.z;
+      }
       return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));
     }
 
     t = (-b + sqrt(discriminant)) / (2.0f * a);
     if (t > 1e-5) {
-      t_hit = t;
-      intersection_normal =
-          normalize(ray.origin_ + ray.direction_ * t_hit - center_);
+      Vec3f local_point =
+          transformed_ray.origin_ + t * transformed_ray.direction_;
+      Vec3f global_point = transform_matrix_ * local_point;
+      t_hit = norm(ray.origin_ - global_point);
+      intersection_normal = normalize(local_point - center_);
+      if (scaling_flip_.sx) {
+        intersection_normal.x = -intersection_normal.x;
+      }
+      if (scaling_flip_.sy) {
+        intersection_normal.y = -intersection_normal.y;
+      }
+      if (scaling_flip_.sz) {
+        intersection_normal.z = -intersection_normal.z;
+      }
       return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));
     }

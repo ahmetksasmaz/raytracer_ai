@@ -6,16 +6,70 @@
 
 MeshInstanceObject::MeshInstanceObject(std::shared_ptr<BaseMaterial> material,
                                        std::shared_ptr<MeshObject> mesh_object,
-                                       const Mat4x4f& transform_matrix)
-    : BaseObject(material ? material : mesh_object->material_,
-                 transform_matrix),
+                                       const Mat4x4f& transform_matrix,
+                                       RawScalingFlip scaling_flip)
+    : BaseObject(material ? material : mesh_object->material_, transform_matrix,
+                 scaling_flip),
       mesh_object_(mesh_object) {};
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
     const Ray& ray, float& t_hit, Vec3f& intersection_normal,
     bool backface_culling, bool stop_at_any_hit) const {
-  return mesh_object_->Intersect(ray, t_hit, intersection_normal,
-                                 backface_culling, stop_at_any_hit);
+  bool hit = false;
+
+  Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
+  Vec3f transformed_ray_direction =
+      inverse_transpose_transform_matrix_ * ray.direction_;
+  Ray transformed_ray{ray.pixel_, transformed_ray_origin,
+                      transformed_ray_direction};
+
+  float mesh_hit = std::numeric_limits<float>::max();
+  if (mesh_object_->left_) {
+    if (mesh_object_->left_->Intersect(transformed_ray, mesh_hit,
+                                       intersection_normal, backface_culling,
+                                       stop_at_any_hit)) {
+      hit = true;
+    }
+  } else {
+    for (size_t i = 0; i < mesh_object_->triangle_objects_.size(); i++) {
+      float temp_hit;
+      Vec3f normal;
+      if (!mesh_object_->triangle_objects_[i]->Intersect(
+              transformed_ray, temp_hit, normal, backface_culling,
+              stop_at_any_hit)) {
+        continue;
+      }
+
+      if (temp_hit < mesh_hit) {
+        mesh_hit = temp_hit;
+        intersection_normal = normal;
+      }
+      hit = true;
+      if (stop_at_any_hit) {
+        break;
+      }
+    }
+  }
+  if (hit) {
+    if (scaling_flip_.sx) {
+      intersection_normal.x = -intersection_normal.x;
+    }
+    if (scaling_flip_.sy) {
+      intersection_normal.y = -intersection_normal.y;
+    }
+    if (scaling_flip_.sz) {
+      intersection_normal.z = -intersection_normal.z;
+    }
+    Vec3f local_point =
+        transformed_ray.origin_ + mesh_hit * transformed_ray.direction_;
+    Vec3f global_point = transform_matrix_ * local_point;
+    t_hit = norm(ray.origin_ - global_point);
+  }
+
+  return hit ? std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+                   std::const_pointer_cast<BaseObject>(
+                       this->shared_from_this()))
+             : nullptr;
 }
 
 void MeshInstanceObject::Preprocess(bool high_level_bvh_enabled,

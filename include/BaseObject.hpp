@@ -13,8 +13,10 @@ class BaseObject : public BoundingVolumeHierarchyElement,
                    public std::enable_shared_from_this<BaseObject> {
  public:
   BaseObject(std::shared_ptr<BaseMaterial> material,
-             const Mat4x4f& transform_matrix)
-      : material_(material), transform_matrix_(transform_matrix) {
+             const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip)
+      : material_(material),
+        transform_matrix_(transform_matrix),
+        scaling_flip_(scaling_flip) {
     inverse_transform_matrix_ = ~transform_matrix_;
     inverse_transpose_transform_matrix_ = !inverse_transform_matrix_;
   }
@@ -35,4 +37,5 @@ class BaseObject : public BoundingVolumeHierarchyElement,
   Mat4x4f transform_matrix_;
   Mat4x4f inverse_transform_matrix_;
   Mat4x4f inverse_transpose_transform_matrix_;
+  RawScalingFlip scaling_flip_;
 };

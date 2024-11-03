@@ -3,17 +3,23 @@
 std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
     const Ray& ray, float& t_hit, Vec3f& intersection_normal,
     bool backface_culling, bool) const {
-  if (backface_culling && dot(ray.direction_, normal_) > 0) {
+  Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
+  Vec3f transformed_ray_direction =
+      inverse_transpose_transform_matrix_ * ray.direction_;
+  Ray transformed_ray{ray.pixel_, transformed_ray_origin,
+                      transformed_ray_direction};
+
+  if (backface_culling && dot(transformed_ray.direction_, normal_) > 0) {
     return nullptr;
   }
 
   Vec3f edge1 = v1_ - v0_;
   Vec3f edge2 = v2_ - v0_;
-  Vec3f ray_cross_e2 = cross(ray.direction_, edge2);
+  Vec3f ray_cross_e2 = cross(transformed_ray.direction_, edge2);
   float det = dot(edge1, ray_cross_e2);
 
   float inv_det = 1.0 / det;
-  Vec3f s = ray.origin_ - v0_;
+  Vec3f s = transformed_ray.origin_ - v0_;
   float u = inv_det * dot(s, ray_cross_e2);
 
   if (u < 0 || u > 1) {
@@ -21,7 +27,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
   }
 
   Vec3f s_cross_e1 = cross(s, edge1);
-  float v = inv_det * dot(ray.direction_, s_cross_e1);
+  float v = inv_det * dot(transformed_ray.direction_, s_cross_e1);
 
   if (v < 0 || u + v > 1) {
     return nullptr;
@@ -30,8 +36,20 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
   float t = inv_det * dot(edge2, s_cross_e1);
 
   if (t > 1e-5) {
-    t_hit = t;
+    Vec3f local_point =
+        transformed_ray.origin_ + t * transformed_ray.direction_;
+    Vec3f global_point = transform_matrix_ * local_point;
+    t_hit = norm(ray.origin_ - global_point);
     intersection_normal = normal_;
+    if (scaling_flip_.sx) {
+      intersection_normal.x = -intersection_normal.x;
+    }
+    if (scaling_flip_.sy) {
+      intersection_normal.y = -intersection_normal.y;
+    }
+    if (scaling_flip_.sz) {
+      intersection_normal.z = -intersection_normal.z;
+    }
     return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
         std::const_pointer_cast<BaseObject>(this->shared_from_this()));
   } else {

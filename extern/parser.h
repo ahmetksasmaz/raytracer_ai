@@ -148,6 +148,10 @@ struct RawScaling {
   float sx, sy, sz;
 };
 
+struct RawScalingFlip {
+  bool sx, sy, sz;
+};
+
 struct RawRotation {
   float angle, x, y, z;
 };
@@ -174,6 +178,8 @@ struct Mat4x4f {
   }
 
   float m[4][4];
+
+  float operator[](size_t index) { return m[index / 4][index % 4]; }
 
   friend std::ostream& operator<<(std::ostream& os, const Mat4x4f& matrix) {
     for (int i = 0; i < 4; i++) {
