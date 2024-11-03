@@ -67,8 +67,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   // Get Cameras
   element = root->FirstChildElement("Cameras");
   element = element->FirstChildElement("Camera");
-  RawCamera camera;
   while (element) {
+    RawCamera camera;
     auto child = element->FirstChildElement("Position");
     stream << child->GetText() << std::endl;
     child = element->FirstChildElement("Gaze");
@@ -108,8 +108,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   stream << child->GetText() << std::endl;
   stream >> ambient_light.x >> ambient_light.y >> ambient_light.z;
   element = element->FirstChildElement("PointLight");
-  RawPointLight point_light;
   while (element) {
+    RawPointLight point_light;
     child = element->FirstChildElement("Position");
     stream << child->GetText() << std::endl;
     child = element->FirstChildElement("Intensity");
@@ -131,8 +131,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   // Get Materials
   element = root->FirstChildElement("Materials");
   element = element->FirstChildElement("Material");
-  RawMaterial material;
   while (element) {
+    RawMaterial material;
     if (element->Attribute("type", "mirror") != NULL) {
       material.material_type = RawMaterialType::kMirror;
     } else if (element->Attribute("type", "conductor") != NULL) {
@@ -283,8 +283,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   // Get Meshes
   element = root->FirstChildElement("Objects");
   element = element->FirstChildElement("Mesh");
-  RawMesh mesh;
   while (element) {
+    RawMesh mesh;
     mesh.object_id = std::stoi(element->Attribute("id"));
 
     child = element->FirstChildElement("Material");
@@ -321,8 +321,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   // Get Mesh Instances
   element = root->FirstChildElement("Objects");
   element = element->FirstChildElement("MeshInstance");
-  RawMeshInstance mesh_instance;
   while (element) {
+    RawMeshInstance mesh_instance;
     mesh_instance.object_id = std::stoi(element->Attribute("id"));
     mesh_instance.base_object_id = std::stoi(element->Attribute("baseMeshId"));
     mesh_instance.reset_transform =
@@ -354,8 +354,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   // Get Triangles
   element = root->FirstChildElement("Objects");
   element = element->FirstChildElement("Triangle");
-  RawTriangle triangle;
   while (element) {
+    RawTriangle triangle;
     triangle.object_id = std::stoi(element->Attribute("id"));
     child = element->FirstChildElement("Material");
     stream << child->GetText() << std::endl;
@@ -382,8 +382,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   // Get Spheres
   element = root->FirstChildElement("Objects");
   element = element->FirstChildElement("Sphere");
-  RawSphere sphere;
   while (element) {
+    RawSphere sphere;
     sphere.object_id = std::stoi(element->Attribute("id"));
     child = element->FirstChildElement("Material");
     stream << child->GetText() << std::endl;

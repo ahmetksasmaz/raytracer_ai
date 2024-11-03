@@ -18,6 +18,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       for (auto object : objects_) {
         float temp_hit = std::numeric_limits<float>::max();
         Vec3f normal;
+        std::shared_ptr<BaseObject> hit_object_casted =
+            std::dynamic_pointer_cast<BaseObject>(object);
         if (object->Intersect(ray, temp_hit, normal)) {
           if (t_hit > temp_hit) {
             t_hit = temp_hit;

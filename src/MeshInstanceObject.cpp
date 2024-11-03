@@ -19,7 +19,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
 
   Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
   Vec3f transformed_ray_direction =
-      inverse_transpose_transform_matrix_ * ray.direction_;
+      normalize(inverse_transpose_transform_matrix_ * ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction};
 
@@ -51,15 +51,9 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
     }
   }
   if (hit) {
-    if (scaling_flip_.sx) {
-      intersection_normal.x = -intersection_normal.x;
-    }
-    if (scaling_flip_.sy) {
-      intersection_normal.y = -intersection_normal.y;
-    }
-    if (scaling_flip_.sz) {
-      intersection_normal.z = -intersection_normal.z;
-    }
+    intersection_normal =
+        normalize(inverse_transpose_transform_matrix_ * intersection_normal);
+
     Vec3f local_point =
         transformed_ray.origin_ + mesh_hit * transformed_ray.direction_;
     Vec3f global_point = transform_matrix_ * local_point;

@@ -5,7 +5,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
     bool) const {
   Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
   Vec3f transformed_ray_direction =
-      inverse_transpose_transform_matrix_ * ray.direction_;
+      normalize(inverse_transpose_transform_matrix_ * ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction};
 
@@ -46,15 +46,8 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       Vec3f global_point = transform_matrix_ * local_point;
       t_hit = norm(ray.origin_ - global_point);
       intersection_normal = normalize(local_point - center_);
-      if (scaling_flip_.sx) {
-        intersection_normal.x = -intersection_normal.x;
-      }
-      if (scaling_flip_.sy) {
-        intersection_normal.y = -intersection_normal.y;
-      }
-      if (scaling_flip_.sz) {
-        intersection_normal.z = -intersection_normal.z;
-      }
+      intersection_normal =
+          normalize(inverse_transpose_transform_matrix_ * intersection_normal);
       return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));
     }
