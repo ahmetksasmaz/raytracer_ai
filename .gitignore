@@ -35,4 +35,6 @@
 build/*
 *.png
 *.txt
+*.xml
+*.ply
 hw*/*
