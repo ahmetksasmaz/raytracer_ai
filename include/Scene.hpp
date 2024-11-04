@@ -49,7 +49,7 @@ class Scene {
   std::shared_ptr<BoundingVolumeHierarchyElement> bvh_root_ = nullptr;
 
   std::function<void(const std::shared_ptr<BaseCamera>)> scheduling_algorithm_;
-  std::function<Vec3f(const Ray&, const std::shared_ptr<BaseObject>, int, int)>
+  std::function<Vec3f(Ray&, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
   std::function<void(const std::vector<Vec3f>&, std::vector<unsigned char>&)>
       tone_mapping_algorithm_;
@@ -57,11 +57,11 @@ class Scene {
   std::shared_ptr<BaseExporter> exporter_;
 
   Vec3f DefaultRayTracingAlgorithm(
-      const Ray& ray,
+      Ray& ray,
       const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
       int, int);
   Vec3f RecursiveRayTracingAlgorithm(
-      const Ray& ray,
+      Ray& ray,
       const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
       int remaining_recursion, int max_recursion);
 

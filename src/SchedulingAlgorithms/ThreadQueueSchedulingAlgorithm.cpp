@@ -31,7 +31,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
           index = queue.front();
           queue.pop();
         }
-        const Ray ray = camera->GenerateRay({index.first, index.second});
+        Ray ray = camera->GenerateRay({index.first, index.second});
         const Vec3f pixel_value = ray_tracing_algorithm_(
             ray, nullptr, max_recursion_depth_, max_recursion_depth_);
         camera->UpdatePixelValue({index.first, index.second}, pixel_value);

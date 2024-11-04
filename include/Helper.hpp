@@ -264,14 +264,14 @@ inline Mat4x4f rotation_matrix(RawRotation r) {
   return result;
 }
 
-inline Mat4x4f parse_transformation(std::string tranformation_text,
+inline Mat4x4f parse_transformation(std::string transformation_text,
                                     RawScalingFlip& scaling_flip,
                                     std::vector<RawTranslation>& translations,
                                     std::vector<RawScaling>& scalings,
                                     std::vector<RawRotation>& rotations,
                                     std::vector<RawComposite>& composites) {
   Mat4x4f result = IDENTITY_MATRIX;
-  std::stringstream ss(tranformation_text);
+  std::stringstream ss(transformation_text);
   std::string transformation;
   while (getline(ss, transformation, ' ')) {
     Mat4x4f multiplier_matrix;

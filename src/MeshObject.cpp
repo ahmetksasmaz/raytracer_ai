@@ -98,25 +98,28 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
 }
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
-    const Ray& ray, float& t_hit, Vec3f& intersection_normal,
+    Ray& ray, float& t_hit, Vec3f& intersection_normal,
     bool backface_culling, bool stop_at_any_hit) const {
   bool hit = false;
 
+  Vec3f temp_intersection_normal;
+
   Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
+  Vec3f transformed_ray_destination = inverse_transform_matrix_ * (ray.origin_ + ray.direction_);
   Vec3f transformed_ray_direction =
-      normalize(inverse_transpose_transform_matrix_ * ray.direction_);
+      normalize(transformed_ray_destination - transformed_ray_origin);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction};
 
   float mesh_hit = std::numeric_limits<float>::max();
   if (left_) {
-    if (left_->Intersect(transformed_ray, mesh_hit, intersection_normal,
+    if (left_->Intersect(transformed_ray, mesh_hit, temp_intersection_normal,
                          backface_culling, stop_at_any_hit)) {
       hit = true;
     }
   } else {
     for (size_t i = 0; i < triangle_objects_.size(); i++) {
-      float temp_hit;
+      float temp_hit = std::numeric_limits<float>::max();
       Vec3f normal;
       if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal,
                                            backface_culling, stop_at_any_hit)) {
@@ -125,7 +128,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
 
       if (temp_hit < mesh_hit) {
         mesh_hit = temp_hit;
-        intersection_normal = normal;
+        temp_intersection_normal = normal;
       }
       hit = true;
       if (stop_at_any_hit) {
@@ -134,13 +137,19 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
     }
   }
   if (hit) {
-    intersection_normal =
-        normalize(inverse_transpose_transform_matrix_ * intersection_normal);
-
     Vec3f local_point =
         transformed_ray.origin_ + mesh_hit * transformed_ray.direction_;
+    Vec3f local_point_destination = local_point + temp_intersection_normal;
     Vec3f global_point = transform_matrix_ * local_point;
-    t_hit = norm(ray.origin_ - global_point);
+    Vec3f global_point_destination = transform_matrix_ * local_point_destination;
+    Vec3f diff = global_point - ray.origin_;
+    t_hit = norm(diff);
+    Vec3f normalized_diff = normalize(diff);
+    ray.direction_.x = normalized_diff.x;
+    ray.direction_.y = normalized_diff.y;
+    ray.direction_.z = normalized_diff.z;
+
+    intersection_normal = normalize(global_point_destination - global_point);
   }
 
   return hit ? std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(

@@ -20,7 +20,7 @@ class BoundingVolumeHierarchyElement {
     right_ = right;
   }
   virtual std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
-      const Ray& ray, float& t_hit, Vec3f& intersection_normal,
+      Ray& ray, float& t_hit, Vec3f& intersection_normal,
       bool backface_culling = true, bool stop_at_any_hit = false) const;
 
   virtual ~BoundingVolumeHierarchyElement() = default;

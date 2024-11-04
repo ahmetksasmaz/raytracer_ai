@@ -11,7 +11,7 @@ void Scene::NonThreadSchedulingAlgorithm(
 #ifdef DEBUG
       std::cout << "Tracing ray for index " << x << "," << y << std::endl;
 #endif
-      const Ray ray = camera->GenerateRay({x, y});
+      Ray ray = camera->GenerateRay({x, y});
 #ifdef DEBUG
       std::cout << "Generated ray is " << "[" << ray.origin_.x << ray.origin_.y
                 << ray.origin_.z << "]"

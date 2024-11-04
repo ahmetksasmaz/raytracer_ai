@@ -282,6 +282,7 @@ void Scene::LoadScene() {
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<MeshInstanceObject>(
                 material, mesh_object, transform_matrix, scaling_flip)));
+
   }
   // exit(1);
 }

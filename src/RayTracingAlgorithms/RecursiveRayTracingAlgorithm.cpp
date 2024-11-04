@@ -3,7 +3,7 @@
 #include "Scene.hpp"
 
 Vec3f Scene::RecursiveRayTracingAlgorithm(
-    const Ray& ray,
+    Ray& ray,
     const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
     int remaining_recursion, int max_recursion) {
   Vec3f pixel_value = {0, 0, 0};
@@ -69,7 +69,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         if (configuration_.acceleration_.bvh_high_level_) {
           auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal,
                                           false);
-          if (ret && shadow_hit < sqrt(distance_to_light)) {
+          if (ret && (shadow_hit < sqrt(distance_to_light))) {
             is_in_shadow = true;
           }
         } else {

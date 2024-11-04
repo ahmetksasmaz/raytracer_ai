@@ -3,7 +3,7 @@
 #include "Helper.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement>
-BoundingVolumeHierarchyElement::Intersect(const Ray& ray, float& t_hit,
+BoundingVolumeHierarchyElement::Intersect(Ray& ray, float& t_hit,
                                           Vec3f& intersection_normal,
                                           bool backface_culling,
                                           bool stop_at_any_hit) const {
