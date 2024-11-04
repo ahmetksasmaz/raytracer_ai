@@ -191,6 +191,7 @@ void Scene::LoadScene() {
                   raw_scene.vertex_data, transform_matrix, scaling_flip)));
     }
   }
+  // exit(1);
 
 #ifdef DEBUG
   std::cout << "\tLoading mesh instances." << std::endl;

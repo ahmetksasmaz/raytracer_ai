@@ -12,8 +12,8 @@ BaseCamera::BaseCamera(const Vec3f& position, const Vec3f& gaze,
       r_(near_plane.y),
       b_(near_plane.z),
       t_(near_plane.w),
-      v_(normalize(up)),
-      u_(normalize(cross(normalize(gaze), v_))),
+      u_(normalize(cross(gaze, up))),
+      v_(normalize(cross(u_, gaze))),
       q_((v_ * t_) +
          (position_ + (normalize(gaze) * near_distance) + (u_ * l_))) {
   image_data_.resize(image_width_ * image_height_);

@@ -38,8 +38,8 @@ class BaseCamera {
   const float r_;
   const float b_;
   const float t_;
-  const Vec3f v_;
   const Vec3f u_;
+  const Vec3f v_;
   const Vec3f q_;
 
   std::vector<Vec3f> image_data_;
