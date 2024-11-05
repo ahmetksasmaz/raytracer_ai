@@ -20,37 +20,49 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
   // Check if the ray intersects with the sphere
   if (discriminant > 0) {
     // Find the closest intersection point
-    float t = (-b - sqrt(discriminant)) / (2.0f * a);
+    float t1 = (-b - sqrt(discriminant)) / (2.0f * a);
+    float t2 = (-b + sqrt(discriminant)) / (2.0f * a);
+    float t = t1 > 1e-5 ? t1 : t2;
     if (t > 1e-5) {
       Vec3f local_point =
           transformed_ray.origin_ + t * transformed_ray.direction_;
-      Vec3f global_point = transform_matrix_ * local_point;
-      Vec3f diff = global_point - ray.origin_;
-      t_hit = norm(diff);
-      Vec3f normalized_diff = normalize(diff);
-      ray.direction_.x = normalized_diff.x;
-      ray.direction_.y = normalized_diff.y;
-      ray.direction_.z = normalized_diff.z;
-      intersection_normal = normalize(local_point - center_);
-      return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
-          std::const_pointer_cast<BaseObject>(this->shared_from_this()));
-    }
+      Vec3f local_normal = normalize(local_point - center_);
 
-    t = (-b + sqrt(discriminant)) / (2.0f * a);
-    if (t > 1e-5) {
-      Vec3f local_point =
-          transformed_ray.origin_ + t * transformed_ray.direction_;
-      Vec3f local_point_destination = local_point + normalize(local_point - center_);
+      float x = local_normal.x;
+      float y = local_normal.y;
+      float z = local_normal.z;
+      float r = sqrt(x * x + y * y + z * z);
+      float t = atan2(y, x);
+      float p = acos(z / r);
+
+      Vec3f local_normal_sample_1 = Vec3f{sin(p+0.05) * cos(t), sin(p+0.05) * sin(t), cos(p+0.05)};
+      Vec3f local_normal_sample_2 = Vec3f{sin(p-0.05) * cos(t), sin(p-0.05) * sin(t), cos(p-0.05)};
+      Vec3f local_normal_sample_3 = Vec3f{sin(p) * cos(t+0.05), sin(p) * sin(t+0.05), cos(p)};
+      Vec3f local_normal_sample_4 = Vec3f{sin(p) * cos(t-0.05), sin(p) * sin(t-0.05), cos(p)};
+
+      Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
+      Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;
+      Vec3f local_point_sample_3 = center_ + radius_ * local_normal_sample_3;
+      Vec3f local_point_sample_4 = center_ + radius_ * local_normal_sample_4;
+
+      Vec3f global_point_sample_1 = transform_matrix_ * local_point_sample_1;
+      Vec3f global_point_sample_2 = transform_matrix_ * local_point_sample_2;
+      Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3;
+      Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4;
+
+      Vec3f first_axis_normal = normalize(global_point_sample_1 - global_point_sample_2);
+      Vec3f second_axis_normal = normalize(global_point_sample_3 - global_point_sample_4);
+
+      Vec3f approximated_normal = normalize(cross(first_axis_normal, second_axis_normal));
+
       Vec3f global_point = transform_matrix_ * local_point;
-      Vec3f global_point_destination = transform_matrix_ * local_point_destination;
       Vec3f diff = global_point - ray.origin_;
       t_hit = norm(diff);
       Vec3f normalized_diff = normalize(diff);
       ray.direction_.x = normalized_diff.x;
       ray.direction_.y = normalized_diff.y;
       ray.direction_.z = normalized_diff.z;
-      intersection_normal =
-          normalize(global_point_destination - global_point);
+      intersection_normal = approximated_normal;
       return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));
     }
