@@ -18,11 +18,47 @@ enum class SchedulingAlgorithm {
   kMax = 1
 };
 
+enum class SamplingAlgorithm {
+  kUniform = 0,
+  kRandom = 1,
+  kJittered = 2,
+  kMultiJittered = 3,
+  kHalton = 4,
+  kHammersley = 5,
+  kBest = 5,
+  kMax = 5
+};
+
+enum class FilteringAlgorithm {
+  kBox = 0,
+  kGaussian = 1,
+  kTriangle = 2,
+  kMitchell = 3,
+  kLanczos = 4,
+  kBest = 1,
+  kMax = 4
+};
+
 enum class ToneMappingAlgorithm { kClamp = 0, kBest = 0, kMax = 0 };
 
 enum class ExporterType { kPPM = 0, kSTB = 1, kBest = 1, kMax = 1 };
 
 struct Configuration {
+  struct Sampling {
+    SamplingAlgorithm pixel_sampling_ = SamplingAlgorithm::kBest;
+    SamplingAlgorithm aperture_sampling_ = SamplingAlgorithm::kBest;
+    SamplingAlgorithm glossy_sampling_ = SamplingAlgorithm::kBest;
+    SamplingAlgorithm area_light_sampling_ = SamplingAlgorithm::kBest;
+
+    FilteringAlgorithm pixel_filtering_ = FilteringAlgorithm::kBest;
+    FilteringAlgorithm glossy_filtering_ = FilteringAlgorithm::kBest;
+
+    float pixel_sampling_ratio_ = 1.0f;
+    float aperture_sampling_ratio_ = 1.0f;
+    float glossy_sampling_ratio_ = 1.0f;
+    float area_light_sampling_ratio_ = 1.0f;
+  } sampling_;
+
   struct Shading {
     bool ambient_ = true;
     bool diffuse_ = true;
@@ -52,6 +88,107 @@ struct Configuration {
 
     std::ifstream f(filename);
     json data = json::parse(f);
+
+    std::string sampling_algorithm;
+    data.at("sampling").at("pixel_sampling").get_to(sampling_algorithm);
+    if (sampling_algorithm == "uniform") {
+      sampling_.pixel_sampling_ = SamplingAlgorithm::kUniform;
+    } else if (sampling_algorithm == "random") {
+      sampling_.pixel_sampling_ = SamplingAlgorithm::kRandom;
+    } else if (sampling_algorithm == "jittered") {
+      sampling_.pixel_sampling_ = SamplingAlgorithm::kJittered;
+    } else if (sampling_algorithm == "multi_jittered") {
+      sampling_.pixel_sampling_ = SamplingAlgorithm::kMultiJittered;
+    } else if (sampling_algorithm == "halton") {
+      sampling_.pixel_sampling_ = SamplingAlgorithm::kHalton;
+    } else if (sampling_algorithm == "hammersley") {
+      sampling_.pixel_sampling_ = SamplingAlgorithm::kHammersley;
+    }
+
+    data.at("sampling").at("aperture_sampling").get_to(sampling_algorithm);
+    if (sampling_algorithm == "uniform") {
+      sampling_.aperture_sampling_ = SamplingAlgorithm::kUniform;
+    } else if (sampling_algorithm == "random") {
+      sampling_.aperture_sampling_ = SamplingAlgorithm::kRandom;
+    } else if (sampling_algorithm == "jittered") {
+      sampling_.aperture_sampling_ = SamplingAlgorithm::kJittered;
+    } else if (sampling_algorithm == "multi_jittered") {
+      sampling_.aperture_sampling_ = SamplingAlgorithm::kMultiJittered;
+    } else if (sampling_algorithm == "halton") {
+      sampling_.aperture_sampling_ = SamplingAlgorithm::kHalton;
+    } else if (sampling_algorithm == "hammersley") {
+      sampling_.aperture_sampling_ = SamplingAlgorithm::kHammersley;
+    }
+
+    data.at("sampling").at("glossy_sampling").get_to(sampling_algorithm);
+    if (sampling_algorithm == "uniform") {
+      sampling_.glossy_sampling_ = SamplingAlgorithm::kUniform;
+    } else if (sampling_algorithm == "random") {
+      sampling_.glossy_sampling_ = SamplingAlgorithm::kRandom;
+    } else if (sampling_algorithm == "jittered") {
+      sampling_.glossy_sampling_ = SamplingAlgorithm::kJittered;
+    } else if (sampling_algorithm == "multi_jittered") {
+      sampling_.glossy_sampling_ = SamplingAlgorithm::kMultiJittered;
+    } else if (sampling_algorithm == "halton") {
+      sampling_.glossy_sampling_ = SamplingAlgorithm::kHalton;
+    } else if (sampling_algorithm == "hammersley") {
+      sampling_.glossy_sampling_ = SamplingAlgorithm::kHammersley;
+    }
+
+    data.at("sampling").at("area_light_sampling").get_to(sampling_algorithm);
+    if (sampling_algorithm == "uniform") {
+      sampling_.area_light_sampling_ = SamplingAlgorithm::kUniform;
+    } else if (sampling_algorithm == "random") {
+      sampling_.area_light_sampling_ = SamplingAlgorithm::kRandom;
+    } else if (sampling_algorithm == "jittered") {
+      sampling_.area_light_sampling_ = SamplingAlgorithm::kJittered;
+    } else if (sampling_algorithm == "multi_jittered") {
+      sampling_.area_light_sampling_ = SamplingAlgorithm::kMultiJittered;
+    } else if (sampling_algorithm == "halton") {
+      sampling_.area_light_sampling_ = SamplingAlgorithm::kHalton;
+    } else if (sampling_algorithm == "hammersley") {
+      sampling_.area_light_sampling_ = SamplingAlgorithm::kHammersley;
+    }
+
+    std::string filtering_algorithm;
+    data.at("sampling").at("pixel_filtering").get_to(filtering_algorithm);
+    if (filtering_algorithm == "box") {
+      sampling_.pixel_filtering_ = FilteringAlgorithm::kBox;
+    } else if (filtering_algorithm == "gaussian") {
+      sampling_.pixel_filtering_ = FilteringAlgorithm::kGaussian;
+    } else if (filtering_algorithm == "triangle") {
+      sampling_.pixel_filtering_ = FilteringAlgorithm::kTriangle;
+    } else if (filtering_algorithm == "mitchell") {
+      sampling_.pixel_filtering_ = FilteringAlgorithm::kMitchell;
+    } else if (filtering_algorithm == "lanczos") {
+      sampling_.pixel_filtering_ = FilteringAlgorithm::kLanczos;
+    }
+
+    data.at("sampling").at("glossy_filtering").get_to(filtering_algorithm);
+    if (filtering_algorithm == "box") {
+      sampling_.glossy_filtering_ = FilteringAlgorithm::kBox;
+    } else if (filtering_algorithm == "gaussian") {
+      sampling_.glossy_filtering_ = FilteringAlgorithm::kGaussian;
+    } else if (filtering_algorithm == "triangle") {
+      sampling_.glossy_filtering_ = FilteringAlgorithm::kTriangle;
+    } else if (filtering_algorithm == "mitchell") {
+      sampling_.glossy_filtering_ = FilteringAlgorithm::kMitchell;
+    } else if (filtering_algorithm == "lanczos") {
+      sampling_.glossy_filtering_ = FilteringAlgorithm::kLanczos;
+    }
+
+    data.at("sampling")
+        .at("pixel_sampling_ratio")
+        .get_to(sampling_.pixel_sampling_ratio_);
+    data.at("sampling")
+        .at("aperture_sampling_ratio")
+        .get_to(sampling_.aperture_sampling_ratio_);
+    data.at("sampling")
+        .at("glossy_sampling_ratio")
+        .get_to(sampling_.glossy_sampling_ratio_);
+    data.at("sampling")
+        .at("area_light_sampling_ratio")
+        .get_to(sampling_.area_light_sampling_ratio_);
 
     data.at("shading").at("ambient").get_to(shading_.ambient_);
     data.at("shading").at("diffuse").get_to(shading_.diffuse_);

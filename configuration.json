@@ -1,4 +1,19 @@
 {
+    "sampling":{
+        "pixel_sampling": "jittered",
+        "aperture_sampling:" : "jittered",
+        "glossy_sampling": "jittered",
+        "area_light_sampling": "jittered",
+        "sample_filtering": "gaussian",
+        "aperture_type": "circular",
+        "pixel_sampling_ratio": 1.0,
+        "aperture_sampling_ratio": 1.0,
+        "glossy_sampling_ratio": 1.0,
+        "area_light_sampling_ratio": 1.0,
+        "__comment": "Pixel sampling strategy : uniform, random, jittered, multi_jittered, halton, hammersley",
+        "__comment2": "Pixel merge strategy : box, gaussian, triangle, mitchell, lancsoz_sinc",
+        "__comment3": "Aperture type : circular, square, polygonal"
+    },
     "shading": {
         "ambient": true,
         "diffuse": true,
