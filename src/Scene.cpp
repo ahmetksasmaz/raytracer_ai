@@ -1,5 +1,7 @@
 #include "Scene.hpp"
 
+#include "Timer.hpp"
+
 Scene::Scene(const std::string &filename, const Configuration &configuration)
     : filename_(filename), configuration_(configuration) {
   switch (configuration_.strategies_.exporter_type_) {
@@ -26,12 +28,14 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
 
   switch (configuration_.strategies_.scheduling_algorithm_) {
     case SchedulingAlgorithm::kNonThread:
-      scheduling_algorithm_ = std::bind(&Scene::NonThreadSchedulingAlgorithm,
-                                        this, std::placeholders::_1);
+      scheduling_algorithm_ =
+          std::bind(&Scene::NonThreadSchedulingAlgorithm, this,
+                    std::placeholders::_1, std::placeholders::_2);
       break;
     case SchedulingAlgorithm::kThreadQueue:
-      scheduling_algorithm_ = std::bind(&Scene::ThreadQueueSchedulingAlgorithm,
-                                        this, std::placeholders::_1);
+      scheduling_algorithm_ =
+          std::bind(&Scene::ThreadQueueSchedulingAlgorithm, this,
+                    std::placeholders::_1, std::placeholders::_2);
       break;
   }
 
@@ -51,7 +55,11 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
   std::cout << "Loading done." << std::endl;
   std::cout << "Preprocessing scene." << std::endl;
 #endif
+  if (timer.configuration_.timer_.preprocess_scene_)
+    timer.AddTimeLog(Section::kPreprocessScene, Event::kStart);
   PreprocessScene();
+  if (timer.configuration_.timer_.preprocess_scene_)
+    timer.AddTimeLog(Section::kPreprocessScene, Event::kEnd);
 #ifdef DEBUG
   std::cout << "Preprocessing done." << std::endl;
 #endif
@@ -70,10 +78,17 @@ void Scene::LoadScene() {
 #ifdef DEBUG
   std::cout << "\tLoading scene from " << filename_ << std::endl;
 #endif
+  if (timer.configuration_.timer_.parse_xml_)
+    timer.AddTimeLog(Section::kParseXML, Event::kStart);
   raw_scene.loadFromXml(filename_);
+  if (timer.configuration_.timer_.parse_xml_)
+    timer.AddTimeLog(Section::kParseXML, Event::kEnd);
 #ifdef DEBUG
   std::cout << "\tLoading xml is done." << std::endl;
 #endif
+
+  if (timer.configuration_.timer_.load_scene_)
+    timer.AddTimeLog(Section::kLoadScene, Event::kStart);
 
   background_color_ = raw_scene.background_color;
   shadow_ray_epsilon_ = raw_scene.shadow_ray_epsilon;
@@ -282,9 +297,11 @@ void Scene::LoadScene() {
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<MeshInstanceObject>(
                 material, mesh_object, transform_matrix, scaling_flip)));
-
   }
   // exit(1);
+
+  if (timer.configuration_.timer_.load_scene_)
+    timer.AddTimeLog(Section::kLoadScene, Event::kEnd);
 }
 
 void Scene::PreprocessScene() {
@@ -310,25 +327,40 @@ void Scene::PreprocessScene() {
 }
 
 void Scene::Render() {
-#ifdef DEBUG
   int camera_index = 0;
-#endif
   for (const auto &camera : cameras_) {
+    if (timer.configuration_.timer_.render_scene_ ||
+        timer.configuration_.timer_.ray_tracing_ ||
+        timer.configuration_.timer_.tone_mapping_ ||
+        timer.configuration_.timer_.export_image_)
+      timer.AddTimeLog(Section::kRenderScene, Event::kStart, camera_index);
+
 #ifdef DEBUG
     std::cout << "Rendering camera " << camera_index << std::endl;
 #endif
-    scheduling_algorithm_(camera);
+    scheduling_algorithm_(camera, camera_index);
 #ifdef DEBUG
     std::cout << "Tonemapping result " << camera_index << std::endl;
 #endif
+    if (timer.configuration_.timer_.tone_mapping_)
+      timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
     tone_mapping_algorithm_(camera->GetImageDataReference(),
                             camera->GetTonemappedImageDataReference());
+    if (timer.configuration_.timer_.tone_mapping_)
+      timer.AddTimeLog(Section::kToneMapping, Event::kEnd, camera_index);
 #ifdef DEBUG
     std::cout << "Exporting result " << camera_index << std::endl;
 #endif
+    if (timer.configuration_.timer_.export_image_)
+      timer.AddTimeLog(Section::kExportImage, Event::kStart, camera_index);
     camera->ExportView(exporter_);
-#ifdef DEBUG
+    if (timer.configuration_.timer_.export_image_)
+      timer.AddTimeLog(Section::kExportImage, Event::kEnd, camera_index);
+    if (timer.configuration_.timer_.render_scene_ ||
+        timer.configuration_.timer_.ray_tracing_ ||
+        timer.configuration_.timer_.tone_mapping_ ||
+        timer.configuration_.timer_.export_image_)
+      timer.AddTimeLog(Section::kRenderScene, Event::kEnd, camera_index);
     camera_index++;
-#endif
   }
 }

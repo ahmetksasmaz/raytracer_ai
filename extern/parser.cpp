@@ -93,6 +93,30 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream >> camera.image_width >> camera.image_height;
     stream >> camera.image_name;
 
+    child = element->FirstChildElement("NumSamples");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.num_samples;
+    } else {
+      camera.num_samples = 0;
+    }
+
+    child = element->FirstChildElement("FocusDistance");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.focus_distance;
+    } else {
+      camera.focus_distance = 0;
+    }
+
+    child = element->FirstChildElement("AperatureSize");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.aperture_size;
+    } else {
+      camera.aperture_size = 0;
+    }
+
     cameras.push_back(camera);
     element = element->NextSiblingElement("Camera");
   }
@@ -122,6 +146,30 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
 
     point_lights.push_back(point_light);
     element = element->NextSiblingElement("PointLight");
+  }
+
+  element = root->FirstChildElement("Lights");
+  element = element->FirstChildElement("AreaLight");
+  while (element) {
+    RawAreaLight area_light;
+    child = element->FirstChildElement("Position");
+    stream << child->GetText() << std::endl;
+    child = element->FirstChildElement("Normal");
+    stream << child->GetText() << std::endl;
+    child = element->FirstChildElement("Size");
+    stream << child->GetText() << std::endl;
+    child = element->FirstChildElement("Radiance");
+    stream << child->GetText() << std::endl;
+
+    stream >> area_light.position.x >> area_light.position.y >>
+        area_light.position.z;
+    stream >> area_light.normal.x >> area_light.normal.y >> area_light.normal.z;
+    stream >> area_light.size;
+    stream >> area_light.radiance.x >> area_light.radiance.y >>
+        area_light.radiance.z;
+
+    area_lights.push_back(area_light);
+    element = element->NextSiblingElement("AreaLight");
   }
 
 #ifdef PARSER_DEBUG
@@ -203,6 +251,12 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       stream >> material.phong_exponent;
     } else {
       material.phong_exponent = -1.0f;
+    }
+
+    child = element->FirstChildElement("Roughness");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> material.roughness;
     }
 
     materials.push_back(material);
@@ -309,6 +363,12 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     }
     stream.clear();
 
+    child = element->FirstChildElement("MotionBlur");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> mesh.motion_blur.x >> mesh.motion_blur.y >> mesh.motion_blur.z;
+    }
+
     meshes.push_back(mesh);
     mesh.faces.clear();
     element = element->NextSiblingElement("Mesh");
@@ -342,6 +402,13 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       mesh_instance.transformations = std::string{child->GetText()};
     }
 
+    child = element->FirstChildElement("MotionBlur");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> mesh_instance.motion_blur.x >> mesh_instance.motion_blur.y >>
+          mesh_instance.motion_blur.z;
+    }
+
     mesh_instances.push_back(mesh_instance);
     element = element->NextSiblingElement("MeshInstance");
   }
@@ -370,6 +437,13 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream << child->GetText() << std::endl;
     stream >> triangle.indices.v0_id >> triangle.indices.v1_id >>
         triangle.indices.v2_id;
+
+    child = element->FirstChildElement("MotionBlur");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> triangle.motion_blur.x >> triangle.motion_blur.y >>
+          triangle.motion_blur.z;
+    }
 
     triangles.push_back(triangle);
     element = element->NextSiblingElement("Triangle");
@@ -401,6 +475,13 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     child = element->FirstChildElement("Radius");
     stream << child->GetText() << std::endl;
     stream >> sphere.radius;
+
+    child = element->FirstChildElement("MotionBlur");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> sphere.motion_blur.x >> sphere.motion_blur.y >>
+          sphere.motion_blur.z;
+    }
 
     spheres.push_back(sphere);
     element = element->NextSiblingElement("Sphere");

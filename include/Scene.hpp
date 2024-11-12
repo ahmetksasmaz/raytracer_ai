@@ -48,7 +48,8 @@ class Scene {
 
   std::shared_ptr<BoundingVolumeHierarchyElement> bvh_root_ = nullptr;
 
-  std::function<void(const std::shared_ptr<BaseCamera>)> scheduling_algorithm_;
+  std::function<void(const std::shared_ptr<BaseCamera>, int)>
+      scheduling_algorithm_;
   std::function<Vec3f(Ray&, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
   std::function<void(const std::vector<Vec3f>&, std::vector<unsigned char>&)>
@@ -65,8 +66,10 @@ class Scene {
       const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
       int remaining_recursion, int max_recursion);
 
-  void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera);
-  void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera);
+  void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
+                                    int camera_index);
+  void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
+                                      int camera_index);
 
   void ClampToneMappingAlgorithm(const std::vector<Vec3f>&,
                                  std::vector<unsigned char>&);

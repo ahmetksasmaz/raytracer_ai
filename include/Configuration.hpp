@@ -83,6 +83,16 @@ struct Configuration {
     bool bvh_high_level_ = true;
   } acceleration_;
 
+  struct Timer {
+    bool parse_xml_ = true;
+    bool load_scene_ = true;
+    bool preprocess_scene_ = true;
+    bool render_scene_ = true;
+    bool ray_tracing_ = true;
+    bool tone_mapping_ = true;
+    bool export_image_ = true;
+  } timer_;
+
   void ParseFromFile(const std::string& filename) {
     using json = nlohmann::json;
 
@@ -234,5 +244,13 @@ struct Configuration {
     data.at("acceleration")
         .at("bvh_high_level")
         .get_to(acceleration_.bvh_high_level_);
+
+    data.at("timer").at("parse_xml").get_to(timer_.parse_xml_);
+    data.at("timer").at("load_scene").get_to(timer_.load_scene_);
+    data.at("timer").at("preprocess_scene").get_to(timer_.preprocess_scene_);
+    data.at("timer").at("render_scene").get_to(timer_.render_scene_);
+    data.at("timer").at("ray_tracing").get_to(timer_.ray_tracing_);
+    data.at("timer").at("tone_mapping").get_to(timer_.tone_mapping_);
+    data.at("timer").at("export_image").get_to(timer_.export_image_);
   }
 };

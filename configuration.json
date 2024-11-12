@@ -1,10 +1,13 @@
 {
-    "sampling":{
+    "sampling": {
         "pixel_sampling": "jittered",
-        "aperture_sampling:" : "jittered",
+        "aperture_sampling": "jittered",
         "glossy_sampling": "jittered",
         "area_light_sampling": "jittered",
-        "sample_filtering": "gaussian",
+        "pixel_filtering": "gaussian",
+        "aperture_filtering": "not_applicable",
+        "glossy_filtering": "gaussian",
+        "area_light_filtering": "not_applicable",
         "aperture_type": "circular",
         "pixel_sampling_ratio": 1.0,
         "aperture_sampling_ratio": 1.0,
@@ -44,5 +47,14 @@
         "__comment2": "Low level BVH : BVH for object primitives",
         "__comment3": "High level BVH : BVH for objects",
         "__comment4": "Instance referencing: true for using reference of object (primitives also), false for deep copy"
+    },
+    "timer": {
+        "parse_xml": true,
+        "load_scene": true,
+        "preprocess_scene": true,
+        "render_scene": true,
+        "ray_tracing": true,
+        "tone_mapping": true,
+        "export_image": true
     }
 }

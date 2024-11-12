@@ -3,9 +3,10 @@
 #include <thread>
 
 #include "Scene.hpp"
+#include "Timer.hpp"
 
 void Scene::ThreadQueueSchedulingAlgorithm(
-    const std::shared_ptr<BaseCamera> camera) {
+    const std::shared_ptr<BaseCamera> camera, int camera_index) {
   std::queue<std::pair<int, int>> queue;
   std::mutex queue_mutex;
   for (int y = 0; y < camera->image_height_; ++y) {
@@ -31,10 +32,18 @@ void Scene::ThreadQueueSchedulingAlgorithm(
           index = queue.front();
           queue.pop();
         }
+        if (timer.configuration_.timer_.ray_tracing_)
+          timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
+                           index.second * camera->image_width_ + index.first,
+                           0);
         Ray ray = camera->GenerateRay({index.first, index.second});
         const Vec3f pixel_value = ray_tracing_algorithm_(
             ray, nullptr, max_recursion_depth_, max_recursion_depth_);
         camera->UpdatePixelValue({index.first, index.second}, pixel_value);
+        if (timer.configuration_.timer_.ray_tracing_)
+          timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
+                           index.second * camera->image_width_ + index.first,
+                           0);
       }
     });
   }

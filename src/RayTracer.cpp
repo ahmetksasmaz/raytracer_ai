@@ -1,6 +1,9 @@
 #include <iostream>
 
 #include "Scene.hpp"
+#include "Timer.hpp"
+
+Timer timer;
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
@@ -15,9 +18,13 @@ int main(int argc, char *argv[]) {
     configuration.ParseFromFile(argv[2]);
   }
 
+  timer.configuration_ = configuration;
+
   Scene scene(argv[1], configuration);
 
   scene.Render();
+
+  timer.AnalyzeTimeLogs();
 
   return 0;
 }

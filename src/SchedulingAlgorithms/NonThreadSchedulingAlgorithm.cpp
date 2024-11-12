@@ -1,7 +1,8 @@
 #include "Scene.hpp"
+#include "Timer.hpp"
 
 void Scene::NonThreadSchedulingAlgorithm(
-    const std::shared_ptr<BaseCamera> camera) {
+    const std::shared_ptr<BaseCamera> camera, int camera_index) {
 #ifdef DEBUG
   std::cout << "Camera resolution " << camera->image_height_ << "x"
             << camera->image_width_ << std::endl;
@@ -11,6 +12,9 @@ void Scene::NonThreadSchedulingAlgorithm(
 #ifdef DEBUG
       std::cout << "Tracing ray for index " << x << "," << y << std::endl;
 #endif
+      if (timer.configuration_.timer_.ray_tracing_)
+        timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
+                         y * camera->image_width_ + x, 0);
       Ray ray = camera->GenerateRay({x, y});
 #ifdef DEBUG
       std::cout << "Generated ray is " << "[" << ray.origin_.x << ray.origin_.y
@@ -27,6 +31,9 @@ void Scene::NonThreadSchedulingAlgorithm(
                 << pixel_value.z << ")" << std::endl;
 #endif
       camera->UpdatePixelValue({x, y}, pixel_value);
+      if (timer.configuration_.timer_.ray_tracing_)
+        timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
+                         y * camera->image_width_ + x, 0);
     }
   }
 }

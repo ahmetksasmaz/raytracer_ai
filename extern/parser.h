@@ -12,6 +12,10 @@ namespace parser {
 // so that you are not enforced to adopt any style or design.
 enum RawMaterialType { kDefault, kMirror, kConductor, kDielectric };
 
+struct Vec2f {
+  float x, y;
+};
+
 struct Vec3f {
   float x, y, z;
 
@@ -82,6 +86,9 @@ struct RawCamera {
   Vec3f up;
   Vec4f near_plane;
   float near_distance;
+  float focus_distance;
+  float aperture_size;
+  unsigned int num_samples;
   int image_width, image_height;
   std::string image_name;
 };
@@ -89,6 +96,13 @@ struct RawCamera {
 struct RawPointLight {
   Vec3f position;
   Vec3f intensity;
+};
+
+struct RawAreaLight {
+  Vec3f position;
+  Vec3f radiance;
+  Vec3f normal;
+  float size;
 };
 
 struct RawMaterial {
@@ -101,6 +115,7 @@ struct RawMaterial {
   float refraction_index;
   float absorption_index;
   float phong_exponent;
+  float roughness = 0.0;
 };
 
 struct RawFace {
@@ -115,6 +130,7 @@ struct RawMesh {
   std::vector<RawFace> faces;
   std::string ply_filepath = "";
   std::string transformations = "";
+  Vec3f motion_blur = {0, 0, 0};
 };
 
 struct RawMeshInstance {
@@ -123,6 +139,7 @@ struct RawMeshInstance {
   int base_object_id;
   bool reset_transform;
   std::string transformations = "";
+  Vec3f motion_blur = {0, 0, 0};
 };
 
 struct RawTriangle {
@@ -130,6 +147,7 @@ struct RawTriangle {
   int material_id;
   RawFace indices;
   std::string transformations = "";
+  Vec3f motion_blur = {0, 0, 0};
 };
 
 struct RawSphere {
@@ -138,6 +156,7 @@ struct RawSphere {
   int center_vertex_id;
   float radius;
   std::string transformations = "";
+  Vec3f motion_blur = {0, 0, 0};
 };
 
 struct RawTranslation {
@@ -212,6 +231,7 @@ struct RawScene {
   std::vector<RawCamera> cameras;
   Vec3f ambient_light;
   std::vector<RawPointLight> point_lights;
+  std::vector<RawAreaLight> area_lights;
   std::vector<RawMaterial> materials;
   std::vector<Vec3f> vertex_data;
   std::vector<RawMesh> meshes;
