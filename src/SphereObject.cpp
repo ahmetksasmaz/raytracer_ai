@@ -35,10 +35,10 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       float t = atan2(y, x);
       float p = acos(z / r);
 
-      Vec3f local_normal_sample_1 = Vec3f{sin(p+0.05) * cos(t), sin(p+0.05) * sin(t), cos(p+0.05)};
-      Vec3f local_normal_sample_2 = Vec3f{sin(p-0.05) * cos(t), sin(p-0.05) * sin(t), cos(p-0.05)};
-      Vec3f local_normal_sample_3 = Vec3f{sin(p) * cos(t+0.05), sin(p) * sin(t+0.05), cos(p)};
-      Vec3f local_normal_sample_4 = Vec3f{sin(p) * cos(t-0.05), sin(p) * sin(t-0.05), cos(p)};
+      Vec3f local_normal_sample_1 = Vec3f{float(sin(p+0.05) * cos(t)), float(sin(p+0.05) * sin(t)), float(cos(p+0.05))};
+      Vec3f local_normal_sample_2 = Vec3f{float(sin(p-0.05) * cos(t)), float(sin(p-0.05) * sin(t)), float(cos(p-0.05))};
+      Vec3f local_normal_sample_3 = Vec3f{float(sin(p) * cos(t+0.05)), float(sin(p) * sin(t+0.05)), float(cos(p))};
+      Vec3f local_normal_sample_4 = Vec3f{float(sin(p) * cos(t-0.05)), float(sin(p) * sin(t-0.05)), float(cos(p))};
 
       Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
       Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;

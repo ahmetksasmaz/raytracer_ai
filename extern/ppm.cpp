@@ -1,4 +1,5 @@
 #include "ppm.h"
+#include <stdio.h>
 
 #include <stdexcept>
 
