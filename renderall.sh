@@ -11,4 +11,4 @@ do
     end=$(date +%s%N)
     echo "BVH : $(($(($end-$start))/1000000)) ms"
 
-done < scenes_debug.txt
+done < scenes.txt
