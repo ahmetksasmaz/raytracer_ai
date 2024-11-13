@@ -14,6 +14,7 @@ enum class Section {
   kPreprocessScene,
   kRenderScene,
   kRayTracing,
+  kFiltering,
   kToneMapping,
   kExportImage
 };

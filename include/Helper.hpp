@@ -33,6 +33,8 @@ inline float norm2(Vec3f a) { return a.x * a.x + a.y * a.y + a.z * a.z; }
 
 inline float norm(Vec3f a) { return sqrt(norm2(a)); }
 
+inline float norm(Vec2f a) { return sqrt(a.x * a.x + a.y * a.y); }
+
 inline float dot(Vec3f a, Vec3f b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
 inline Vec3f hadamard(Vec3f a, Vec3f b) {
@@ -55,7 +57,11 @@ inline Vec3f operator+(Vec3f a, Vec3f b) {
   return Vec3f{a.x + b.x, a.y + b.y, a.z + b.z};
 }
 
+inline Vec2f operator+(Vec2f a, Vec2f b) { return Vec2f{a.x + b.x, a.y + b.y}; }
+
 inline Vec3f operator-(Vec3f a) { return Vec3f{-a.x, -a.y, -a.z}; }
+
+inline Vec2f operator-(Vec2f a, Vec2f b) { return Vec2f{a.x - b.x, a.y - b.y}; }
 
 inline Vec3f operator+=(Vec3f& a, Vec3f b) {
   a.x += b.x;
@@ -300,4 +306,107 @@ inline Mat4x4f parse_transformation(std::string transformation_text,
     result = multiplier_matrix * result;
   }
   return result;
+}
+
+inline std::vector<float> uniform_1d(int num_samples) {
+  std::vector<float> samples;
+  for (int i = 0; i < num_samples; i++) {
+    samples.push_back((float)i / num_samples);
+  }
+  return samples;
+}
+
+inline std::vector<Vec2f> uniform_2d(int num_samples) {
+  std::vector<Vec2f> samples;
+  for (int i = 0; i < num_samples; i++) {
+    for (int j = 0; j < num_samples; j++) {
+      samples.push_back(Vec2f{(float)i / num_samples, (float)j / num_samples});
+    }
+  }
+  return samples;
+}
+
+inline std::vector<float> uniform_random_1d(int num_samples) {
+  std::vector<float> samples;
+  for (int i = 0; i < num_samples; i++) {
+    samples.push_back((float)rand() / RAND_MAX);
+  }
+  return samples;
+}
+
+inline std::vector<Vec2f> uniform_random_2d(int num_samples) {
+  std::vector<Vec2f> samples;
+  for (int i = 0; i < num_samples; i++) {
+    for (int j = 0; j < num_samples; j++) {
+      samples.push_back(
+          Vec2f{(float)rand() / RAND_MAX, (float)rand() / RAND_MAX});
+    }
+  }
+  return samples;
+}
+
+inline std::vector<float> jittered_1d(int num_samples) {
+  std::vector<float> samples;
+  for (int i = 0; i < num_samples; i++) {
+    samples.push_back((i + (float)rand() / RAND_MAX) / num_samples);
+  }
+  return samples;
+}
+
+inline std::vector<Vec2f> jittered_2d(int num_samples) {
+  std::vector<Vec2f> samples;
+  for (int i = 0; i < num_samples; i++) {
+    for (int j = 0; j < num_samples; j++) {
+      samples.push_back(Vec2f{(i + (float)rand() / RAND_MAX) / num_samples,
+                              (j + (float)rand() / RAND_MAX) / num_samples});
+    }
+  }
+  return samples;
+}
+
+inline std::vector<Vec2f> multi_jittered_2d(int num_samples) {
+  std::vector<Vec2f> samples;
+  int n = sqrt(num_samples);
+  float subcell_width = 1.0 / num_samples;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      samples.push_back(
+          Vec2f{(i * n + j + (float)rand() / RAND_MAX) * subcell_width,
+                (j * n + i + (float)rand() / RAND_MAX) * subcell_width});
+    }
+  }
+  return samples;
+}
+
+inline float radical_inverse(unsigned int n, unsigned int base) {
+  float val = 0;
+  float inv_base = 1.0 / base;
+  float inv_bi = inv_base;
+  while (n > 0) {
+    unsigned int d_i = n % base;
+    val += d_i * inv_bi;
+    n /= base;
+    inv_bi *= inv_base;
+  }
+  return val;
+}
+
+inline std::vector<Vec2f> hammersley_2d(int num_samples) {
+  std::vector<Vec2f> samples;
+  for (int i = 0; i < num_samples; i++) {
+    float x = (float)i / num_samples;
+    float y = (float)radical_inverse(i, 2);
+    samples.push_back(Vec2f{x, y});
+  }
+  return samples;
+}
+
+inline std::vector<Vec2f> halton_2d(int num_samples) {
+  std::vector<Vec2f> samples;
+  for (int i = 0; i < num_samples; i++) {
+    float x = (float)radical_inverse(i, 2);
+    float y = (float)radical_inverse(i, 3);
+    samples.push_back(Vec2f{x, y});
+  }
+  return samples;
 }

@@ -109,7 +109,7 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       camera.focus_distance = 0;
     }
 
-    child = element->FirstChildElement("AperatureSize");
+    child = element->FirstChildElement("ApertureSize");
     if (child) {
       stream << child->GetText() << std::endl;
       stream >> camera.aperture_size;

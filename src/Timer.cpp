@@ -45,6 +45,7 @@ void Timer::AnalyzeTimeLogs() {
   std::pair<uint64_t, uint64_t> preprocess_scene_time_pair;
   std::vector<std::pair<uint64_t, uint64_t>> render_scene_time_pair;
   std::vector<std::pair<uint64_t, uint64_t>> tone_mapping_time_pair;
+  std::vector<std::pair<uint64_t, uint64_t>> filtering_time_pair;
   std::vector<std::pair<uint64_t, uint64_t>> export_image_time_pair;
   std::vector<std::vector<std::vector<std::pair<uint64_t, uint64_t>>>>
       ray_tracing_time_pair;
@@ -118,7 +119,23 @@ void Timer::AnalyzeTimeLogs() {
                                    .second = time_logs_[i].timestamp_;
           break;
       }
-    } else if (time_logs_[i].section_ == Section::kToneMapping) {
+    } else if (time_logs_[i].section_ == Section::kFiltering) {
+      if (filtering_time_pair.size() <= time_logs_[i].camera_id_) {
+        filtering_time_pair.resize(time_logs_[i].camera_id_ + 1);
+      }
+      switch (time_logs_[i].event_) {
+        case Event::kStart:
+          filtering_time_pair[time_logs_[i].camera_id_].first =
+              time_logs_[i].timestamp_;
+          break;
+        case Event::kEnd:
+          filtering_time_pair[time_logs_[i].camera_id_].second =
+              time_logs_[i].timestamp_;
+          break;
+      }
+    }
+
+    else if (time_logs_[i].section_ == Section::kToneMapping) {
       if (tone_mapping_time_pair.size() <= time_logs_[i].camera_id_) {
         tone_mapping_time_pair.resize(time_logs_[i].camera_id_ + 1);
       }
@@ -153,6 +170,7 @@ void Timer::AnalyzeTimeLogs() {
   uint64_t load_scene_time;
   uint64_t preprocess_scene_time;
   std::vector<uint64_t> render_scene_time;
+  std::vector<uint64_t> filtering_time;
   std::vector<uint64_t> tone_mapping_time;
   std::vector<uint64_t> export_image_time;
   std::vector<std::vector<std::vector<uint64_t>>> ray_tracing_time;
@@ -164,6 +182,10 @@ void Timer::AnalyzeTimeLogs() {
   for (int i = 0; i < render_scene_time_pair.size(); i++) {
     render_scene_time.push_back(render_scene_time_pair[i].second -
                                 render_scene_time_pair[i].first);
+  }
+  for (int i = 0; i < filtering_time_pair.size(); i++) {
+    filtering_time.push_back(filtering_time_pair[i].second -
+                             filtering_time_pair[i].first);
   }
   for (int i = 0; i < tone_mapping_time_pair.size(); i++) {
     tone_mapping_time.push_back(tone_mapping_time_pair[i].second -
@@ -186,6 +208,8 @@ void Timer::AnalyzeTimeLogs() {
 
   float mean_render_scene_time = 0.0;
   float std_dev_render_scene_time = 0.0;
+  float mean_filtering_time = 0.0;
+  float std_dev_filtering_time = 0.0;
   float mean_tone_mapping_time = 0.0;
   float std_dev_tone_mapping_time = 0.0;
   float mean_export_image_time = 0.0;
@@ -202,6 +226,16 @@ void Timer::AnalyzeTimeLogs() {
   }
   std_dev_render_scene_time =
       sqrt(std_dev_render_scene_time / render_scene_time.size());
+
+  for (int i = 0; i < filtering_time.size(); i++) {
+    mean_filtering_time += filtering_time[i];
+  }
+  mean_filtering_time /= filtering_time.size();
+  for (int i = 0; i < filtering_time.size(); i++) {
+    std_dev_filtering_time += (filtering_time[i] - mean_filtering_time) *
+                              (filtering_time[i] - mean_filtering_time);
+  }
+  std_dev_filtering_time = sqrt(std_dev_filtering_time / filtering_time.size());
 
   for (int i = 0; i < tone_mapping_time.size(); i++) {
     mean_tone_mapping_time += tone_mapping_time[i];
@@ -261,7 +295,7 @@ void Timer::AnalyzeTimeLogs() {
       for (int k = 0; k < ray_tracing_time[i][j].size(); k++) {
         temp += ray_tracing_time[i][j][k];
       }
-      mean_ray_tracing_time_per_pixel += temp / ray_tracing_time[i][j].size();
+      mean_ray_tracing_time_per_pixel += temp;
       pixel_count++;
     }
   }
@@ -273,7 +307,6 @@ void Timer::AnalyzeTimeLogs() {
       for (int k = 0; k < ray_tracing_time[i][j].size(); k++) {
         temp += ray_tracing_time[i][j][k];
       }
-      temp /= ray_tracing_time[i][j].size();
       std_dev_ray_tracing_time_per_pixel +=
           (temp - mean_ray_tracing_time_per_pixel) *
           (temp - mean_ray_tracing_time_per_pixel);
@@ -288,6 +321,8 @@ void Timer::AnalyzeTimeLogs() {
             << std::endl;
   std::cout << "Render Scene: " << mean_render_scene_time << " ms - "
             << std_dev_render_scene_time << " ms" << std::endl;
+  std::cout << "Filtering: " << mean_filtering_time << " ms - "
+            << std_dev_filtering_time << " ms" << std::endl;
   std::cout << "Tone Mapping: " << mean_tone_mapping_time << " ms - "
             << std_dev_tone_mapping_time << " ms" << std::endl;
   std::cout << "Export Image: " << mean_export_image_time << " ms - "

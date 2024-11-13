@@ -12,10 +12,8 @@ void Scene::NonThreadSchedulingAlgorithm(
 #ifdef DEBUG
       std::cout << "Tracing ray for index " << x << "," << y << std::endl;
 #endif
-      if (timer.configuration_.timer_.ray_tracing_)
-        timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
-                         y * camera->image_width_ + x, 0);
-      Ray ray = camera->GenerateRay({x, y});
+
+      std::vector<Ray> rays = camera->GenerateRay({x, y});
 #ifdef DEBUG
       std::cout << "Generated ray is " << "[" << ray.origin_.x << ray.origin_.y
                 << ray.origin_.z << "]"
@@ -24,16 +22,22 @@ void Scene::NonThreadSchedulingAlgorithm(
                 << ray.direction_.x << ray.direction_.y << ray.direction_.z
                 << "]" << std::endl;
 #endif
-      const Vec3f pixel_value = ray_tracing_algorithm_(
-          ray, nullptr, max_recursion_depth_, max_recursion_depth_);
+      for (int ray_index = 0; ray_index < rays.size(); ray_index++) {
+        if (timer.configuration_.timer_.ray_tracing_)
+          timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
+                           y * camera->image_width_ + x, ray_index);
+        const Vec3f pixel_value =
+            ray_tracing_algorithm_(rays[ray_index], nullptr,
+                                   max_recursion_depth_, max_recursion_depth_);
 #ifdef DEBUG
-      std::cout << "Pixel value is " << "(" << pixel_value.x << pixel_value.y
-                << pixel_value.z << ")" << std::endl;
+        std::cout << "Pixel value is " << "(" << pixel_value.x << pixel_value.y
+                  << pixel_value.z << ")" << std::endl;
 #endif
-      camera->UpdatePixelValue({x, y}, pixel_value);
-      if (timer.configuration_.timer_.ray_tracing_)
-        timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
-                         y * camera->image_width_ + x, 0);
+        camera->UpdateSampledPixelValue({x, y}, pixel_value);
+        if (timer.configuration_.timer_.ray_tracing_)
+          timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
+                           y * camera->image_width_ + x, ray_index);
+      }
     }
   }
 }

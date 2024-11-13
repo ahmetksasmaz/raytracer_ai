@@ -39,6 +39,25 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
       break;
   }
 
+  switch (configuration_.sampling_.pixel_filtering_) {
+    case FilteringAlgorithm::kBox:
+      filtering_algorithm_ =
+          std::bind(&Scene::AveragingFilterAlgorithm, this,
+                    std::placeholders::_1, std::placeholders::_2);
+      break;
+    case FilteringAlgorithm::kGaussian:
+      filtering_algorithm_ =
+          std::bind(&Scene::GaussianFilterAlgorithm, this,
+                    std::placeholders::_1, std::placeholders::_2);
+      break;
+
+    case FilteringAlgorithm::kExtendedGaussian:
+      filtering_algorithm_ =
+          std::bind(&Scene::ExtendedGaussianFilterAlgorithm, this,
+                    std::placeholders::_1, std::placeholders::_2);
+      break;
+  }
+
   switch (configuration_.strategies_.tone_mapping_algorithm_) {
     case ToneMappingAlgorithm::kClamp:
       tone_mapping_algorithm_ =
@@ -114,7 +133,10 @@ void Scene::LoadScene() {
     cameras_.push_back(std::make_shared<BaseCamera>(
         raw_camera.position, raw_camera.gaze, raw_camera.up,
         raw_camera.near_plane, raw_camera.near_distance, raw_camera.image_width,
-        raw_camera.image_height, raw_camera.image_name));
+        raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples,
+        configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
+        raw_camera.aperture_size, configuration_.sampling_.aperture_sampling_,
+        configuration_.sampling_.aperture_type_));
   }
 
 #ifdef DEBUG
@@ -342,6 +364,14 @@ void Scene::Render() {
 #ifdef DEBUG
     std::cout << "Tonemapping result " << camera_index << std::endl;
 #endif
+
+    if (timer.configuration_.timer_.filtering_)
+      timer.AddTimeLog(Section::kFiltering, Event::kStart, camera_index);
+    filtering_algorithm_(camera->GetImageSampledDataReference(),
+                         camera->GetImageDataReference());
+    if (timer.configuration_.timer_.filtering_)
+      timer.AddTimeLog(Section::kFiltering, Event::kEnd, camera_index);
+
     if (timer.configuration_.timer_.tone_mapping_)
       timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
     tone_mapping_algorithm_(camera->GetImageDataReference(),

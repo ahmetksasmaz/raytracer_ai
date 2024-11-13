@@ -32,10 +32,18 @@ enum class SamplingAlgorithm {
 enum class FilteringAlgorithm {
   kBox = 0,
   kGaussian = 1,
-  kTriangle = 2,
-  kMitchell = 3,
-  kLanczos = 4,
-  kBest = 1,
+  kExtendedGaussian = 2,
+  kBest = 2,
+  kMax = 2
+};
+
+enum class ApertureType {
+  kCircular = 0,
+  kSquare = 1,
+  kPoly3 = 2,
+  kPoly5 = 3,
+  kPoly6 = 4,
+  kDefault = 0,
   kMax = 4
 };
 
@@ -53,10 +61,7 @@ struct Configuration {
     FilteringAlgorithm pixel_filtering_ = FilteringAlgorithm::kBest;
     FilteringAlgorithm glossy_filtering_ = FilteringAlgorithm::kBest;
 
-    float pixel_sampling_ratio_ = 1.0f;
-    float aperture_sampling_ratio_ = 1.0f;
-    float glossy_sampling_ratio_ = 1.0f;
-    float area_light_sampling_ratio_ = 1.0f;
+    ApertureType aperture_type_ = ApertureType::kDefault;
   } sampling_;
 
   struct Shading {
@@ -89,6 +94,7 @@ struct Configuration {
     bool preprocess_scene_ = true;
     bool render_scene_ = true;
     bool ray_tracing_ = true;
+    bool filtering_ = true;
     bool tone_mapping_ = true;
     bool export_image_ = true;
   } timer_;
@@ -113,6 +119,8 @@ struct Configuration {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kHalton;
     } else if (sampling_algorithm == "hammersley") {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kHammersley;
+    } else {
+      sampling_.pixel_sampling_ = SamplingAlgorithm::kBest;
     }
 
     data.at("sampling").at("aperture_sampling").get_to(sampling_algorithm);
@@ -128,6 +136,8 @@ struct Configuration {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kHalton;
     } else if (sampling_algorithm == "hammersley") {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kHammersley;
+    } else {
+      sampling_.aperture_sampling_ = SamplingAlgorithm::kBest;
     }
 
     data.at("sampling").at("glossy_sampling").get_to(sampling_algorithm);
@@ -143,6 +153,8 @@ struct Configuration {
       sampling_.glossy_sampling_ = SamplingAlgorithm::kHalton;
     } else if (sampling_algorithm == "hammersley") {
       sampling_.glossy_sampling_ = SamplingAlgorithm::kHammersley;
+    } else {
+      sampling_.glossy_sampling_ = SamplingAlgorithm::kBest;
     }
 
     data.at("sampling").at("area_light_sampling").get_to(sampling_algorithm);
@@ -158,6 +170,8 @@ struct Configuration {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kHalton;
     } else if (sampling_algorithm == "hammersley") {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kHammersley;
+    } else {
+      sampling_.area_light_sampling_ = SamplingAlgorithm::kBest;
     }
 
     std::string filtering_algorithm;
@@ -166,12 +180,10 @@ struct Configuration {
       sampling_.pixel_filtering_ = FilteringAlgorithm::kBox;
     } else if (filtering_algorithm == "gaussian") {
       sampling_.pixel_filtering_ = FilteringAlgorithm::kGaussian;
-    } else if (filtering_algorithm == "triangle") {
-      sampling_.pixel_filtering_ = FilteringAlgorithm::kTriangle;
-    } else if (filtering_algorithm == "mitchell") {
-      sampling_.pixel_filtering_ = FilteringAlgorithm::kMitchell;
-    } else if (filtering_algorithm == "lanczos") {
-      sampling_.pixel_filtering_ = FilteringAlgorithm::kLanczos;
+    } else if (filtering_algorithm == "extended_gaussian") {
+      sampling_.pixel_filtering_ = FilteringAlgorithm::kExtendedGaussian;
+    } else {
+      sampling_.pixel_filtering_ = FilteringAlgorithm::kBest;
     }
 
     data.at("sampling").at("glossy_filtering").get_to(filtering_algorithm);
@@ -179,26 +191,25 @@ struct Configuration {
       sampling_.glossy_filtering_ = FilteringAlgorithm::kBox;
     } else if (filtering_algorithm == "gaussian") {
       sampling_.glossy_filtering_ = FilteringAlgorithm::kGaussian;
-    } else if (filtering_algorithm == "triangle") {
-      sampling_.glossy_filtering_ = FilteringAlgorithm::kTriangle;
-    } else if (filtering_algorithm == "mitchell") {
-      sampling_.glossy_filtering_ = FilteringAlgorithm::kMitchell;
-    } else if (filtering_algorithm == "lanczos") {
-      sampling_.glossy_filtering_ = FilteringAlgorithm::kLanczos;
+    } else {
+      sampling_.glossy_filtering_ = FilteringAlgorithm::kBest;
     }
 
-    data.at("sampling")
-        .at("pixel_sampling_ratio")
-        .get_to(sampling_.pixel_sampling_ratio_);
-    data.at("sampling")
-        .at("aperture_sampling_ratio")
-        .get_to(sampling_.aperture_sampling_ratio_);
-    data.at("sampling")
-        .at("glossy_sampling_ratio")
-        .get_to(sampling_.glossy_sampling_ratio_);
-    data.at("sampling")
-        .at("area_light_sampling_ratio")
-        .get_to(sampling_.area_light_sampling_ratio_);
+    std::string aperture_type;
+    data.at("sampling").at("aperture_type").get_to(aperture_type);
+    if (aperture_type == "circular") {
+      sampling_.aperture_type_ = ApertureType::kCircular;
+    } else if (aperture_type == "square") {
+      sampling_.aperture_type_ = ApertureType::kSquare;
+    } else if (aperture_type == "poly3") {
+      sampling_.aperture_type_ = ApertureType::kPoly3;
+    } else if (aperture_type == "poly5") {
+      sampling_.aperture_type_ = ApertureType::kPoly5;
+    } else if (aperture_type == "poly6") {
+      sampling_.aperture_type_ = ApertureType::kPoly6;
+    } else {
+      sampling_.aperture_type_ = ApertureType::kDefault;
+    }
 
     data.at("shading").at("ambient").get_to(shading_.ambient_);
     data.at("shading").at("diffuse").get_to(shading_.diffuse_);
@@ -214,6 +225,8 @@ struct Configuration {
       strategies_.ray_tracing_algorithm_ = RayTracingAlgorithm::kDefault;
     } else if (ray_tracing_algorithm == "recursive") {
       strategies_.ray_tracing_algorithm_ = RayTracingAlgorithm::kRecursive;
+    } else {
+      strategies_.ray_tracing_algorithm_ = RayTracingAlgorithm::kBest;
     }
 
     std::string scheduling_algorithm;
@@ -222,12 +235,16 @@ struct Configuration {
       strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kNonThread;
     } else if (scheduling_algorithm == "thread_queue") {
       strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kThreadQueue;
+    } else {
+      strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kBest;
     }
 
     std::string tone_mapping_algorithm;
     data.at("strategies").at("tone_mapping").get_to(tone_mapping_algorithm);
     if (tone_mapping_algorithm == "clamp") {
       strategies_.tone_mapping_algorithm_ = ToneMappingAlgorithm::kClamp;
+    } else {
+      strategies_.tone_mapping_algorithm_ = ToneMappingAlgorithm::kBest;
     }
 
     std::string exporter_type;
@@ -236,6 +253,8 @@ struct Configuration {
       strategies_.exporter_type_ = ExporterType::kPPM;
     } else if (exporter_type == "stb") {
       strategies_.exporter_type_ = ExporterType::kSTB;
+    } else {
+      strategies_.exporter_type_ = ExporterType::kBest;
     }
 
     data.at("acceleration")
@@ -250,6 +269,7 @@ struct Configuration {
     data.at("timer").at("preprocess_scene").get_to(timer_.preprocess_scene_);
     data.at("timer").at("render_scene").get_to(timer_.render_scene_);
     data.at("timer").at("ray_tracing").get_to(timer_.ray_tracing_);
+    data.at("timer").at("filtering").get_to(timer_.filtering_);
     data.at("timer").at("tone_mapping").get_to(timer_.tone_mapping_);
     data.at("timer").at("export_image").get_to(timer_.export_image_);
   }

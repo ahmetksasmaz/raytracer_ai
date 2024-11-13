@@ -32,18 +32,24 @@ void Scene::ThreadQueueSchedulingAlgorithm(
           index = queue.front();
           queue.pop();
         }
-        if (timer.configuration_.timer_.ray_tracing_)
-          timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
-                           index.second * camera->image_width_ + index.first,
-                           0);
-        Ray ray = camera->GenerateRay({index.first, index.second});
-        const Vec3f pixel_value = ray_tracing_algorithm_(
-            ray, nullptr, max_recursion_depth_, max_recursion_depth_);
-        camera->UpdatePixelValue({index.first, index.second}, pixel_value);
-        if (timer.configuration_.timer_.ray_tracing_)
-          timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
-                           index.second * camera->image_width_ + index.first,
-                           0);
+
+        std::vector<Ray> rays =
+            camera->GenerateRay({index.first, index.second});
+        for (int ray_index = 0; ray_index < rays.size(); ray_index++) {
+          if (timer.configuration_.timer_.ray_tracing_)
+            timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
+                             index.second * camera->image_width_ + index.first,
+                             ray_index);
+          const Vec3f pixel_value = ray_tracing_algorithm_(
+              rays[ray_index], nullptr, max_recursion_depth_,
+              max_recursion_depth_);
+          camera->UpdateSampledPixelValue({index.first, index.second},
+                                          pixel_value);
+          if (timer.configuration_.timer_.ray_tracing_)
+            timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
+                             index.second * camera->image_width_ + index.first,
+                             ray_index);
+        }
       }
     });
   }

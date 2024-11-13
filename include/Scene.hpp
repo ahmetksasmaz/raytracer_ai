@@ -52,6 +52,8 @@ class Scene {
       scheduling_algorithm_;
   std::function<Vec3f(Ray&, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
+  std::function<void(std::vector<std::vector<Vec3f>>&, std::vector<Vec3f>&)>
+      filtering_algorithm_;
   std::function<void(const std::vector<Vec3f>&, std::vector<unsigned char>&)>
       tone_mapping_algorithm_;
 
@@ -70,6 +72,16 @@ class Scene {
                                     int camera_index);
   void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                       int camera_index);
+
+  void AveragingFilterAlgorithm(
+      std::vector<std::vector<Vec3f>>& image_sampled_data,
+      std::vector<Vec3f>& image_data);
+  void GaussianFilterAlgorithm(
+      std::vector<std::vector<Vec3f>>& image_sampled_data,
+      std::vector<Vec3f>& image_data);
+  void ExtendedGaussianFilterAlgorithm(
+      std::vector<std::vector<Vec3f>>& image_sampled_data,
+      std::vector<Vec3f>& image_data);
 
   void ClampToneMappingAlgorithm(const std::vector<Vec3f>&,
                                  std::vector<unsigned char>&);
