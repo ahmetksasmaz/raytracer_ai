@@ -53,13 +53,12 @@ enum class ExporterType { kPPM = 0, kSTB = 1, kBest = 1, kMax = 1 };
 
 struct Configuration {
   struct Sampling {
+    SamplingAlgorithm time_sampling_ = SamplingAlgorithm::kBest;
     SamplingAlgorithm pixel_sampling_ = SamplingAlgorithm::kBest;
     SamplingAlgorithm aperture_sampling_ = SamplingAlgorithm::kBest;
-    SamplingAlgorithm glossy_sampling_ = SamplingAlgorithm::kBest;
     SamplingAlgorithm area_light_sampling_ = SamplingAlgorithm::kBest;
 
     FilteringAlgorithm pixel_filtering_ = FilteringAlgorithm::kBest;
-    FilteringAlgorithm glossy_filtering_ = FilteringAlgorithm::kBest;
 
     ApertureType aperture_type_ = ApertureType::kDefault;
   } sampling_;
@@ -106,6 +105,24 @@ struct Configuration {
     json data = json::parse(f);
 
     std::string sampling_algorithm;
+    data.at("sampling").at("time_sampling").get_to(sampling_algorithm);
+    if (sampling_algorithm == "uniform") {
+      sampling_.time_sampling_ = SamplingAlgorithm::kUniform;
+    } else if (sampling_algorithm == "random") {
+      sampling_.time_sampling_ = SamplingAlgorithm::kRandom;
+    } else if (sampling_algorithm == "jittered") {
+      sampling_.time_sampling_ = SamplingAlgorithm::kJittered;
+    } else if (sampling_algorithm == "multi_jittered") {
+      sampling_.time_sampling_ = SamplingAlgorithm::kMultiJittered;
+    } else if (sampling_algorithm == "halton") {
+      sampling_.time_sampling_ = SamplingAlgorithm::kHalton;
+    } else if (sampling_algorithm == "hammersley") {
+      sampling_.time_sampling_ = SamplingAlgorithm::kHammersley;
+    } else {
+      sampling_.time_sampling_ = SamplingAlgorithm::kBest;
+    }
+
+    sampling_algorithm;
     data.at("sampling").at("pixel_sampling").get_to(sampling_algorithm);
     if (sampling_algorithm == "uniform") {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kUniform;
@@ -140,23 +157,6 @@ struct Configuration {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kBest;
     }
 
-    data.at("sampling").at("glossy_sampling").get_to(sampling_algorithm);
-    if (sampling_algorithm == "uniform") {
-      sampling_.glossy_sampling_ = SamplingAlgorithm::kUniform;
-    } else if (sampling_algorithm == "random") {
-      sampling_.glossy_sampling_ = SamplingAlgorithm::kRandom;
-    } else if (sampling_algorithm == "jittered") {
-      sampling_.glossy_sampling_ = SamplingAlgorithm::kJittered;
-    } else if (sampling_algorithm == "multi_jittered") {
-      sampling_.glossy_sampling_ = SamplingAlgorithm::kMultiJittered;
-    } else if (sampling_algorithm == "halton") {
-      sampling_.glossy_sampling_ = SamplingAlgorithm::kHalton;
-    } else if (sampling_algorithm == "hammersley") {
-      sampling_.glossy_sampling_ = SamplingAlgorithm::kHammersley;
-    } else {
-      sampling_.glossy_sampling_ = SamplingAlgorithm::kBest;
-    }
-
     data.at("sampling").at("area_light_sampling").get_to(sampling_algorithm);
     if (sampling_algorithm == "uniform") {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kUniform;
@@ -184,15 +184,6 @@ struct Configuration {
       sampling_.pixel_filtering_ = FilteringAlgorithm::kExtendedGaussian;
     } else {
       sampling_.pixel_filtering_ = FilteringAlgorithm::kBest;
-    }
-
-    data.at("sampling").at("glossy_filtering").get_to(filtering_algorithm);
-    if (filtering_algorithm == "box") {
-      sampling_.glossy_filtering_ = FilteringAlgorithm::kBox;
-    } else if (filtering_algorithm == "gaussian") {
-      sampling_.glossy_filtering_ = FilteringAlgorithm::kGaussian;
-    } else {
-      sampling_.glossy_filtering_ = FilteringAlgorithm::kBest;
     }
 
     std::string aperture_type;

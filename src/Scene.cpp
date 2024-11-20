@@ -134,6 +134,7 @@ void Scene::LoadScene() {
         raw_camera.position, raw_camera.gaze, raw_camera.up,
         raw_camera.near_plane, raw_camera.near_distance, raw_camera.image_width,
         raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples,
+        configuration_.sampling_.time_sampling_,
         configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
         raw_camera.aperture_size, configuration_.sampling_.aperture_sampling_,
         configuration_.sampling_.aperture_type_));
@@ -147,25 +148,27 @@ void Scene::LoadScene() {
       case RawMaterialType::kDefault:
         materials_.push_back(std::make_shared<BaseMaterial>(
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent));
+            raw_material.phong_exponent, raw_material.roughness));
         break;
 
       case RawMaterialType::kMirror:
         materials_.push_back(std::make_shared<MirrorMaterial>(
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent, raw_material.mirror));
+            raw_material.phong_exponent, raw_material.roughness,
+            raw_material.mirror));
         break;
       case RawMaterialType::kConductor:
         materials_.push_back(std::make_shared<ConductorMaterial>(
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent, raw_material.mirror,
-            raw_material.refraction_index, raw_material.absorption_index));
+            raw_material.phong_exponent, raw_material.roughness,
+            raw_material.mirror, raw_material.refraction_index,
+            raw_material.absorption_index));
         break;
       case RawMaterialType::kDielectric:
         materials_.push_back(std::make_shared<DielectricMaterial>(
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent, raw_material.mirror,
-            raw_material.absorption_coefficient,
+            raw_material.phong_exponent, raw_material.roughness,
+            raw_material.mirror, raw_material.absorption_coefficient,
             raw_material.refraction_index));
         break;
     }
@@ -184,7 +187,8 @@ void Scene::LoadScene() {
             std::make_shared<SphereObject>(
                 materials_[raw_sphere.material_id - 1],
                 raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
-                raw_sphere.radius, transform_matrix, scaling_flip)));
+                raw_sphere.radius, raw_sphere.motion_blur, transform_matrix,
+                scaling_flip)));
   }
 #ifdef DEBUG
   std::cout << "\tLoading triangles." << std::endl;
@@ -201,7 +205,7 @@ void Scene::LoadScene() {
                 raw_scene.vertex_data[raw_triangle.indices.v0_id - 1],
                 raw_scene.vertex_data[raw_triangle.indices.v1_id - 1],
                 raw_scene.vertex_data[raw_triangle.indices.v2_id - 1],
-                transform_matrix, scaling_flip)));
+                raw_triangle.motion_blur, transform_matrix, scaling_flip)));
   }
 
 #ifdef DEBUG
@@ -217,15 +221,16 @@ void Scene::LoadScene() {
     if (raw_mesh.ply_filepath != "") {
       objects_.push_back(
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
-              std::make_shared<MeshObject>(materials_[raw_mesh.material_id - 1],
-                                           raw_mesh.ply_filepath,
-                                           transform_matrix, scaling_flip)));
+              std::make_shared<MeshObject>(
+                  materials_[raw_mesh.material_id - 1], raw_mesh.ply_filepath,
+                  raw_mesh.motion_blur, transform_matrix, scaling_flip)));
     } else {
       objects_.push_back(
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
                   materials_[raw_mesh.material_id - 1], raw_mesh.faces,
-                  raw_scene.vertex_data, transform_matrix, scaling_flip)));
+                  raw_scene.vertex_data, raw_mesh.motion_blur, transform_matrix,
+                  scaling_flip)));
     }
   }
   // exit(1);
@@ -318,7 +323,8 @@ void Scene::LoadScene() {
     objects_.push_back(
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<MeshInstanceObject>(
-                material, mesh_object, transform_matrix, scaling_flip)));
+                material, mesh_object, raw_mesh_instance.motion_blur,
+                transform_matrix, scaling_flip)));
   }
   // exit(1);
 

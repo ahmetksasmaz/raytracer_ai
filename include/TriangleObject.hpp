@@ -6,9 +6,9 @@
 class TriangleObject : public BaseObject {
  public:
   TriangleObject(std::shared_ptr<BaseMaterial> material, const Vec3f& v0,
-                 const Vec3f& v1, const Vec3f& v2,
+                 const Vec3f& v1, const Vec3f& v2, const Vec3f motion_blur,
                  const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip)
-      : BaseObject(material, transform_matrix, scaling_flip),
+      : BaseObject(material, motion_blur, transform_matrix, scaling_flip),
         v0_(v0),
         v1_(v1),
         v2_(v2) {};

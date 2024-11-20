@@ -250,7 +250,7 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     if (phong_exponent_exists) {
       stream >> material.phong_exponent;
     } else {
-      material.phong_exponent = -1.0f;
+      material.phong_exponent = 0.0f;
     }
 
     child = element->FirstChildElement("Roughness");

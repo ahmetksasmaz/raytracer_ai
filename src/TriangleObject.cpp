@@ -1,14 +1,17 @@
 #include "TriangleObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
-    Ray& ray, float& t_hit, Vec3f& intersection_normal,
-    bool backface_culling, bool) const {
-  Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
-  Vec3f transformed_ray_destination = inverse_transform_matrix_ * (ray.origin_ + ray.direction_);
+    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool backface_culling,
+    bool) const {
+  Vec3f transformed_ray_origin =
+      inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
+  Vec3f transformed_ray_destination =
+      inverse_transform_matrix_ *
+      (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
   Vec3f transformed_ray_direction =
       normalize(transformed_ray_destination - transformed_ray_origin);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
-                      transformed_ray_direction};
+                      transformed_ray_direction, ray.diff_, ray.time_};
 
   if (backface_culling && dot(transformed_ray.direction_, normal_) > 0) {
     return nullptr;
@@ -41,15 +44,15 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
         transformed_ray.origin_ + t * transformed_ray.direction_;
     Vec3f local_point_destination = local_point + normal_;
     Vec3f global_point = transform_matrix_ * local_point;
-    Vec3f global_point_destination = transform_matrix_ * local_point_destination;
+    Vec3f global_point_destination =
+        transform_matrix_ * local_point_destination;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
     Vec3f normalized_diff = normalize(diff);
     ray.direction_.x = normalized_diff.x;
     ray.direction_.y = normalized_diff.y;
     ray.direction_.z = normalized_diff.z;
-    intersection_normal =
-        normalize(global_point_destination - global_point);
+    intersection_normal = normalize(global_point_destination - global_point);
     return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
         std::const_pointer_cast<BaseObject>(this->shared_from_this()));
   } else {
@@ -79,6 +82,15 @@ void TriangleObject::Preprocess(bool high_level_bvh_enabled,
     Vec3f p6 = Vec3f{x_min, y_max, z_max};
     Vec3f p7 = Vec3f{x_max, y_max, z_max};
 
+    Vec3f p0_motion = p0;
+    Vec3f p1_motion = p1;
+    Vec3f p2_motion = p2;
+    Vec3f p3_motion = p3;
+    Vec3f p4_motion = p4;
+    Vec3f p5_motion = p5;
+    Vec3f p6_motion = p6;
+    Vec3f p7_motion = p7;
+
     if (transform_enabled) {
       p0 = transform_matrix_ * p0;
       p1 = transform_matrix_ * p1;
@@ -88,10 +100,23 @@ void TriangleObject::Preprocess(bool high_level_bvh_enabled,
       p5 = transform_matrix_ * p5;
       p6 = transform_matrix_ * p6;
       p7 = transform_matrix_ * p7;
+
+      p0_motion = p0 + motion_blur_;
+      p1_motion = p1 + motion_blur_;
+      p2_motion = p2 + motion_blur_;
+      p3_motion = p3 + motion_blur_;
+      p4_motion = p4 + motion_blur_;
+      p5_motion = p5 + motion_blur_;
+      p6_motion = p6 + motion_blur_;
+      p7_motion = p7 + motion_blur_;
     }
 
-    Vec3f min_point = bounding_volume_min({p0, p1, p2, p3, p4, p5, p6, p7});
-    Vec3f max_point = bounding_volume_max({p0, p1, p2, p3, p4, p5, p6, p7});
+    Vec3f min_point = bounding_volume_min(
+        {p0, p1, p2, p3, p4, p5, p6, p7, p0_motion, p1_motion, p2_motion,
+         p3_motion, p4_motion, p5_motion, p6_motion, p7_motion});
+    Vec3f max_point = bounding_volume_max(
+        {p0, p1, p2, p3, p4, p5, p6, p7, p0_motion, p1_motion, p2_motion,
+         p3_motion, p4_motion, p5_motion, p6_motion, p7_motion});
 
     InitializeSelf(min_point, max_point);
   }

@@ -1,17 +1,14 @@
 {
     "sampling": {
+        "time_sampling": "jittered",
         "pixel_sampling": "jittered",
         "aperture_sampling": "jittered",
-        "glossy_sampling": "jittered",
         "area_light_sampling": "jittered",
         "pixel_filtering": "gaussian",
-        "aperture_filtering": "not_applicable",
-        "glossy_filtering": "gaussian",
-        "area_light_filtering": "not_applicable",
         "aperture_type": "circular",
         "__comment": "Pixel sampling strategy : uniform, random, jittered, multi_jittered, halton, hammersley",
         "__comment2": "Aperture sampling strategy : uniform, random, jittered, multi_jittered, halton, hammersley",
-        "__comment3": "Filtering strategy : box, gaussian, extended_gaussian (not applicable for glossy filtering)",
+        "__comment3": "Filtering strategy : box, gaussian, extended_gaussian",
         "__comment4": "Aperture type : circular, square, polygonal"
     },
     "shading": {

@@ -6,31 +6,35 @@
 
 MeshInstanceObject::MeshInstanceObject(std::shared_ptr<BaseMaterial> material,
                                        std::shared_ptr<MeshObject> mesh_object,
+                                       const Vec3f motion_blur,
                                        const Mat4x4f& transform_matrix,
                                        RawScalingFlip scaling_flip)
-    : BaseObject(material ? material : mesh_object->material_, transform_matrix,
-                 scaling_flip),
+    : BaseObject(material ? material : mesh_object->material_, motion_blur,
+                 transform_matrix, scaling_flip),
       mesh_object_(mesh_object) {};
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
-    Ray& ray, float& t_hit, Vec3f& intersection_normal,
-    bool backface_culling, bool stop_at_any_hit) const {
+    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool backface_culling,
+    bool stop_at_any_hit) const {
   bool hit = false;
 
   Vec3f temp_intersection_normal;
 
-  Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
-  Vec3f transformed_ray_destination = inverse_transform_matrix_ * (ray.origin_ + ray.direction_);
+  Vec3f transformed_ray_origin =
+      inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
+  Vec3f transformed_ray_destination =
+      inverse_transform_matrix_ *
+      (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
   Vec3f transformed_ray_direction =
       normalize(transformed_ray_destination - transformed_ray_origin);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
-                      transformed_ray_direction};
+                      transformed_ray_direction, ray.diff_, ray.time_};
 
   float mesh_hit = std::numeric_limits<float>::max();
   if (mesh_object_->left_) {
     if (mesh_object_->left_->Intersect(transformed_ray, mesh_hit,
-                                       temp_intersection_normal, backface_culling,
-                                       stop_at_any_hit)) {
+                                       temp_intersection_normal,
+                                       backface_culling, stop_at_any_hit)) {
       hit = true;
     }
   } else {
@@ -58,7 +62,8 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
         transformed_ray.origin_ + mesh_hit * transformed_ray.direction_;
     Vec3f local_point_destination = local_point + temp_intersection_normal;
     Vec3f global_point = transform_matrix_ * local_point;
-    Vec3f global_point_destination = transform_matrix_ * local_point_destination;
+    Vec3f global_point_destination =
+        transform_matrix_ * local_point_destination;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
     Vec3f normalized_diff = normalize(diff);
@@ -108,8 +113,21 @@ void MeshInstanceObject::Preprocess(bool high_level_bvh_enabled,
     p6 = transform_matrix_ * p6;
     p7 = transform_matrix_ * p7;
 
-    min_point = bounding_volume_min({p0, p1, p2, p3, p4, p5, p6, p7});
-    max_point = bounding_volume_max({p0, p1, p2, p3, p4, p5, p6, p7});
+    Vec3f p0_motion = p0 + motion_blur_;
+    Vec3f p1_motion = p1 + motion_blur_;
+    Vec3f p2_motion = p2 + motion_blur_;
+    Vec3f p3_motion = p3 + motion_blur_;
+    Vec3f p4_motion = p4 + motion_blur_;
+    Vec3f p5_motion = p5 + motion_blur_;
+    Vec3f p6_motion = p6 + motion_blur_;
+    Vec3f p7_motion = p7 + motion_blur_;
+
+    min_point = bounding_volume_min({p0, p1, p2, p3, p4, p5, p6, p7, p0_motion,
+                                     p1_motion, p2_motion, p3_motion, p4_motion,
+                                     p5_motion, p6_motion, p7_motion});
+    max_point = bounding_volume_max({p0, p1, p2, p3, p4, p5, p6, p7, p0_motion,
+                                     p1_motion, p2_motion, p3_motion, p4_motion,
+                                     p5_motion, p6_motion, p7_motion});
 
     InitializeSelf(min_point, max_point);
   }

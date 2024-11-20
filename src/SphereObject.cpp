@@ -1,14 +1,16 @@
 #include "SphereObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
-    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool,
-    bool) const {
-  Vec3f transformed_ray_origin = inverse_transform_matrix_ * ray.origin_;
-  Vec3f transformed_ray_destination = inverse_transform_matrix_ * (ray.origin_ + ray.direction_);
+    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool, bool) const {
+  Vec3f transformed_ray_origin =
+      inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
+  Vec3f transformed_ray_destination =
+      inverse_transform_matrix_ *
+      (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
   Vec3f transformed_ray_direction =
       normalize(transformed_ray_destination - transformed_ray_origin);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
-                      transformed_ray_direction};
+                      transformed_ray_direction, ray.diff_, ray.time_};
 
   // Calculate the discriminant
   Vec3f oc = transformed_ray.origin_ - center_;
@@ -35,10 +37,18 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       float t = atan2(y, x);
       float p = acos(z / r);
 
-      Vec3f local_normal_sample_1 = Vec3f{float(sin(p+0.05) * cos(t)), float(sin(p+0.05) * sin(t)), float(cos(p+0.05))};
-      Vec3f local_normal_sample_2 = Vec3f{float(sin(p-0.05) * cos(t)), float(sin(p-0.05) * sin(t)), float(cos(p-0.05))};
-      Vec3f local_normal_sample_3 = Vec3f{float(sin(p) * cos(t+0.05)), float(sin(p) * sin(t+0.05)), float(cos(p))};
-      Vec3f local_normal_sample_4 = Vec3f{float(sin(p) * cos(t-0.05)), float(sin(p) * sin(t-0.05)), float(cos(p))};
+      Vec3f local_normal_sample_1 =
+          Vec3f{float(sin(p + 0.05) * cos(t)), float(sin(p + 0.05) * sin(t)),
+                float(cos(p + 0.05))};
+      Vec3f local_normal_sample_2 =
+          Vec3f{float(sin(p - 0.05) * cos(t)), float(sin(p - 0.05) * sin(t)),
+                float(cos(p - 0.05))};
+      Vec3f local_normal_sample_3 =
+          Vec3f{float(sin(p) * cos(t + 0.05)), float(sin(p) * sin(t + 0.05)),
+                float(cos(p))};
+      Vec3f local_normal_sample_4 =
+          Vec3f{float(sin(p) * cos(t - 0.05)), float(sin(p) * sin(t - 0.05)),
+                float(cos(p))};
 
       Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
       Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;
@@ -50,10 +60,13 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3;
       Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4;
 
-      Vec3f first_axis_normal = normalize(global_point_sample_1 - global_point_sample_2);
-      Vec3f second_axis_normal = normalize(global_point_sample_3 - global_point_sample_4);
+      Vec3f first_axis_normal =
+          normalize(global_point_sample_1 - global_point_sample_2);
+      Vec3f second_axis_normal =
+          normalize(global_point_sample_3 - global_point_sample_4);
 
-      Vec3f approximated_normal = normalize(cross(first_axis_normal, second_axis_normal));
+      Vec3f approximated_normal =
+          normalize(cross(first_axis_normal, second_axis_normal));
 
       Vec3f global_point = transform_matrix_ * local_point;
       Vec3f diff = global_point - ray.origin_;
@@ -99,8 +112,21 @@ void SphereObject::Preprocess(bool high_level_bvh_enabled,
     p6 = transform_matrix_ * p6;
     p7 = transform_matrix_ * p7;
 
-    Vec3f min_point = bounding_volume_min({p0, p1, p2, p3, p4, p5, p6, p7});
-    Vec3f max_point = bounding_volume_max({p0, p1, p2, p3, p4, p5, p6, p7});
+    Vec3f p0_motion = p0 + motion_blur_;
+    Vec3f p1_motion = p1 + motion_blur_;
+    Vec3f p2_motion = p2 + motion_blur_;
+    Vec3f p3_motion = p3 + motion_blur_;
+    Vec3f p4_motion = p4 + motion_blur_;
+    Vec3f p5_motion = p5 + motion_blur_;
+    Vec3f p6_motion = p6 + motion_blur_;
+    Vec3f p7_motion = p7 + motion_blur_;
+
+    Vec3f min_point = bounding_volume_min(
+        {p0, p1, p2, p3, p4, p5, p6, p7, p0_motion, p1_motion, p2_motion,
+         p3_motion, p4_motion, p5_motion, p6_motion, p7_motion});
+    Vec3f max_point = bounding_volume_max(
+        {p0, p1, p2, p3, p4, p5, p6, p7, p0_motion, p1_motion, p2_motion,
+         p3_motion, p4_motion, p5_motion, p6_motion, p7_motion});
 
     InitializeSelf(min_point, max_point);
   }

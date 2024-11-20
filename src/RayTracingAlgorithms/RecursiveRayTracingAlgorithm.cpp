@@ -60,7 +60,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       for (auto point_light : point_lights_) {
         Ray shadow_ray = {
             ray.pixel_, intersection_point,
-            normalize(point_light->position_ - intersection_point)};
+            normalize(point_light->position_ - intersection_point), ray.diff_,
+            ray.time_};
         float distance_to_light =
             norm2(point_light->position_ - intersection_point);
         bool is_in_shadow = false;
@@ -118,11 +119,48 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           dynamic_cast<ConductorMaterial*>(material_ptr.get());
       DielectricMaterial* dielectric_material_ptr =
           dynamic_cast<DielectricMaterial*>(material_ptr.get());
+
+      Vec3f distorted_normal = hit_normal;
+
+      if (material_ptr->roughness_ > 0.0f) {
+        Vec3f normal_prime = hit_normal;
+        int min_index = 0;
+        float min_value = hit_normal.x;
+        if (hit_normal.y < min_value) {
+          min_value = hit_normal.y;
+          min_index = 1;
+        }
+        if (hit_normal.z < min_value) {
+          min_value = hit_normal.z;
+          min_index = 2;
+        }
+        switch (min_index) {
+          case 0:
+            normal_prime.x = 1.0f;
+            break;
+          case 1:
+            normal_prime.y = 1.0f;
+            break;
+          case 2:
+            normal_prime.z = 1.0f;
+            break;
+        }
+
+        Vec3f u = normalize(cross(normal_prime, hit_normal));
+        Vec3f v = cross(hit_normal, u);
+
+        distorted_normal = normalize(
+            hit_normal + material_ptr->roughness_ *
+                             (u * (((float)rand() / RAND_MAX) - 0.5f) +
+                              v * (((float)rand() / RAND_MAX) - 0.5f)));
+      }
+
       if (mirror_material_ptr && configuration_.materials_.mirror_) {
         Vec3f reflection_direction =
-            ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
+            ray.direction_ -
+            2 * dot(ray.direction_, distorted_normal) * distorted_normal;
         Ray reflection_ray = {ray.pixel_, intersection_point,
-                              reflection_direction};
+                              reflection_direction, ray.diff_, ray.time_};
         Vec3f reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
@@ -130,16 +168,17 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       } else if (conductor_material_ptr &&
                  configuration_.materials_.conductor_) {
         Vec3f reflection_direction =
-            ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
+            ray.direction_ -
+            2 * dot(ray.direction_, distorted_normal) * distorted_normal;
         Ray reflection_ray = {ray.pixel_, intersection_point,
-                              reflection_direction};
+                              reflection_direction, ray.diff_, ray.time_};
         Vec3f reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
 
         float n2 = conductor_material_ptr->refraction_index_;
         float k2 = conductor_material_ptr->absorption_index_;
-        float cos_theta = -dot(ray.direction_, hit_normal);
+        float cos_theta = -dot(ray.direction_, distorted_normal);
         float n2_k2_2 = n2 * n2 + k2 * k2;
         float n2_cos_theta_tw = 2 * n2 * cos_theta;
         float cos_theta_2 = cos_theta * cos_theta;
@@ -156,9 +195,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                  configuration_.materials_.dielectric_) {
         Vec3f reflection_color = {0, 0, 0};
         Vec3f reflection_direction =
-            ray.direction_ - 2 * dot(ray.direction_, hit_normal) * hit_normal;
+            ray.direction_ -
+            2 * dot(ray.direction_, distorted_normal) * distorted_normal;
         Ray reflection_ray = {ray.pixel_, intersection_point,
-                              reflection_direction};
+                              reflection_direction, ray.diff_, ray.time_};
         reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
@@ -170,7 +210,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                        ? 1.0
                        : dielectric_material_ptr->refraction_index_;
 
-        float cos_theta = dot(-ray.direction_, hit_normal);
+        float cos_theta = dot(-ray.direction_, distorted_normal);
         float cos_phi_2 =
             1 - (n1 * n1 / (n2 * n2)) * (1 - cos_theta * cos_theta);
         if (cos_phi_2 > 0.0) {
@@ -185,11 +225,11 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 
           Vec3f refraction_direction =
               normalize((n1 / n2) * ray.direction_ +
-                        (n1 / n2 * cos_theta - cos_phi) * hit_normal);
+                        (n1 / n2 * cos_theta - cos_phi) * distorted_normal);
           Ray refraction_ray = {
               ray.pixel_,
-              intersection_point - 2 * shadow_ray_epsilon_ * hit_normal,
-              refraction_direction};
+              intersection_point - 2 * shadow_ray_epsilon_ * distorted_normal,
+              refraction_direction, ray.diff_, ray.time_};
           // If the object type is triangle, inside_object_ptr is nullptr, check
           // later
           Vec3f refraction_color = RecursiveRayTracingAlgorithm(

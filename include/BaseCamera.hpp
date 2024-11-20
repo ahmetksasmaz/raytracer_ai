@@ -16,6 +16,7 @@ class BaseCamera {
       const Vec4f& near_plane, const float near_distance, const int image_width,
       const int image_height, const std::string& image_name,
       const unsigned int num_samples = 0,
+      const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,
       const SamplingAlgorithm pixel_sampling = SamplingAlgorithm::kBest,
       const float focus_distance = 0.0, const float aperture_size = 0.0,
       const SamplingAlgorithm aperture_sampling = SamplingAlgorithm::kBest,
@@ -60,6 +61,7 @@ class BaseCamera {
   const ApertureType aperture_type_;
 
   std::function<std::vector<Vec2f>(int)> pixel_sampling_algorithm_;
+  std::function<std::vector<float>(int)> time_sampling_algorithm_;
   std::function<std::vector<Vec2f>(int)> aperture_sampling_algorithm_;
 
   std::vector<std::vector<Vec3f>> image_sampled_data_;

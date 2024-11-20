@@ -5,6 +5,7 @@ BaseCamera::BaseCamera(const Vec3f& position, const Vec3f& gaze,
                        const float near_distance, const int image_width,
                        const int image_height, const std::string& image_name,
                        const unsigned int num_samples,
+                       const SamplingAlgorithm time_sampling,
                        const SamplingAlgorithm pixel_sampling,
                        const float focus_distance, const float aperture_size,
                        const SamplingAlgorithm aperture_sampling,
@@ -28,6 +29,18 @@ BaseCamera::BaseCamera(const Vec3f& position, const Vec3f& gaze,
   image_data_.resize(image_width_ * image_height_);
   image_sampled_data_.resize(image_width_ * image_height_);
   tonemapped_image_data_.resize(image_width_ * image_height_ * 3);
+  switch (time_sampling) {
+    case SamplingAlgorithm::kUniform:
+      time_sampling_algorithm_ = uniform_1d;
+      break;
+    case SamplingAlgorithm::kRandom:
+      time_sampling_algorithm_ = uniform_random_1d;
+      break;
+    case SamplingAlgorithm::kJittered:
+      time_sampling_algorithm_ = jittered_1d;
+      break;
+  }
+
   switch (pixel_sampling) {
     case SamplingAlgorithm::kUniform:
       pixel_sampling_algorithm_ = uniform_2d;
@@ -80,6 +93,8 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
   }
 
   std::vector<Ray> rays;
+
+  std::vector<float> time_samples = time_sampling_algorithm_(num_samples_);
 
   if (aperture_size_ > 0.0) {
     float aperture_sample_ratio = 1.0f;
@@ -178,7 +193,8 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
         aperture_position = position_ + (u_ * x) + (v_ * y);
       }
       Ray ray(pixel_coordinate, aperture_position,
-              normalize(focus_point - aperture_position));
+              normalize(focus_point - aperture_position),
+              {pixel_sample.x, pixel_sample.y}, time_samples[i]);
 
       rays.push_back(ray);
     }
@@ -189,10 +205,10 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
       float sv =
           (pixel_coordinate.y + samples[i].y) * (t_ - b_) / image_height_;
       Vec3f d = normalize((q_ + (u_ * su)) - (v_ * sv) - position_);
-      rays.push_back(Ray(pixel_coordinate, position_, d));
+      rays.push_back(Ray(pixel_coordinate, position_, d,
+                         {samples[i].x, samples[i].y}, time_samples[i]));
     }
   }
-
   return rays;
 }
 

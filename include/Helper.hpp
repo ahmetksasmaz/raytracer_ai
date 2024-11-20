@@ -308,11 +308,20 @@ inline Mat4x4f parse_transformation(std::string transformation_text,
   return result;
 }
 
+template <typename T>
+inline void shuffle(std::vector<T>& samples) {
+  for (int i = 0; i < samples.size(); i++) {
+    int j = rand() % samples.size();
+    std::swap(samples[i], samples[j]);
+  }
+}
+
 inline std::vector<float> uniform_1d(int num_samples) {
   std::vector<float> samples;
   for (int i = 0; i < num_samples; i++) {
     samples.push_back((float)i / num_samples);
   }
+  shuffle(samples);
   return samples;
 }
 
@@ -323,6 +332,7 @@ inline std::vector<Vec2f> uniform_2d(int num_samples) {
       samples.push_back(Vec2f{(float)i / num_samples, (float)j / num_samples});
     }
   }
+  shuffle(samples);
   return samples;
 }
 
@@ -331,6 +341,7 @@ inline std::vector<float> uniform_random_1d(int num_samples) {
   for (int i = 0; i < num_samples; i++) {
     samples.push_back((float)rand() / RAND_MAX);
   }
+  shuffle(samples);
   return samples;
 }
 
@@ -342,6 +353,7 @@ inline std::vector<Vec2f> uniform_random_2d(int num_samples) {
           Vec2f{(float)rand() / RAND_MAX, (float)rand() / RAND_MAX});
     }
   }
+  shuffle(samples);
   return samples;
 }
 
@@ -350,6 +362,7 @@ inline std::vector<float> jittered_1d(int num_samples) {
   for (int i = 0; i < num_samples; i++) {
     samples.push_back((i + (float)rand() / RAND_MAX) / num_samples);
   }
+  shuffle(samples);
   return samples;
 }
 
@@ -361,6 +374,7 @@ inline std::vector<Vec2f> jittered_2d(int num_samples) {
                               (j + (float)rand() / RAND_MAX) / num_samples});
     }
   }
+  shuffle(samples);
   return samples;
 }
 
@@ -375,6 +389,7 @@ inline std::vector<Vec2f> multi_jittered_2d(int num_samples) {
                 (j * n + i + (float)rand() / RAND_MAX) * subcell_width});
     }
   }
+  shuffle(samples);
   return samples;
 }
 
@@ -398,6 +413,7 @@ inline std::vector<Vec2f> hammersley_2d(int num_samples) {
     float y = (float)radical_inverse(i, 2);
     samples.push_back(Vec2f{x, y});
   }
+  shuffle(samples);
   return samples;
 }
 
@@ -408,5 +424,6 @@ inline std::vector<Vec2f> halton_2d(int num_samples) {
     float y = (float)radical_inverse(i, 3);
     samples.push_back(Vec2f{x, y});
   }
+  shuffle(samples);
   return samples;
 }

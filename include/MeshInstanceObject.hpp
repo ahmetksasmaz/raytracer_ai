@@ -7,7 +7,7 @@
 class MeshInstanceObject : public BaseObject {
  public:
   MeshInstanceObject(std::shared_ptr<BaseMaterial> material,
-                     std::shared_ptr<MeshObject> mesh_object,
+                     std::shared_ptr<MeshObject> mesh_object, Vec3f motion_blur,
                      const Mat4x4f& transform_matrix,
                      RawScalingFlip scaling_flip);
 
