@@ -3,25 +3,33 @@
 #include "Scene.hpp"
 
 Vec3f Scene::RecursiveRayTracingAlgorithm(
-    Ray& ray,
+    Ray &ray,
     const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
-    int remaining_recursion, int max_recursion) {
+    int remaining_recursion, int max_recursion)
+{
   Vec3f pixel_value = {0, 0, 0};
   float t_hit = std::numeric_limits<float>::max();
   Vec3f hit_normal;
   std::shared_ptr<BoundingVolumeHierarchyElement> hit_object_ptr = nullptr;
 
-  if (inside_object_ptr == nullptr) {
-    if (configuration_.acceleration_.bvh_high_level_) {
+  if (inside_object_ptr == nullptr)
+  {
+    if (configuration_.acceleration_.bvh_high_level_)
+    {
       hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal);
-    } else {
-      for (auto object : objects_) {
+    }
+    else
+    {
+      for (auto object : objects_)
+      {
         float temp_hit = std::numeric_limits<float>::max();
         Vec3f normal;
         std::shared_ptr<BaseObject> hit_object_casted =
             std::dynamic_pointer_cast<BaseObject>(object);
-        if (object->Intersect(ray, temp_hit, normal)) {
-          if (t_hit > temp_hit) {
+        if (object->Intersect(ray, temp_hit, normal))
+        {
+          if (t_hit > temp_hit)
+          {
             t_hit = temp_hit;
             hit_object_ptr = object;
             hit_normal = normal;
@@ -29,25 +37,31 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         }
       }
     }
-
-  } else {
+  }
+  else
+  {
     hit_object_ptr = inside_object_ptr;
     inside_object_ptr->Intersect(ray, t_hit, hit_normal, false);
-    if (dot(ray.direction_, hit_normal) > 0) {
+    if (dot(ray.direction_, hit_normal) > 0)
+    {
       hit_normal = -hit_normal;
     }
   }
 
-  if (hit_object_ptr) {
+  if (hit_object_ptr)
+  {
     std::shared_ptr<BaseObject> hit_object_casted =
         std::dynamic_pointer_cast<BaseObject>(hit_object_ptr);
     // This is where the fun begins
 
     std::shared_ptr<BaseMaterial> material_ptr = hit_object_casted->material_;
 
-    if (!inside_object_ptr) {
-      if (configuration_.shading_.ambient_) {
-        for (auto ambient_light : ambient_lights_) {
+    if (!inside_object_ptr)
+    {
+      if (configuration_.shading_.ambient_)
+      {
+        for (auto ambient_light : ambient_lights_)
+        {
           pixel_value +=
               hadamard(material_ptr->ambient_, ambient_light->intensity_);
         }
@@ -56,8 +70,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 
     Vec3f intersection_point =
         ray.origin_ + ray.direction_ * t_hit + hit_normal * shadow_ray_epsilon_;
-    if (!inside_object_ptr) {
-      for (auto point_light : point_lights_) {
+    if (!inside_object_ptr)
+    {
+      for (auto point_light : point_lights_)
+      {
         Ray shadow_ray = {
             ray.pixel_, intersection_point,
             normalize(point_light->position_ - intersection_point), ray.diff_,
@@ -67,28 +83,37 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         bool is_in_shadow = false;
         float shadow_hit = std::numeric_limits<float>::max();
         Vec3f shadow_normal;
-        if (configuration_.acceleration_.bvh_high_level_) {
+        if (configuration_.acceleration_.bvh_high_level_)
+        {
           auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal,
                                           false);
-          if (ret && (shadow_hit < sqrt(distance_to_light))) {
+          if (ret && (shadow_hit < sqrt(distance_to_light)))
+          {
             is_in_shadow = true;
           }
-        } else {
-          for (auto object : objects_) {
+        }
+        else
+        {
+          for (auto object : objects_)
+          {
             if (object->Intersect(shadow_ray, shadow_hit, shadow_normal,
-                                  false)) {
-              if (shadow_hit < sqrt(distance_to_light)) {
+                                  false))
+            {
+              if (shadow_hit < sqrt(distance_to_light))
+              {
                 is_in_shadow = true;
                 break;
               }
             }
           }
         }
-        if (!is_in_shadow) {
+        if (!is_in_shadow)
+        {
           Vec3f light_direction =
               normalize(point_light->position_ - intersection_point);
 
-          if (configuration_.shading_.diffuse_) {
+          if (configuration_.shading_.diffuse_)
+          {
             Vec3f diffuse_term =
                 hadamard(material_ptr->diffuse_,
                          point_light->intensity_ / distance_to_light) *
@@ -96,8 +121,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             pixel_value += diffuse_term;
           }
 
-          if (configuration_.shading_.specular_) {
-            if (material_ptr->phong_exponent_ >= 0.0f) {
+          if (configuration_.shading_.specular_)
+          {
+            if (material_ptr->phong_exponent_ >= 0.0f)
+            {
               Vec3f half_vector = normalize(light_direction - ray.direction_);
               Vec3f specular_term = {0, 0, 0};
               specular_term =
@@ -110,40 +137,151 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           }
         }
       }
+
+      for (auto area_light : area_lights_)
+      {
+        std::vector<Vec2f> diff = area_light_sampling_algorithm_(1);
+
+        Vec3f area_light_position = area_light->position_;
+
+        Vec3f area_light_normal = -normalize(area_light->normal_);
+        Vec3f normal_prime = area_light_normal;
+        int min_index = 0;
+        float min_value = area_light_normal.x;
+        if (area_light_normal.y < min_value)
+        {
+          min_value = area_light_normal.y;
+          min_index = 1;
+        }
+        if (area_light_normal.z < min_value)
+        {
+          min_value = area_light_normal.z;
+          min_index = 2;
+        }
+        switch (min_index)
+        {
+        case 0:
+          normal_prime.x = 1.0f;
+          break;
+        case 1:
+          normal_prime.y = 1.0f;
+          break;
+        case 2:
+          normal_prime.z = 1.0f;
+          break;
+        }
+
+        Vec3f u = normalize(cross(normal_prime, area_light_normal));
+        Vec3f v = cross(area_light_normal, u);
+
+        area_light_position = area_light_position + area_light->size_ * (u * (2.0 * diff[0].x - 1.0f) + v * (2.0 * diff[0].y - 1.0f));
+
+        Ray shadow_ray = {
+            ray.pixel_, intersection_point,
+            normalize(area_light_position - intersection_point), ray.diff_,
+            ray.time_};
+        float distance_to_light =
+            norm2(area_light_position - intersection_point);
+        bool is_in_shadow = false;
+        float shadow_hit = std::numeric_limits<float>::max();
+        Vec3f shadow_normal;
+        if (configuration_.acceleration_.bvh_high_level_)
+        {
+          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal,
+                                          false);
+          if (ret && (shadow_hit < sqrt(distance_to_light)))
+          {
+            is_in_shadow = true;
+          }
+        }
+        else
+        {
+          for (auto object : objects_)
+          {
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal,
+                                  false))
+            {
+              if (shadow_hit < sqrt(distance_to_light))
+              {
+                is_in_shadow = true;
+                break;
+              }
+            }
+          }
+        }
+        if (!is_in_shadow)
+        {
+          Vec3f light_direction =
+              normalize(area_light_position - intersection_point);
+
+          float irradiance_coeff = area_light->size_ * area_light->size_ * dot(area_light_normal, light_direction) / distance_to_light;
+
+          irradiance_coeff = abs(irradiance_coeff);
+
+          if (configuration_.shading_.diffuse_)
+          {
+            Vec3f diffuse_term =
+                hadamard(material_ptr->diffuse_,
+                         area_light->radiance_ * irradiance_coeff) *
+                std::max(0.0f, dot(hit_normal, light_direction));
+            pixel_value += diffuse_term;
+          }
+
+          if (configuration_.shading_.specular_)
+          {
+            if (material_ptr->phong_exponent_ >= 0.0f)
+            {
+              Vec3f half_vector = normalize(light_direction - ray.direction_);
+              Vec3f specular_term = {0, 0, 0};
+              specular_term =
+                  hadamard(material_ptr->specular_,
+                           area_light->radiance_ * irradiance_coeff) *
+                  pow(std::max(0.0f, dot(hit_normal, half_vector)),
+                      material_ptr->phong_exponent_);
+              pixel_value += specular_term;
+            }
+          }
+        }
+      }
     }
 
-    if (remaining_recursion > 0) {
-      MirrorMaterial* mirror_material_ptr =
-          dynamic_cast<MirrorMaterial*>(material_ptr.get());
-      ConductorMaterial* conductor_material_ptr =
-          dynamic_cast<ConductorMaterial*>(material_ptr.get());
-      DielectricMaterial* dielectric_material_ptr =
-          dynamic_cast<DielectricMaterial*>(material_ptr.get());
+    if (remaining_recursion > 0)
+    {
+      MirrorMaterial *mirror_material_ptr =
+          dynamic_cast<MirrorMaterial *>(material_ptr.get());
+      ConductorMaterial *conductor_material_ptr =
+          dynamic_cast<ConductorMaterial *>(material_ptr.get());
+      DielectricMaterial *dielectric_material_ptr =
+          dynamic_cast<DielectricMaterial *>(material_ptr.get());
 
       Vec3f distorted_normal = hit_normal;
 
-      if (material_ptr->roughness_ > 0.0f) {
+      if (material_ptr->roughness_ > 0.0f)
+      {
         Vec3f normal_prime = hit_normal;
         int min_index = 0;
         float min_value = hit_normal.x;
-        if (hit_normal.y < min_value) {
+        if (hit_normal.y < min_value)
+        {
           min_value = hit_normal.y;
           min_index = 1;
         }
-        if (hit_normal.z < min_value) {
+        if (hit_normal.z < min_value)
+        {
           min_value = hit_normal.z;
           min_index = 2;
         }
-        switch (min_index) {
-          case 0:
-            normal_prime.x = 1.0f;
-            break;
-          case 1:
-            normal_prime.y = 1.0f;
-            break;
-          case 2:
-            normal_prime.z = 1.0f;
-            break;
+        switch (min_index)
+        {
+        case 0:
+          normal_prime.x = 1.0f;
+          break;
+        case 1:
+          normal_prime.y = 1.0f;
+          break;
+        case 2:
+          normal_prime.z = 1.0f;
+          break;
         }
 
         Vec3f u = normalize(cross(normal_prime, hit_normal));
@@ -155,7 +293,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                               v * (((float)rand() / RAND_MAX) - 0.5f)));
       }
 
-      if (mirror_material_ptr && configuration_.materials_.mirror_) {
+      if (mirror_material_ptr && configuration_.materials_.mirror_)
+      {
         Vec3f reflection_direction =
             ray.direction_ -
             2 * dot(ray.direction_, distorted_normal) * distorted_normal;
@@ -165,8 +304,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
         pixel_value += hadamard(reflection_color, mirror_material_ptr->mirror_);
-      } else if (conductor_material_ptr &&
-                 configuration_.materials_.conductor_) {
+      }
+      else if (conductor_material_ptr &&
+               configuration_.materials_.conductor_)
+      {
         Vec3f reflection_direction =
             ray.direction_ -
             2 * dot(ray.direction_, distorted_normal) * distorted_normal;
@@ -191,8 +332,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         pixel_value +=
             hadamard(reflection_color, conductor_material_ptr->mirror_ *
                                            fresnel_reflection_ratio);
-      } else if (dielectric_material_ptr &&
-                 configuration_.materials_.dielectric_) {
+      }
+      else if (dielectric_material_ptr &&
+               configuration_.materials_.dielectric_)
+      {
         Vec3f reflection_color = {0, 0, 0};
         Vec3f reflection_direction =
             ray.direction_ -
@@ -213,7 +356,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         float cos_theta = dot(-ray.direction_, distorted_normal);
         float cos_phi_2 =
             1 - (n1 * n1 / (n2 * n2)) * (1 - cos_theta * cos_theta);
-        if (cos_phi_2 > 0.0) {
+        if (cos_phi_2 > 0.0)
+        {
           float cos_phi = sqrt(cos_phi_2);
           float r_p =
               (n1 * cos_theta - n2 * cos_phi) / (n1 * cos_theta + n2 * cos_phi);
@@ -237,30 +381,38 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
               remaining_recursion - 1, max_recursion);
           pixel_value += reflection_color * fresnel_reflection_ratio;
           pixel_value += refraction_color * fresnel_transmission_ratio;
-        } else {
+        }
+        else
+        {
           pixel_value += reflection_color;
         }
       }
     }
 
-    if (inside_object_ptr) {
+    if (inside_object_ptr)
+    {
       std::shared_ptr<BaseObject> inside_object_casted =
           std::dynamic_pointer_cast<BaseObject>(inside_object_ptr);
 
       Vec3f absorption_coefficient =
-          dynamic_cast<DielectricMaterial*>(
+          dynamic_cast<DielectricMaterial *>(
               (inside_object_casted->material_).get())
               ->absorption_coefficient_;
       pixel_value.x *= exp(-absorption_coefficient.x * t_hit);
       pixel_value.y *= exp(-absorption_coefficient.y * t_hit);
       pixel_value.z *= exp(-absorption_coefficient.z * t_hit);
     }
-  } else {
-    if (remaining_recursion == max_recursion) {
+  }
+  else
+  {
+    if (remaining_recursion == max_recursion)
+    {
       pixel_value.x = background_color_.x;
       pixel_value.y = background_color_.y;
       pixel_value.z = background_color_.z;
-    } else {
+    }
+    else
+    {
       pixel_value = {0, 0, 0};
     }
   }

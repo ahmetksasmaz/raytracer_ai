@@ -2,13 +2,16 @@
 #include "Timer.hpp"
 
 void Scene::NonThreadSchedulingAlgorithm(
-    const std::shared_ptr<BaseCamera> camera, int camera_index) {
+    const std::shared_ptr<BaseCamera> camera, int camera_index)
+{
 #ifdef DEBUG
   std::cout << "Camera resolution " << camera->image_height_ << "x"
             << camera->image_width_ << std::endl;
 #endif
-  for (int y = 0; y < camera->image_height_; ++y) {
-    for (int x = 0; x < camera->image_width_; ++x) {
+  for (int y = 0; y < camera->image_height_; ++y)
+  {
+    for (int x = 0; x < camera->image_width_; ++x)
+    {
 #ifdef DEBUG
       std::cout << "Tracing ray for index " << x << "," << y << std::endl;
 #endif
@@ -22,7 +25,8 @@ void Scene::NonThreadSchedulingAlgorithm(
                 << ray.direction_.x << ray.direction_.y << ray.direction_.z
                 << "]" << std::endl;
 #endif
-      for (int ray_index = 0; ray_index < rays.size(); ray_index++) {
+      for (int ray_index = 0; ray_index < rays.size(); ray_index++)
+      {
         if (timer.configuration_.timer_.ray_tracing_)
           timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
                            y * camera->image_width_ + x, ray_index);

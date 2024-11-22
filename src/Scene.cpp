@@ -3,67 +3,80 @@
 #include "Timer.hpp"
 
 Scene::Scene(const std::string &filename, const Configuration &configuration)
-    : filename_(filename), configuration_(configuration) {
-  switch (configuration_.strategies_.exporter_type_) {
-    case ExporterType::kPPM:
-      exporter_ = std::make_shared<PPMExporter>();
-      break;
-    case ExporterType::kSTB:
-      exporter_ = std::make_shared<STBExporter>();
-      break;
+    : filename_(filename), configuration_(configuration)
+{
+  switch (configuration_.strategies_.exporter_type_)
+  {
+  case ExporterType::kPPM:
+    exporter_ = std::make_shared<PPMExporter>();
+    break;
+  case ExporterType::kSTB:
+    exporter_ = std::make_shared<STBExporter>();
+    break;
   }
 
-  switch (configuration_.strategies_.ray_tracing_algorithm_) {
-    case RayTracingAlgorithm::kDefault:
-      ray_tracing_algorithm_ = std::bind(
-          &Scene::DefaultRayTracingAlgorithm, this, std::placeholders::_1,
-          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-      break;
-    case RayTracingAlgorithm::kRecursive:
-      ray_tracing_algorithm_ = std::bind(
-          &Scene::RecursiveRayTracingAlgorithm, this, std::placeholders::_1,
-          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-      break;
+  switch (configuration_.strategies_.ray_tracing_algorithm_)
+  {
+  case RayTracingAlgorithm::kDefault:
+    ray_tracing_algorithm_ = std::bind(
+        &Scene::DefaultRayTracingAlgorithm, this, std::placeholders::_1,
+        std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+    break;
+  case RayTracingAlgorithm::kRecursive:
+    ray_tracing_algorithm_ = std::bind(
+        &Scene::RecursiveRayTracingAlgorithm, this, std::placeholders::_1,
+        std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+    break;
   }
 
-  switch (configuration_.strategies_.scheduling_algorithm_) {
-    case SchedulingAlgorithm::kNonThread:
-      scheduling_algorithm_ =
-          std::bind(&Scene::NonThreadSchedulingAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
-    case SchedulingAlgorithm::kThreadQueue:
-      scheduling_algorithm_ =
-          std::bind(&Scene::ThreadQueueSchedulingAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
+  switch (configuration_.strategies_.scheduling_algorithm_)
+  {
+  case SchedulingAlgorithm::kNonThread:
+    scheduling_algorithm_ =
+        std::bind(&Scene::NonThreadSchedulingAlgorithm, this,
+                  std::placeholders::_1, std::placeholders::_2);
+    break;
+  case SchedulingAlgorithm::kThreadQueue:
+    scheduling_algorithm_ =
+        std::bind(&Scene::ThreadQueueSchedulingAlgorithm, this,
+                  std::placeholders::_1, std::placeholders::_2);
+    break;
   }
 
-  switch (configuration_.sampling_.pixel_filtering_) {
-    case FilteringAlgorithm::kBox:
-      filtering_algorithm_ =
-          std::bind(&Scene::AveragingFilterAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
-    case FilteringAlgorithm::kGaussian:
-      filtering_algorithm_ =
-          std::bind(&Scene::GaussianFilterAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
-
-    case FilteringAlgorithm::kExtendedGaussian:
-      filtering_algorithm_ =
-          std::bind(&Scene::ExtendedGaussianFilterAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
+  switch (configuration_.sampling_.area_light_sampling_)
+  {
+  case SamplingAlgorithm::kRandom:
+    area_light_sampling_algorithm_ = uniform_random_2d;
+    break;
   }
 
-  switch (configuration_.strategies_.tone_mapping_algorithm_) {
-    case ToneMappingAlgorithm::kClamp:
-      tone_mapping_algorithm_ =
-          std::bind(&Scene::ClampToneMappingAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
+  switch (configuration_.sampling_.pixel_filtering_)
+  {
+  case FilteringAlgorithm::kBox:
+    filtering_algorithm_ =
+        std::bind(&Scene::AveragingFilterAlgorithm, this,
+                  std::placeholders::_1, std::placeholders::_2);
+    break;
+  case FilteringAlgorithm::kGaussian:
+    filtering_algorithm_ =
+        std::bind(&Scene::GaussianFilterAlgorithm, this,
+                  std::placeholders::_1, std::placeholders::_2);
+    break;
+
+  case FilteringAlgorithm::kExtendedGaussian:
+    filtering_algorithm_ =
+        std::bind(&Scene::ExtendedGaussianFilterAlgorithm, this,
+                  std::placeholders::_1, std::placeholders::_2);
+    break;
+  }
+
+  switch (configuration_.strategies_.tone_mapping_algorithm_)
+  {
+  case ToneMappingAlgorithm::kClamp:
+    tone_mapping_algorithm_ =
+        std::bind(&Scene::ClampToneMappingAlgorithm, this,
+                  std::placeholders::_1, std::placeholders::_2);
+    break;
   }
 
 #ifdef DEBUG
@@ -84,7 +97,8 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
 #endif
 }
 
-Scene::~Scene() {
+Scene::~Scene()
+{
   cameras_.clear();
   point_lights_.clear();
   ambient_lights_.clear();
@@ -92,7 +106,8 @@ Scene::~Scene() {
   objects_.clear();
 }
 
-void Scene::LoadScene() {
+void Scene::LoadScene()
+{
   RawScene raw_scene;
 #ifdef DEBUG
   std::cout << "\tLoading scene from " << filename_ << std::endl;
@@ -122,14 +137,24 @@ void Scene::LoadScene() {
 #ifdef DEBUG
   std::cout << "\tLoading point lights." << std::endl;
 #endif
-  for (const auto &raw_point_light : raw_scene.point_lights) {
+  for (const auto &raw_point_light : raw_scene.point_lights)
+  {
     point_lights_.push_back(std::make_shared<PointLightSource>(
         raw_point_light.position, raw_point_light.intensity));
   }
 #ifdef DEBUG
+  std::cout << "\tLoading area lights." << std::endl;
+#endif
+  for (const auto &raw_area_light : raw_scene.area_lights)
+  {
+    area_lights_.push_back(std::make_shared<AreaLightSource>(
+        raw_area_light.position, raw_area_light.radiance, raw_area_light.normal, raw_area_light.size));
+  }
+#ifdef DEBUG
   std::cout << "\tLoading cameras." << std::endl;
 #endif
-  for (const auto &raw_camera : raw_scene.cameras) {
+  for (const auto &raw_camera : raw_scene.cameras)
+  {
     cameras_.push_back(std::make_shared<BaseCamera>(
         raw_camera.position, raw_camera.gaze, raw_camera.up,
         raw_camera.near_plane, raw_camera.near_distance, raw_camera.image_width,
@@ -143,41 +168,44 @@ void Scene::LoadScene() {
 #ifdef DEBUG
   std::cout << "\tLoading materials." << std::endl;
 #endif
-  for (const auto &raw_material : raw_scene.materials) {
-    switch (raw_material.material_type) {
-      case RawMaterialType::kDefault:
-        materials_.push_back(std::make_shared<BaseMaterial>(
-            raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent, raw_material.roughness));
-        break;
+  for (const auto &raw_material : raw_scene.materials)
+  {
+    switch (raw_material.material_type)
+    {
+    case RawMaterialType::kDefault:
+      materials_.push_back(std::make_shared<BaseMaterial>(
+          raw_material.ambient, raw_material.diffuse, raw_material.specular,
+          raw_material.phong_exponent, raw_material.roughness));
+      break;
 
-      case RawMaterialType::kMirror:
-        materials_.push_back(std::make_shared<MirrorMaterial>(
-            raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent, raw_material.roughness,
-            raw_material.mirror));
-        break;
-      case RawMaterialType::kConductor:
-        materials_.push_back(std::make_shared<ConductorMaterial>(
-            raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent, raw_material.roughness,
-            raw_material.mirror, raw_material.refraction_index,
-            raw_material.absorption_index));
-        break;
-      case RawMaterialType::kDielectric:
-        materials_.push_back(std::make_shared<DielectricMaterial>(
-            raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent, raw_material.roughness,
-            raw_material.mirror, raw_material.absorption_coefficient,
-            raw_material.refraction_index));
-        break;
+    case RawMaterialType::kMirror:
+      materials_.push_back(std::make_shared<MirrorMaterial>(
+          raw_material.ambient, raw_material.diffuse, raw_material.specular,
+          raw_material.phong_exponent, raw_material.roughness,
+          raw_material.mirror));
+      break;
+    case RawMaterialType::kConductor:
+      materials_.push_back(std::make_shared<ConductorMaterial>(
+          raw_material.ambient, raw_material.diffuse, raw_material.specular,
+          raw_material.phong_exponent, raw_material.roughness,
+          raw_material.mirror, raw_material.refraction_index,
+          raw_material.absorption_index));
+      break;
+    case RawMaterialType::kDielectric:
+      materials_.push_back(std::make_shared<DielectricMaterial>(
+          raw_material.ambient, raw_material.diffuse, raw_material.specular,
+          raw_material.phong_exponent, raw_material.roughness,
+          raw_material.mirror, raw_material.absorption_coefficient,
+          raw_material.refraction_index));
+      break;
     }
   }
 
 #ifdef DEBUG
   std::cout << "\tLoading spheres." << std::endl;
 #endif
-  for (const auto &raw_sphere : raw_scene.spheres) {
+  for (const auto &raw_sphere : raw_scene.spheres)
+  {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
         raw_sphere.transformations, scaling_flip, raw_scene.translations,
@@ -193,7 +221,8 @@ void Scene::LoadScene() {
 #ifdef DEBUG
   std::cout << "\tLoading triangles." << std::endl;
 #endif
-  for (const auto &raw_triangle : raw_scene.triangles) {
+  for (const auto &raw_triangle : raw_scene.triangles)
+  {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
         raw_triangle.transformations, scaling_flip, raw_scene.translations,
@@ -213,18 +242,22 @@ void Scene::LoadScene() {
 #endif
 
   int meshes_start_index = objects_.size();
-  for (const auto &raw_mesh : raw_scene.meshes) {
+  for (const auto &raw_mesh : raw_scene.meshes)
+  {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
         raw_mesh.transformations, scaling_flip, raw_scene.translations,
         raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
-    if (raw_mesh.ply_filepath != "") {
+    if (raw_mesh.ply_filepath != "")
+    {
       objects_.push_back(
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
                   materials_[raw_mesh.material_id - 1], raw_mesh.ply_filepath,
                   raw_mesh.motion_blur, transform_matrix, scaling_flip)));
-    } else {
+    }
+    else
+    {
       objects_.push_back(
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
@@ -239,7 +272,8 @@ void Scene::LoadScene() {
   std::cout << "\tLoading mesh instances." << std::endl;
 #endif
 
-  for (auto &raw_mesh_instance : raw_scene.mesh_instances) {
+  for (auto &raw_mesh_instance : raw_scene.mesh_instances)
+  {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = IDENTITY_MATRIX;
 
@@ -250,7 +284,8 @@ void Scene::LoadScene() {
     auto current_raw_mesh = raw_mesh_instance;
     bool any_reset = false;
 
-    if (current_raw_mesh.reset_transform) {
+    if (current_raw_mesh.reset_transform)
+    {
       transform_matrix =
           parse_transformation(current_raw_mesh.transformations, scaling_flip,
                                raw_scene.translations, raw_scene.scalings,
@@ -263,8 +298,10 @@ void Scene::LoadScene() {
     //           << std::endl;
     // std::cout << transform_matrix << std::endl;
 
-    do {
-      if (!any_reset) {
+    do
+    {
+      if (!any_reset)
+      {
         transform_matrix =
             transform_matrix *
             parse_transformation(current_raw_mesh.transformations, scaling_flip,
@@ -280,8 +317,10 @@ void Scene::LoadScene() {
       int base_object_id = current_raw_mesh.base_object_id;
 
       int counter = 0;
-      for (auto &temp_raw_mesh : raw_scene.meshes) {
-        if (temp_raw_mesh.object_id == base_object_id) {
+      for (auto &temp_raw_mesh : raw_scene.meshes)
+      {
+        if (temp_raw_mesh.object_id == base_object_id)
+        {
           mesh_object = std::dynamic_pointer_cast<MeshObject>(
               objects_[meshes_start_index + counter]);
           // std::cout << "Mesh instance object id " <<
@@ -293,8 +332,10 @@ void Scene::LoadScene() {
         counter++;
       }
 
-      for (auto &temp_raw_mesh_instance : raw_scene.mesh_instances) {
-        if (temp_raw_mesh_instance.object_id == base_object_id) {
+      for (auto &temp_raw_mesh_instance : raw_scene.mesh_instances)
+      {
+        if (temp_raw_mesh_instance.object_id == base_object_id)
+        {
           current_raw_mesh = temp_raw_mesh_instance;
           // std::cout << "Mesh instance object id " <<
           // raw_mesh_instance.object_id
@@ -305,16 +346,20 @@ void Scene::LoadScene() {
       }
     } while (!mesh_object);
 
-    if (!any_reset) {
+    if (!any_reset)
+    {
       transform_matrix = transform_matrix * mesh_object->transform_matrix_;
       scaling_flip.sx = scaling_flip.sx != mesh_object->scaling_flip_.sx;
       scaling_flip.sy = scaling_flip.sy != mesh_object->scaling_flip_.sy;
       scaling_flip.sz = scaling_flip.sz != mesh_object->scaling_flip_.sz;
     }
 
-    if (raw_mesh_instance.material_id != -1) {
+    if (raw_mesh_instance.material_id != -1)
+    {
       material = materials_[raw_mesh_instance.material_id - 1];
-    } else {
+    }
+    else
+    {
       material = mesh_object->material_;
     }
 
@@ -332,12 +377,14 @@ void Scene::LoadScene() {
     timer.AddTimeLog(Section::kLoadScene, Event::kEnd);
 }
 
-void Scene::PreprocessScene() {
+void Scene::PreprocessScene()
+{
 #ifdef DEBUG
   int object_index = 0;
 #endif
 
-  for (const auto &object : objects_) {
+  for (const auto &object : objects_)
+  {
 #ifdef DEBUG
     std::cout << "\tPreprocessing for object : " << object_index << std::endl;
 #endif
@@ -348,15 +395,18 @@ void Scene::PreprocessScene() {
                               configuration_.acceleration_.bvh_low_level_);
   }
 
-  if (configuration_.acceleration_.bvh_high_level_) {
+  if (configuration_.acceleration_.bvh_high_level_)
+  {
     bvh_root_ = BoundingVolumeHierarchyElement::Construct(objects_, 0,
                                                           objects_.size(), 0);
   }
 }
 
-void Scene::Render() {
+void Scene::Render()
+{
   int camera_index = 0;
-  for (const auto &camera : cameras_) {
+  for (const auto &camera : cameras_)
+  {
     if (timer.configuration_.timer_.render_scene_ ||
         timer.configuration_.timer_.ray_tracing_ ||
         timer.configuration_.timer_.tone_mapping_ ||
