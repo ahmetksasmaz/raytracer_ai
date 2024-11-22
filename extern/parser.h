@@ -40,6 +40,15 @@ struct Vec3f {
 
 struct Vec2i {
   int x, y;
+
+  bool operator==(const Vec2i& other) const {
+    return x == other.x && y == other.y;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Vec2i& vec) {
+    os << "(" << vec.x << ", " << vec.y << ")";
+    return os;
+  }
 };
 
 struct Vec3i {

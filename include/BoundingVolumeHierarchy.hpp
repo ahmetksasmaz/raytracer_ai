@@ -11,6 +11,8 @@ class BoundingVolumeHierarchyElement;
 
 class BoundingVolumeHierarchyElement {
  public:
+  BoundingVolumeHierarchyElement() { id_ = id_counter_++; }
+
   virtual void InitializeSelf(const Vec3f& min_point, const Vec3f& max_point) {
   };
   void InitializeChildren(
@@ -29,9 +31,17 @@ class BoundingVolumeHierarchyElement {
       std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>>& leafs,
       int start, int end, int axis);
 
+  static void PrintBVH(
+      const std::shared_ptr<BoundingVolumeHierarchyElement>& root);
+
   std::shared_ptr<BoundingVolumeHierarchyElement> left_ = nullptr;
   std::shared_ptr<BoundingVolumeHierarchyElement> right_ = nullptr;
 
   Vec3f min_point_;
   Vec3f max_point_;
+
+  static bool trace_;
+  static std::vector<Vec2i> trace_pixels_;
+  uint64_t id_;
+  static uint64_t id_counter_;
 };
