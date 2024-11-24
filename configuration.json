@@ -4,7 +4,9 @@
         "pixel_sampling": "jittered",
         "aperture_sampling": "jittered",
         "area_light_sampling": "random",
-        "pixel_filtering": "gaussian",
+        "pixel_filtering": "extended_gaussian",
+        "gaussian_kernel_sigma": 0.1,
+        "gaussian_kernel_size": 5,
         "aperture_type": "circular",
         "__comment": "Pixel sampling strategy : uniform, random, jittered, multi_jittered, halton, hammersley",
         "__comment2": "Aperture sampling strategy : uniform, random, jittered, multi_jittered, halton, hammersley",
@@ -43,13 +45,13 @@
         "__comment4": "Instance referencing: true for using reference of object (primitives also), false for deep copy"
     },
     "timer": {
-        "parse_xml": false,
-        "load_scene": false,
-        "preprocess_scene": false,
+        "parse_xml": true,
+        "load_scene": true,
+        "preprocess_scene": true,
         "render_scene": true,
         "ray_tracing": false,
-        "filtering": false,
-        "tone_mapping": false,
-        "export_image": false
+        "filtering": true,
+        "tone_mapping": true,
+        "export_image": true
     }
 }

@@ -44,7 +44,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
               rays[ray_index], nullptr, max_recursion_depth_,
               max_recursion_depth_);
           camera->UpdateSampledPixelValue({index.first, index.second},
-                                          pixel_value);
+                                          pixel_value, rays[ray_index].diff_);
           if (timer.configuration_.timer_.ray_tracing_)
             timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
                              index.second * camera->image_width_ + index.first,
@@ -53,6 +53,22 @@ void Scene::ThreadQueueSchedulingAlgorithm(
       }
     });
   }
+
+  std::thread status_thread([&]() {
+    while (true) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::lock_guard<std::mutex> lock(queue_mutex);
+      float progress =
+          1.0f - static_cast<float>(queue.size()) /
+                     (camera->image_width_ * camera->image_height_);
+      std::cout << "Progress: " << progress * 100 << "%" << std::endl;
+      if (queue.empty()) {
+        break;
+      }
+    }
+  });
+
+  status_thread.join();
 
   for (auto& thread : threads) {
     thread.join();

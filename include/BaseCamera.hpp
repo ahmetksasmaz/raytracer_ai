@@ -28,9 +28,11 @@ class BaseCamera {
   virtual void UpdatePixelValue(const Vec2i& pixel_coordinate,
                                 const Vec3f& pixel_value);
   virtual void UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                       const Vec3f& pixel_value);
+                                       const Vec3f& pixel_value,
+                                       const Vec2f& diff);
 
-  std::vector<std::vector<Vec3f>>& GetImageSampledDataReference() {
+  std::vector<std::vector<std::vector<std::pair<Vec3f, Vec2f>>>>&
+  GetImageSampledDataReference() {
     return image_sampled_data_;
   };
   std::vector<Vec3f>& GetImageDataReference() { return image_data_; };
@@ -64,7 +66,8 @@ class BaseCamera {
   std::function<std::vector<float>(int)> time_sampling_algorithm_;
   std::function<std::vector<Vec2f>(int)> aperture_sampling_algorithm_;
 
-  std::vector<std::vector<Vec3f>> image_sampled_data_;
+  std::vector<std::vector<std::vector<std::pair<Vec3f, Vec2f>>>>
+      image_sampled_data_;
   std::vector<Vec3f> image_data_;
   std::vector<unsigned char> tonemapped_image_data_;
 };

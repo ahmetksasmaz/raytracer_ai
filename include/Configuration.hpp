@@ -4,24 +4,21 @@
 
 #include "../extern/json.hpp"
 
-enum class RayTracingAlgorithm
-{
+enum class RayTracingAlgorithm {
   kDefault = 0,
   kRecursive = 1,
   kBest = 1,
   kMax = 2
 };
 
-enum class SchedulingAlgorithm
-{
+enum class SchedulingAlgorithm {
   kNonThread = 0,
   kThreadQueue = 1,
   kBest = 1,
   kMax = 1
 };
 
-enum class SamplingAlgorithm
-{
+enum class SamplingAlgorithm {
   kUniform = 0,
   kRandom = 1,
   kJittered = 2,
@@ -32,8 +29,7 @@ enum class SamplingAlgorithm
   kMax = 5
 };
 
-enum class FilteringAlgorithm
-{
+enum class FilteringAlgorithm {
   kBox = 0,
   kGaussian = 1,
   kExtendedGaussian = 2,
@@ -41,8 +37,7 @@ enum class FilteringAlgorithm
   kMax = 2
 };
 
-enum class ApertureType
-{
+enum class ApertureType {
   kCircular = 0,
   kSquare = 1,
   kPoly3 = 2,
@@ -52,77 +47,60 @@ enum class ApertureType
   kMax = 4
 };
 
-enum class ToneMappingAlgorithm
-{
-  kClamp = 0,
-  kBest = 0,
-  kMax = 0
-};
+enum class ToneMappingAlgorithm { kClamp = 0, kBest = 0, kMax = 0 };
 
-enum class ExporterType
-{
-  kPPM = 0,
-  kSTB = 1,
-  kBest = 1,
-  kMax = 1
-};
+enum class ExporterType { kPPM = 0, kSTB = 1, kBest = 1, kMax = 1 };
 
-struct Configuration
-{
-  struct Sampling
-  {
-    SamplingAlgorithm time_sampling_ = SamplingAlgorithm::kBest;
+struct Configuration {
+  struct Sampling {
+    SamplingAlgorithm time_sampling_ = SamplingAlgorithm::kJittered;
     SamplingAlgorithm pixel_sampling_ = SamplingAlgorithm::kBest;
     SamplingAlgorithm aperture_sampling_ = SamplingAlgorithm::kBest;
-    SamplingAlgorithm area_light_sampling_ = SamplingAlgorithm::kBest;
+    SamplingAlgorithm area_light_sampling_ = SamplingAlgorithm::kRandom;
 
     FilteringAlgorithm pixel_filtering_ = FilteringAlgorithm::kBest;
+    float gaussian_kernel_sigma_ = 2.0f;
+    int gaussian_kernel_size_ = 5;
 
     ApertureType aperture_type_ = ApertureType::kDefault;
   } sampling_;
 
-  struct Shading
-  {
+  struct Shading {
     bool ambient_ = true;
     bool diffuse_ = true;
     bool specular_ = true;
   } shading_;
 
-  struct Materials
-  {
+  struct Materials {
     bool mirror_ = true;
     bool conductor_ = true;
     bool dielectric_ = true;
   } materials_;
 
-  struct Strategies
-  {
+  struct Strategies {
     RayTracingAlgorithm ray_tracing_algorithm_ = RayTracingAlgorithm::kBest;
     SchedulingAlgorithm scheduling_algorithm_ = SchedulingAlgorithm::kBest;
     ToneMappingAlgorithm tone_mapping_algorithm_ = ToneMappingAlgorithm::kBest;
     ExporterType exporter_type_ = ExporterType::kBest;
   } strategies_;
 
-  struct Acceleration
-  {
+  struct Acceleration {
     bool bvh_low_level_ = true;
     bool bvh_high_level_ = true;
   } acceleration_;
 
-  struct Timer
-  {
+  struct Timer {
     bool parse_xml_ = true;
     bool load_scene_ = true;
     bool preprocess_scene_ = true;
     bool render_scene_ = true;
-    bool ray_tracing_ = true;
+    bool ray_tracing_ = false;
     bool filtering_ = true;
     bool tone_mapping_ = true;
     bool export_image_ = true;
   } timer_;
 
-  void ParseFromFile(const std::string &filename)
-  {
+  void ParseFromFile(const std::string &filename) {
     using json = nlohmann::json;
 
     std::ifstream f(filename);
@@ -130,169 +108,106 @@ struct Configuration
 
     std::string sampling_algorithm;
     data.at("sampling").at("time_sampling").get_to(sampling_algorithm);
-    if (sampling_algorithm == "uniform")
-    {
+    if (sampling_algorithm == "uniform") {
       sampling_.time_sampling_ = SamplingAlgorithm::kUniform;
-    }
-    else if (sampling_algorithm == "random")
-    {
+    } else if (sampling_algorithm == "random") {
       sampling_.time_sampling_ = SamplingAlgorithm::kRandom;
-    }
-    else if (sampling_algorithm == "jittered")
-    {
+    } else if (sampling_algorithm == "jittered") {
       sampling_.time_sampling_ = SamplingAlgorithm::kJittered;
-    }
-    else if (sampling_algorithm == "multi_jittered")
-    {
+    } else if (sampling_algorithm == "multi_jittered") {
       sampling_.time_sampling_ = SamplingAlgorithm::kMultiJittered;
-    }
-    else if (sampling_algorithm == "halton")
-    {
+    } else if (sampling_algorithm == "halton") {
       sampling_.time_sampling_ = SamplingAlgorithm::kHalton;
-    }
-    else if (sampling_algorithm == "hammersley")
-    {
+    } else if (sampling_algorithm == "hammersley") {
       sampling_.time_sampling_ = SamplingAlgorithm::kHammersley;
-    }
-    else
-    {
+    } else {
       sampling_.time_sampling_ = SamplingAlgorithm::kBest;
     }
 
     sampling_algorithm;
     data.at("sampling").at("pixel_sampling").get_to(sampling_algorithm);
-    if (sampling_algorithm == "uniform")
-    {
+    if (sampling_algorithm == "uniform") {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kUniform;
-    }
-    else if (sampling_algorithm == "random")
-    {
+    } else if (sampling_algorithm == "random") {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kRandom;
-    }
-    else if (sampling_algorithm == "jittered")
-    {
+    } else if (sampling_algorithm == "jittered") {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kJittered;
-    }
-    else if (sampling_algorithm == "multi_jittered")
-    {
+    } else if (sampling_algorithm == "multi_jittered") {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kMultiJittered;
-    }
-    else if (sampling_algorithm == "halton")
-    {
+    } else if (sampling_algorithm == "halton") {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kHalton;
-    }
-    else if (sampling_algorithm == "hammersley")
-    {
+    } else if (sampling_algorithm == "hammersley") {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kHammersley;
-    }
-    else
-    {
+    } else {
       sampling_.pixel_sampling_ = SamplingAlgorithm::kBest;
     }
 
     data.at("sampling").at("aperture_sampling").get_to(sampling_algorithm);
-    if (sampling_algorithm == "uniform")
-    {
+    if (sampling_algorithm == "uniform") {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kUniform;
-    }
-    else if (sampling_algorithm == "random")
-    {
+    } else if (sampling_algorithm == "random") {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kRandom;
-    }
-    else if (sampling_algorithm == "jittered")
-    {
+    } else if (sampling_algorithm == "jittered") {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kJittered;
-    }
-    else if (sampling_algorithm == "multi_jittered")
-    {
+    } else if (sampling_algorithm == "multi_jittered") {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kMultiJittered;
-    }
-    else if (sampling_algorithm == "halton")
-    {
+    } else if (sampling_algorithm == "halton") {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kHalton;
-    }
-    else if (sampling_algorithm == "hammersley")
-    {
+    } else if (sampling_algorithm == "hammersley") {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kHammersley;
-    }
-    else
-    {
+    } else {
       sampling_.aperture_sampling_ = SamplingAlgorithm::kBest;
     }
 
     data.at("sampling").at("area_light_sampling").get_to(sampling_algorithm);
-    if (sampling_algorithm == "uniform")
-    {
+    if (sampling_algorithm == "uniform") {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kUniform;
-    }
-    else if (sampling_algorithm == "random")
-    {
+    } else if (sampling_algorithm == "random") {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kRandom;
-    }
-    else if (sampling_algorithm == "jittered")
-    {
+    } else if (sampling_algorithm == "jittered") {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kJittered;
-    }
-    else if (sampling_algorithm == "multi_jittered")
-    {
+    } else if (sampling_algorithm == "multi_jittered") {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kMultiJittered;
-    }
-    else if (sampling_algorithm == "halton")
-    {
+    } else if (sampling_algorithm == "halton") {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kHalton;
-    }
-    else if (sampling_algorithm == "hammersley")
-    {
+    } else if (sampling_algorithm == "hammersley") {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kHammersley;
-    }
-    else
-    {
+    } else {
       sampling_.area_light_sampling_ = SamplingAlgorithm::kBest;
     }
 
     std::string filtering_algorithm;
     data.at("sampling").at("pixel_filtering").get_to(filtering_algorithm);
-    if (filtering_algorithm == "box")
-    {
+    if (filtering_algorithm == "box") {
       sampling_.pixel_filtering_ = FilteringAlgorithm::kBox;
-    }
-    else if (filtering_algorithm == "gaussian")
-    {
+    } else if (filtering_algorithm == "gaussian") {
       sampling_.pixel_filtering_ = FilteringAlgorithm::kGaussian;
-    }
-    else if (filtering_algorithm == "extended_gaussian")
-    {
+    } else if (filtering_algorithm == "extended_gaussian") {
       sampling_.pixel_filtering_ = FilteringAlgorithm::kExtendedGaussian;
-    }
-    else
-    {
+    } else {
       sampling_.pixel_filtering_ = FilteringAlgorithm::kBest;
     }
 
+    data.at("sampling")
+        .at("gaussian_kernel_sigma")
+        .get_to(sampling_.gaussian_kernel_sigma_);
+    data.at("sampling")
+        .at("gaussian_kernel_size")
+        .get_to(sampling_.gaussian_kernel_size_);
+
     std::string aperture_type;
     data.at("sampling").at("aperture_type").get_to(aperture_type);
-    if (aperture_type == "circular")
-    {
+    if (aperture_type == "circular") {
       sampling_.aperture_type_ = ApertureType::kCircular;
-    }
-    else if (aperture_type == "square")
-    {
+    } else if (aperture_type == "square") {
       sampling_.aperture_type_ = ApertureType::kSquare;
-    }
-    else if (aperture_type == "poly3")
-    {
+    } else if (aperture_type == "poly3") {
       sampling_.aperture_type_ = ApertureType::kPoly3;
-    }
-    else if (aperture_type == "poly5")
-    {
+    } else if (aperture_type == "poly5") {
       sampling_.aperture_type_ = ApertureType::kPoly5;
-    }
-    else if (aperture_type == "poly6")
-    {
+    } else if (aperture_type == "poly6") {
       sampling_.aperture_type_ = ApertureType::kPoly6;
-    }
-    else
-    {
+    } else {
       sampling_.aperture_type_ = ApertureType::kDefault;
     }
 
@@ -306,57 +221,39 @@ struct Configuration
 
     std::string ray_tracing_algorithm;
     data.at("strategies").at("ray_tracing").get_to(ray_tracing_algorithm);
-    if (ray_tracing_algorithm == "default")
-    {
+    if (ray_tracing_algorithm == "default") {
       strategies_.ray_tracing_algorithm_ = RayTracingAlgorithm::kDefault;
-    }
-    else if (ray_tracing_algorithm == "recursive")
-    {
+    } else if (ray_tracing_algorithm == "recursive") {
       strategies_.ray_tracing_algorithm_ = RayTracingAlgorithm::kRecursive;
-    }
-    else
-    {
+    } else {
       strategies_.ray_tracing_algorithm_ = RayTracingAlgorithm::kBest;
     }
 
     std::string scheduling_algorithm;
     data.at("strategies").at("scheduling").get_to(scheduling_algorithm);
-    if (scheduling_algorithm == "non_thread")
-    {
+    if (scheduling_algorithm == "non_thread") {
       strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kNonThread;
-    }
-    else if (scheduling_algorithm == "thread_queue")
-    {
+    } else if (scheduling_algorithm == "thread_queue") {
       strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kThreadQueue;
-    }
-    else
-    {
+    } else {
       strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kBest;
     }
 
     std::string tone_mapping_algorithm;
     data.at("strategies").at("tone_mapping").get_to(tone_mapping_algorithm);
-    if (tone_mapping_algorithm == "clamp")
-    {
+    if (tone_mapping_algorithm == "clamp") {
       strategies_.tone_mapping_algorithm_ = ToneMappingAlgorithm::kClamp;
-    }
-    else
-    {
+    } else {
       strategies_.tone_mapping_algorithm_ = ToneMappingAlgorithm::kBest;
     }
 
     std::string exporter_type;
     data.at("strategies").at("exporter").get_to(exporter_type);
-    if (exporter_type == "ppm")
-    {
+    if (exporter_type == "ppm") {
       strategies_.exporter_type_ = ExporterType::kPPM;
-    }
-    else if (exporter_type == "stb")
-    {
+    } else if (exporter_type == "stb") {
       strategies_.exporter_type_ = ExporterType::kSTB;
-    }
-    else
-    {
+    } else {
       strategies_.exporter_type_ = ExporterType::kBest;
     }
 

@@ -84,13 +84,30 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
         Face face;
         ply_get_element(ply_file, (void*)&face);
 
-        triangle_objects_.push_back(
-            std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
-                std::make_shared<TriangleObject>(
-                    material, vertex_data_[face.verts[0]],
-                    vertex_data_[face.verts[1]], vertex_data_[face.verts[2]],
-                    Vec3f{0, 0, 0}, IDENTITY_MATRIX,
-                    RawScalingFlip{false, false, false})));
+        if (face.nverts == 3) {
+          triangle_objects_.push_back(
+              std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+                  std::make_shared<TriangleObject>(
+                      material, vertex_data_[face.verts[0]],
+                      vertex_data_[face.verts[1]], vertex_data_[face.verts[2]],
+                      Vec3f{0, 0, 0}, IDENTITY_MATRIX,
+                      RawScalingFlip{false, false, false})));
+        } else if (face.nverts == 4) {
+          triangle_objects_.push_back(
+              std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+                  std::make_shared<TriangleObject>(
+                      material, vertex_data_[face.verts[0]],
+                      vertex_data_[face.verts[1]], vertex_data_[face.verts[2]],
+                      Vec3f{0, 0, 0}, IDENTITY_MATRIX,
+                      RawScalingFlip{false, false, false})));
+          triangle_objects_.push_back(
+              std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+                  std::make_shared<TriangleObject>(
+                      material, vertex_data_[face.verts[0]],
+                      vertex_data_[face.verts[2]], vertex_data_[face.verts[3]],
+                      Vec3f{0, 0, 0}, IDENTITY_MATRIX,
+                      RawScalingFlip{false, false, false})));
+        }
       }
     }
   }

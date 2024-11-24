@@ -53,6 +53,8 @@ inline Vec3f operator/(Vec3f a, float b) {
   return Vec3f{a.x / b, a.y / b, a.z / b};
 }
 
+inline Vec2f operator/(Vec2f a, float b) { return Vec2f{a.x / b, a.y / b}; }
+
 inline Vec3f operator+(Vec3f a, Vec3f b) {
   return Vec3f{a.x + b.x, a.y + b.y, a.z + b.z};
 }
@@ -426,4 +428,18 @@ inline std::vector<Vec2f> halton_2d(int num_samples) {
   }
   shuffle(samples);
   return samples;
+}
+
+inline float gaussian_kernel_weight(Vec2f diff, float sigma) {
+  // Center the coordinates (assuming the Gaussian kernel is centered at (0.5,
+  // 0.5))
+  float x_centered = diff.x - 0.5;
+  float y_centered = diff.y - 0.5;
+
+  // Compute the Gaussian weight
+  float exponent = -(x_centered * x_centered + y_centered * y_centered) /
+                   (2 * sigma * sigma);
+  float weight = std::exp(exponent) / (2 * M_PI * sigma * sigma);
+
+  return weight;
 }
