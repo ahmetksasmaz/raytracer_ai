@@ -1,12 +1,12 @@
 {
     "sampling": {
         "time_sampling": "jittered",
-        "pixel_sampling": "jittered",
-        "aperture_sampling": "jittered",
+        "pixel_sampling": "hammersley",
+        "aperture_sampling": "hammersley",
         "area_light_sampling": "random",
         "pixel_filtering": "extended_gaussian",
         "gaussian_kernel_sigma": 0.1,
-        "gaussian_kernel_size": 5,
+        "gaussian_kernel_size": 3,
         "aperture_type": "circular",
         "__comment": "Pixel sampling strategy : uniform, random, jittered, multi_jittered, halton, hammersley",
         "__comment2": "Aperture sampling strategy : uniform, random, jittered, multi_jittered, halton, hammersley",

@@ -59,8 +59,8 @@ struct Configuration {
     SamplingAlgorithm area_light_sampling_ = SamplingAlgorithm::kRandom;
 
     FilteringAlgorithm pixel_filtering_ = FilteringAlgorithm::kBest;
-    float gaussian_kernel_sigma_ = 2.0f;
-    int gaussian_kernel_size_ = 5;
+    float gaussian_kernel_sigma_ = 0.1f;
+    int gaussian_kernel_size_ = 3;
 
     ApertureType aperture_type_ = ApertureType::kDefault;
   } sampling_;

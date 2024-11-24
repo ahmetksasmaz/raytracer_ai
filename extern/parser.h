@@ -89,6 +89,10 @@ struct Vec4f {
   float x, y, z, w;
 };
 
+struct Vec5f {
+  float x, y, z, w, t;
+};
+
 struct RawCamera {
   Vec3f position;
   Vec3f gaze;

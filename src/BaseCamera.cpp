@@ -15,6 +15,7 @@ BaseCamera::BaseCamera(const Vec3f& position, const Vec3f& gaze,
       image_height_(image_height),
       image_name_(image_name),
       num_samples_(num_samples),
+      mem_num_samples_(num_samples ? num_samples : 1),
       focus_distance_(focus_distance),
       aperture_size_(aperture_size),
       aperture_type_(ApertureType::kDefault),
@@ -26,11 +27,9 @@ BaseCamera::BaseCamera(const Vec3f& position, const Vec3f& gaze,
       v_(normalize(cross(u_, gaze))),
       q_((v_ * t_) +
          (position_ + (normalize(gaze) * near_distance) + (u_ * l_))) {
-  image_data_.resize(image_width_ * image_height_);
-  image_sampled_data_.resize(image_height_);
-  for (size_t col = 0; col < image_height_; col++) {
-    image_sampled_data_[col].resize(image_width_);
-  }
+  image_data_ = new Vec3f[image_width_ * image_height_];
+  image_sampled_data_ =
+      new Vec5f[image_height_ * image_width_ * mem_num_samples_];
   tonemapped_image_data_.resize(image_width_ * image_height_ * 3);
   switch (time_sampling) {
     case SamplingAlgorithm::kUniform:
@@ -217,10 +216,12 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
 
 void BaseCamera::UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
                                          const Vec3f& pixel_value,
+                                         const int sample_index,
                                          const Vec2f& diff) {
-  int index = (pixel_coordinate.y * image_width_ + pixel_coordinate.x);
-  image_sampled_data_[pixel_coordinate.y][pixel_coordinate.x].push_back(
-      std::make_pair(pixel_value, diff));
+  image_sampled_data_[(pixel_coordinate.y * image_width_ + pixel_coordinate.x) *
+                          mem_num_samples_ +
+                      sample_index] =
+      Vec5f{pixel_value.x, pixel_value.y, pixel_value.z, diff.x, diff.y};
 }
 
 void BaseCamera::UpdatePixelValue(const Vec2i& pixel_coordinate,

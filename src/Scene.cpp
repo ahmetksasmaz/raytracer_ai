@@ -47,28 +47,31 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
 
   switch (configuration_.sampling_.pixel_filtering_) {
     case FilteringAlgorithm::kBox:
-      filtering_algorithm_ =
-          std::bind(&Scene::AveragingFilterAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
+      filtering_algorithm_ = std::bind(
+          &Scene::AveragingFilterAlgorithm, this, std::placeholders::_1,
+          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
+          std::placeholders::_5);
       break;
     case FilteringAlgorithm::kGaussian:
-      filtering_algorithm_ =
-          std::bind(&Scene::GaussianFilterAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
+      filtering_algorithm_ = std::bind(
+          &Scene::GaussianFilterAlgorithm, this, std::placeholders::_1,
+          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
+          std::placeholders::_5);
       break;
 
     case FilteringAlgorithm::kExtendedGaussian:
-      filtering_algorithm_ =
-          std::bind(&Scene::ExtendedGaussianFilterAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
+      filtering_algorithm_ = std::bind(
+          &Scene::ExtendedGaussianFilterAlgorithm, this, std::placeholders::_1,
+          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
+          std::placeholders::_5);
       break;
   }
 
   switch (configuration_.strategies_.tone_mapping_algorithm_) {
     case ToneMappingAlgorithm::kClamp:
-      tone_mapping_algorithm_ =
-          std::bind(&Scene::ClampToneMappingAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
+      tone_mapping_algorithm_ = std::bind(
+          &Scene::ClampToneMappingAlgorithm, this, std::placeholders::_1,
+          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
       break;
   }
 
@@ -388,6 +391,8 @@ void Scene::Render() {
     if (timer.configuration_.timer_.filtering_)
       timer.AddTimeLog(Section::kFiltering, Event::kStart, camera_index);
     filtering_algorithm_(camera->GetImageSampledDataReference(),
+                         camera->image_width_, camera->image_height_,
+                         camera->mem_num_samples_,
                          camera->GetImageDataReference());
     if (timer.configuration_.timer_.filtering_)
       timer.AddTimeLog(Section::kFiltering, Event::kEnd, camera_index);
@@ -395,6 +400,7 @@ void Scene::Render() {
     if (timer.configuration_.timer_.tone_mapping_)
       timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
     tone_mapping_algorithm_(camera->GetImageDataReference(),
+                            camera->image_width_, camera->image_height_,
                             camera->GetTonemappedImageDataReference());
     if (timer.configuration_.timer_.tone_mapping_)
       timer.AddTimeLog(Section::kToneMapping, Event::kEnd, camera_index);

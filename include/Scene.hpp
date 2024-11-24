@@ -54,11 +54,8 @@ class Scene {
       scheduling_algorithm_;
   std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
-  std::function<void(
-      std::vector<std::vector<std::vector<std::pair<Vec3f, Vec2f>>>> &,
-      std::vector<Vec3f> &)>
-      filtering_algorithm_;
-  std::function<void(const std::vector<Vec3f> &, std::vector<unsigned char> &)>
+  std::function<void(Vec5f *, int, int, int, Vec3f *)> filtering_algorithm_;
+  std::function<void(Vec3f *, int, int, std::vector<unsigned char> &)>
       tone_mapping_algorithm_;
 
   std::function<std::vector<Vec2f>(int)> area_light_sampling_algorithm_;
@@ -79,19 +76,15 @@ class Scene {
   void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                       int camera_index);
 
-  void AveragingFilterAlgorithm(
-      std::vector<std::vector<std::vector<std::pair<Vec3f, Vec2f>>>>
-          &image_sampled_data,
-      std::vector<Vec3f> &image_data);
-  void GaussianFilterAlgorithm(
-      std::vector<std::vector<std::vector<std::pair<Vec3f, Vec2f>>>>
-          &image_sampled_data,
-      std::vector<Vec3f> &image_data);
-  void ExtendedGaussianFilterAlgorithm(
-      std::vector<std::vector<std::vector<std::pair<Vec3f, Vec2f>>>>
-          &image_sampled_data,
-      std::vector<Vec3f> &image_data);
+  void AveragingFilterAlgorithm(Vec5f *image_sampled_data, int image_width,
+                                int image_height, int sample,
+                                Vec3f *image_data);
+  void GaussianFilterAlgorithm(Vec5f *image_sampled_data, int image_width,
+                               int image_height, int sample, Vec3f *image_data);
+  void ExtendedGaussianFilterAlgorithm(Vec5f *image_sampled_data,
+                                       int image_width, int image_height,
+                                       int sample, Vec3f *image_data);
 
-  void ClampToneMappingAlgorithm(const std::vector<Vec3f> &,
+  void ClampToneMappingAlgorithm(Vec3f *, int, int,
                                  std::vector<unsigned char> &);
 };
