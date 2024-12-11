@@ -12,8 +12,9 @@ using namespace parser;
 class BaseCamera {
  public:
   BaseCamera(
-      const Vec3f& position, const Vec3f& gaze, const Vec3f& up,
-      const Vec4f& near_plane, const float near_distance, const int image_width,
+      const bool look_at_camera, const Vec3f& position, const Vec3f& gaze,
+      const Vec3f& gaze_point, const Vec3f& up, const Vec4f& near_plane,
+      const float fov_y, const float near_distance, const int image_width,
       const int image_height, const std::string& image_name,
       const unsigned int num_samples = 0,
       const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,

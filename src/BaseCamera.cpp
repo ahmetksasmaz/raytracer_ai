@@ -1,15 +1,14 @@
 #include "BaseCamera.hpp"
 
-BaseCamera::BaseCamera(const Vec3f& position, const Vec3f& gaze,
-                       const Vec3f& up, const Vec4f& near_plane,
-                       const float near_distance, const int image_width,
-                       const int image_height, const std::string& image_name,
-                       const unsigned int num_samples,
-                       const SamplingAlgorithm time_sampling,
-                       const SamplingAlgorithm pixel_sampling,
-                       const float focus_distance, const float aperture_size,
-                       const SamplingAlgorithm aperture_sampling,
-                       const ApertureType aperture_type)
+BaseCamera::BaseCamera(
+    const bool look_at_camera, const Vec3f& position, const Vec3f& gaze,
+    const Vec3f& gaze_point, const Vec3f& up, const Vec4f& near_plane,
+    const float fov_y, const float near_distance, const int image_width,
+    const int image_height, const std::string& image_name,
+    const unsigned int num_samples, const SamplingAlgorithm time_sampling,
+    const SamplingAlgorithm pixel_sampling, const float focus_distance,
+    const float aperture_size, const SamplingAlgorithm aperture_sampling,
+    const ApertureType aperture_type)
     : position_(position),
       image_width_(image_width),
       image_height_(image_height),
@@ -19,14 +18,25 @@ BaseCamera::BaseCamera(const Vec3f& position, const Vec3f& gaze,
       focus_distance_(focus_distance),
       aperture_size_(aperture_size),
       aperture_type_(ApertureType::kDefault),
-      l_(near_plane.x),
-      r_(near_plane.y),
-      b_(near_plane.z),
-      t_(near_plane.w),
-      u_(normalize(cross(gaze, up))),
-      v_(normalize(cross(u_, gaze))),
+      l_(look_at_camera ? -near_distance * tan(fov_y * M_PI / 360.0f) *
+                              float(image_width) / float(image_height)
+                        : near_plane.x),
+      r_(look_at_camera ? near_distance * tan(fov_y * M_PI / 360.0f) *
+                              float(image_width) / float(image_height)
+                        : near_plane.y),
+      b_(look_at_camera ? -near_distance * tan(fov_y * M_PI / 360.0f)
+                        : near_plane.z),
+      t_(look_at_camera ? near_distance * tan(fov_y * M_PI / 360.0f)
+                        : near_plane.w),
+      u_(look_at_camera ? normalize(cross(gaze_point - position, up))
+                        : normalize(cross(gaze, up))),
+      v_(look_at_camera ? normalize(cross(u_, gaze_point - position))
+                        : normalize(cross(u_, gaze))),
       q_((v_ * t_) +
-         (position_ + (normalize(gaze) * near_distance) + (u_ * l_))) {
+         (position_ +
+          (normalize(look_at_camera ? gaze_point - position : gaze) *
+           near_distance) +
+          (u_ * l_))) {
   image_data_ = new Vec3f[image_width_ * image_height_];
   image_sampled_data_ =
       new Vec5f[image_height_ * image_width_ * mem_num_samples_];

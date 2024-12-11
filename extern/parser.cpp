@@ -69,28 +69,53 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   element = element->FirstChildElement("Camera");
   while (element) {
     RawCamera camera;
+
+    if (element->Attribute("type", "lookAt") != NULL) {
+      camera.look_at_camera = true;
+    }
+
     auto child = element->FirstChildElement("Position");
     stream << child->GetText() << std::endl;
+    stream >> camera.position.x >> camera.position.y >> camera.position.z;
+
     child = element->FirstChildElement("Gaze");
-    stream << child->GetText() << std::endl;
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.gaze.x >> camera.gaze.y >> camera.gaze.z;
+    }
+
+    child = element->FirstChildElement("GazePoint");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.gaze_point.x >> camera.gaze_point.y >>
+          camera.gaze_point.z;
+    }
+
     child = element->FirstChildElement("Up");
     stream << child->GetText() << std::endl;
+    stream >> camera.up.x >> camera.up.y >> camera.up.z;
+
     child = element->FirstChildElement("NearPlane");
-    stream << child->GetText() << std::endl;
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.near_plane.x >> camera.near_plane.y >>
+          camera.near_plane.z >> camera.near_plane.w;
+    }
+
+    child = element->FirstChildElement("FovY");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.fov_y;
+    }
+
     child = element->FirstChildElement("NearDistance");
     stream << child->GetText() << std::endl;
+    stream >> camera.near_distance;
     child = element->FirstChildElement("ImageResolution");
     stream << child->GetText() << std::endl;
+    stream >> camera.image_width >> camera.image_height;
     child = element->FirstChildElement("ImageName");
     stream << child->GetText() << std::endl;
-
-    stream >> camera.position.x >> camera.position.y >> camera.position.z;
-    stream >> camera.gaze.x >> camera.gaze.y >> camera.gaze.z;
-    stream >> camera.up.x >> camera.up.y >> camera.up.z;
-    stream >> camera.near_plane.x >> camera.near_plane.y >>
-        camera.near_plane.z >> camera.near_plane.w;
-    stream >> camera.near_distance;
-    stream >> camera.image_width >> camera.image_height;
     stream >> camera.image_name;
 
     child = element->FirstChildElement("NumSamples");

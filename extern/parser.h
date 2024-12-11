@@ -94,9 +94,12 @@ struct Vec5f {
 };
 
 struct RawCamera {
+  bool look_at_camera = false;
   Vec3f position;
   Vec3f gaze;
+  Vec3f gaze_point;
   Vec3f up;
+  float fov_y;
   Vec4f near_plane;
   float near_distance;
   float focus_distance;

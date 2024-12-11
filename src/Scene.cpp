@@ -148,8 +148,9 @@ void Scene::LoadScene() {
 #endif
   for (const auto &raw_camera : raw_scene.cameras) {
     cameras_.push_back(std::make_shared<BaseCamera>(
-        raw_camera.position, raw_camera.gaze, raw_camera.up,
-        raw_camera.near_plane, raw_camera.near_distance, raw_camera.image_width,
+        raw_camera.look_at_camera, raw_camera.position, raw_camera.gaze,
+        raw_camera.gaze_point, raw_camera.up, raw_camera.near_plane,
+        raw_camera.fov_y, raw_camera.near_distance, raw_camera.image_width,
         raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples,
         configuration_.sampling_.time_sampling_,
         configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
