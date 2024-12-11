@@ -8,8 +8,10 @@
 #include "AreaLightSource.hpp"
 #include "BaseCamera.hpp"
 #include "BaseExporter.hpp"
+#include "BaseImage.hpp"
 #include "BaseMaterial.hpp"
 #include "BaseObject.hpp"
+#include "BaseTextureMap.hpp"
 #include "ConductorMaterial.hpp"
 #include "Configuration.hpp"
 #include "DielectricMaterial.hpp"
@@ -47,6 +49,9 @@ class Scene {
   std::vector<std::shared_ptr<AmbientLightSource>> ambient_lights_;
   std::vector<std::shared_ptr<BaseMaterial>> materials_;
   std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> objects_;
+
+  std::vector<std::shared_ptr<BaseImage>> images_;
+  std::vector<std::shared_ptr<BaseTextureMap>> texture_maps_;
 
   std::shared_ptr<BoundingVolumeHierarchyElement> bvh_root_ = nullptr;
 

@@ -193,6 +193,18 @@ void Scene::LoadScene() {
   }
 
 #ifdef DEBUG
+  std::cout << "\tLoading images." << std::endl;
+#endif
+
+  for (const auto &raw_image : raw_scene.images) {
+    images_.push_back(std::make_shared<BaseImage>(raw_image));
+  }
+
+#ifdef DEBUG
+  std::cout << "\tLoading textures." << std::endl;
+#endif
+
+#ifdef DEBUG
   std::cout << "\tLoading spheres." << std::endl;
 #endif
   for (const auto &raw_sphere : raw_scene.spheres) {
