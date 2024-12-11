@@ -288,6 +288,132 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     element = element->NextSiblingElement("Material");
   }
 
+  element = root->FirstChildElement("Textures");
+  if (element) {
+    element = element->FirstChildElement("Images");
+    if (element) {
+      element = element->FirstChildElement("Image");
+      while (element) {
+        RawImage image;
+        stream << element->GetText() << std::endl;
+        stream >> image.path;
+        images.push_back(image);
+        element = element->NextSiblingElement("Image");
+      }
+    }
+    element = root->FirstChildElement("Textures");
+    element = element->FirstChildElement("TextureMap");
+    while (element) {
+      RawTextureMap texture_map;
+      if (element->Attribute("type", "image") != NULL) {
+        texture_map.type = RawTextureMapType::kImage;
+      } else if (element->Attribute("type", "perlin") != NULL) {
+        texture_map.type = RawTextureMapType::kPerlin;
+      } else if (element->Attribute("type", "checkerboard") != NULL) {
+        texture_map.type = RawTextureMapType::kCheckerboard;
+      }
+
+      child = element->FirstChildElement("ImageId");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.image_id;
+      }
+
+      child = element->FirstChildElement("DecalMode");
+      if (child) {
+        std::string decal_mode = child->GetText();
+        if (decal_mode == "replace_kd") {
+          texture_map.decal_mode = RawTextureMapDecalMode::kReplaceKd;
+        } else if (decal_mode == "blend_kd") {
+          texture_map.decal_mode = RawTextureMapDecalMode::kBlendKd;
+        } else if (decal_mode == "replace_ks") {
+          texture_map.decal_mode = RawTextureMapDecalMode::kReplaceKs;
+        } else if (decal_mode == "replace_background") {
+          texture_map.decal_mode = RawTextureMapDecalMode::kReplaceBackground;
+        } else if (decal_mode == "replace_normal") {
+          texture_map.decal_mode = RawTextureMapDecalMode::kReplaceNormal;
+        } else if (decal_mode == "bump_normal") {
+          texture_map.decal_mode = RawTextureMapDecalMode::kBumpNormal;
+        } else if (decal_mode == "replace_all") {
+          texture_map.decal_mode = RawTextureMapDecalMode::kReplaceAll;
+        }
+      }
+
+      child = element->FirstChildElement("Interpolation");
+      if (child) {
+        std::string interpolation = child->GetText();
+        if (interpolation == "nearest") {
+          texture_map.interpolation_mode =
+              RawTextureMapInterpolationMode::kNearest;
+        } else if (interpolation == "bilinear") {
+          texture_map.interpolation_mode =
+              RawTextureMapInterpolationMode::kBilinear;
+        } else if (interpolation == "trilinear") {
+          texture_map.interpolation_mode =
+              RawTextureMapInterpolationMode::kTrilinear;
+        }
+      }
+
+      child = element->FirstChildElement("Normalizer");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.normalizer;
+      }
+
+      child = element->FirstChildElement("BumpFactor");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.bump_factor;
+      }
+
+      child = element->FirstChildElement("NoiseConversion");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.noise_conversion;
+      }
+
+      child = element->FirstChildElement("NoiseScale");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.noise_scale;
+      }
+
+      child = element->FirstChildElement("NumOctaves");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.num_octaves;
+      }
+
+      child = element->FirstChildElement("Scale");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.scale;
+      }
+
+      child = element->FirstChildElement("Offset");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.offset;
+      }
+
+      child = element->FirstChildElement("BlackColor");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.black_color.x >> texture_map.black_color.y >>
+            texture_map.black_color.z;
+      }
+
+      child = element->FirstChildElement("WhiteColor");
+      if (child) {
+        stream << child->GetText() << std::endl;
+        stream >> texture_map.white_color.x >> texture_map.white_color.y >>
+            texture_map.white_color.z;
+      }
+
+      element = element->NextSiblingElement("TextureMap");
+    }
+  }
+
   // Get Transformations
   element = root->FirstChildElement("Transformations");
   if (element) {

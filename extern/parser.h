@@ -12,6 +12,20 @@ namespace parser {
 // so that you are not enforced to adopt any style or design.
 enum RawMaterialType { kDefault, kMirror, kConductor, kDielectric };
 
+enum RawTextureMapType { kImage, kPerlin, kCheckerboard };
+
+enum RawTextureMapDecalMode {
+  kReplaceKd,
+  kBlendKd,
+  kReplaceKs,
+  kReplaceBackground,
+  kReplaceNormal,
+  kBumpNormal,
+  kReplaceAll
+};
+
+enum RawTextureMapInterpolationMode { kNearest, kBilinear, kTrilinear };
+
 struct Vec2f {
   float x, y;
 };
@@ -195,6 +209,26 @@ struct RawComposite {
   float m[4][4];
 };
 
+struct RawImage {
+  std::string path;
+};
+
+struct RawTextureMap {
+  std::string type;
+  int image_id;
+  RawTextureMapDecalMode decal_mode;
+  RawTextureMapInterpolationMode interpolation_mode;
+  float normalizer;
+  float bump_factor;
+  bool noise_conversion;
+  float noise_scale;
+  int num_octaves;
+  float scale;
+  float offset;
+  Vec3f black_color;
+  Vec3f white_color;
+};
+
 struct Mat4x4f {
   Mat4x4f() {}
   Mat4x4f(std::vector<std::vector<float>> a) {
@@ -238,6 +272,8 @@ struct RawScene {
     meshes.clear();
     triangles.clear();
     spheres.clear();
+    images.clear();
+    texture_maps.clear();
   }
 
   // Data
@@ -259,6 +295,9 @@ struct RawScene {
   std::vector<RawScaling> scalings;
   std::vector<RawRotation> rotations;
   std::vector<RawComposite> composites;
+
+  std::vector<RawImage> images;
+  std::vector<RawTextureMap> texture_maps;
 
   // Functions
   void loadFromXml(const std::string& filepath);
