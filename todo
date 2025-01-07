@@ -1,0 +1,9 @@
+add spectrum to xml files
+parse spectrum from xml files
+create spectrum class
+represent all color triplets and color coefficients as spectrum
+parse spectrum id from xml files
+update class structures with spectrum id
+update camera sensor size, pixel size, focal length, aperture count, exposure time, sensor pattern, gain, and sensor spectrum, quantum efficiency, full well capacity
+update camera quantization size
+apply demosaicing algorithm
