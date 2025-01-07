@@ -316,7 +316,7 @@
             <NearPlane>-10 10 -10 10</NearPlane>
             <NearDistance>10</NearDistance>
             <ImageResolution>800 800</ImageResolution>
-            <NumSamples>100</NumSamples>
+            <NumSamples>10</NumSamples>
             <ImageName>cornellbox_area.png</ImageName>
         </Camera>
     </Cameras>
