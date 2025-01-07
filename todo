@@ -1,4 +1,4 @@
-add spectrum to xml files
++++++ add spectrum to xml files
 parse spectrum from xml files
 create spectrum class
 represent all color triplets and color coefficients as spectrum
