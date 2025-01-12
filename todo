@@ -7,10 +7,10 @@
 +++++ set min max wavelength per spectrum
 +++++ update camera sensor size, pixel size, focal length, aperture count, exposure time, sensor pattern, gain, and sensor spectrum, quantum efficiency, full well capacity
 +++++ update camera quantization size
-update base camera structure according to new parameters
-add spectrum wavelength map to ray
-update sample count according to pixel size and aperture size in camera
-update ray creation in camera
++++++ update base camera structure according to new parameters
++++++ add spectrum wavelength map to ray
++++++ update sample count according to pixel size and aperture size in camera
++++++ update ray creation in camera
 update ray tracing algorithm according to wavelength (except refraction)
 update accumulated ray values into filter and apply exposure time and gain
 apply quantum efficiency and full well capacity to output

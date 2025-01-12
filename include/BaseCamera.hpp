@@ -6,6 +6,7 @@
 #include "Configuration.hpp"
 #include "Helper.hpp"
 #include "Ray.hpp"
+#include "BaseSpectrum.hpp"
 
 using namespace parser;
 
@@ -16,8 +17,8 @@ class BaseCamera {
       const SensorSize sensor_size, const Aperture aperture,
       const ExposureTime exposure_time, const ISO iso, const int pixel_size,
       const int focal_length, const Vec2i sensor_pattern,
-      const std::vector<int> color_filter_array_spectrums,
-      const int quantum_efficiency_spectrum, const float full_well_capacity,
+      const std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums,
+      const std::shared_ptr<BaseSpectrum> quantum_efficiency_spectrum, const float full_well_capacity,
       const int quantization_level, const std::string& image_name,
       const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,
       const SamplingAlgorithm pixel_sampling = SamplingAlgorithm::kBest,
@@ -45,26 +46,31 @@ class BaseCamera {
 
   virtual void ExportView(const std::shared_ptr<BaseExporter>& exporter) const;
 
-  const int image_width_;
-  const int image_height_;
-  const unsigned int mem_num_samples_;
+  int image_width_;
+  int image_height_;
+  unsigned int mem_num_samples_;
 
  private:
   const std::string image_name_;
   const Vec3f position_;
-  const float l_;
-  const float r_;
-  const float b_;
-  const float t_;
   const Vec3f u_;
   const Vec3f v_;
-  const Vec3f q_;
-
-  const unsigned int num_samples_;
-  const float focus_distance_;
-  const float aperture_size_;
-
+  Vec3f q_;
+  const Vec2i sensor_pattern_;
+  const std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums_;
+  const std::shared_ptr<BaseSpectrum> quantum_efficiency_spectrum_;
+  const float full_well_capacity_;
+  const int quantization_level_;
+  
   const ApertureType aperture_type_;
+
+  float sensor_width_;
+  float sensor_height_;
+  float focal_length_;
+  float pixel_size_;
+  float exposure_time_;
+  float gain_;
+  float aperture_size_;
 
   std::function<std::vector<Vec2f>(int)> pixel_sampling_algorithm_;
   std::function<std::vector<float>(int)> time_sampling_algorithm_;
@@ -73,4 +79,6 @@ class BaseCamera {
   Vec5f* image_sampled_data_;
   Vec3f* image_data_;
   std::vector<unsigned char> tonemapped_image_data_;
+
+  const float sample_constant_{1e12};
 };

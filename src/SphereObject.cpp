@@ -9,7 +9,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
   Vec3f transformed_ray_direction =
       normalize(transformed_ray_destination - transformed_ray_origin);
-  Ray transformed_ray{ray.pixel_, transformed_ray_origin,
+  Ray transformed_ray{ray.wavelengths_, ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
   // Calculate the discriminant

@@ -74,7 +74,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     {
       for (auto point_light : point_lights_)
       {
-        Ray shadow_ray = {
+        Ray shadow_ray = { ray.wavelengths_,
             ray.pixel_, intersection_point,
             normalize(point_light->position_ - intersection_point), ray.diff_,
             ray.time_};
@@ -176,7 +176,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 
         area_light_position = area_light_position + area_light->size_ * (u * (2.0 * diff[0].x - 1.0f) + v * (2.0 * diff[0].y - 1.0f));
 
-        Ray shadow_ray = {
+        Ray shadow_ray = { ray.wavelengths_,
             ray.pixel_, intersection_point,
             normalize(area_light_position - intersection_point), ray.diff_,
             ray.time_};
@@ -298,7 +298,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f reflection_direction =
             ray.direction_ -
             2 * dot(ray.direction_, distorted_normal) * distorted_normal;
-        Ray reflection_ray = {ray.pixel_, intersection_point,
+        Ray reflection_ray = {ray.wavelengths_, ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
         Vec3f reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
@@ -311,7 +311,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f reflection_direction =
             ray.direction_ -
             2 * dot(ray.direction_, distorted_normal) * distorted_normal;
-        Ray reflection_ray = {ray.pixel_, intersection_point,
+        Ray reflection_ray = {ray.wavelengths_, ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
         Vec3f reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
@@ -340,7 +340,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f reflection_direction =
             ray.direction_ -
             2 * dot(ray.direction_, distorted_normal) * distorted_normal;
-        Ray reflection_ray = {ray.pixel_, intersection_point,
+        Ray reflection_ray = {ray.wavelengths_, ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
         reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
@@ -370,7 +370,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           Vec3f refraction_direction =
               normalize((n1 / n2) * ray.direction_ +
                         (n1 / n2 * cos_theta - cos_phi) * distorted_normal);
-          Ray refraction_ray = {
+          Ray refraction_ray = { ray.wavelengths_,
               ray.pixel_,
               intersection_point - 2 * shadow_ray_epsilon_ * distorted_normal,
               refraction_direction, ray.diff_, ray.time_};

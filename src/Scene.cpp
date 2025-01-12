@@ -156,12 +156,20 @@ void Scene::LoadScene() {
   std::cout << "\tLoading cameras." << std::endl;
 #endif
   for (const auto &raw_camera : raw_scene.cameras) {
+    std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums;
+
+    for (const auto &color_filter_array_spectrum_id :
+         raw_camera.color_filter_array_spectrums) {
+      color_filter_array_spectrums.push_back(
+          spectrums_[color_filter_array_spectrum_id - 1]);
+    }
+
     cameras_.push_back(std::make_shared<BaseCamera>(
         raw_camera.position, raw_camera.gaze, raw_camera.up,
         raw_camera.sensor_size, raw_camera.aperture, raw_camera.exposure_time,
         raw_camera.iso, raw_camera.pixel_size, raw_camera.focal_length,
-        raw_camera.sensor_pattern, raw_camera.color_filter_array_spectrums,
-        raw_camera.quantum_efficiency_spectrum, raw_camera.full_well_capacity,
+        raw_camera.sensor_pattern, color_filter_array_spectrums,
+        spectrums_[raw_camera.quantum_efficiency_spectrum - 1], raw_camera.full_well_capacity,
         raw_camera.quantization_level, raw_camera.image_name,
         configuration_.sampling_.time_sampling_,
         configuration_.sampling_.pixel_sampling_,
