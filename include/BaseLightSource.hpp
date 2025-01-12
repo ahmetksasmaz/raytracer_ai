@@ -1,12 +1,16 @@
 #pragma once
 #include "../extern/parser.h"
+#include "BaseSpectrum.hpp"
 
 using namespace parser;
 
 class BaseLightSource {
  public:
-  BaseLightSource(const Vec3f& intensity) : intensity_(intensity) {}
+  BaseLightSource(const float power,
+                  const std::shared_ptr<BaseSpectrum> spectrum)
+      : power_(power), spectrum_(spectrum) {}
   virtual ~BaseLightSource() = default;
 
-  const Vec3f intensity_;
+  const float power_;
+  const std::shared_ptr<BaseSpectrum> spectrum_;
 };

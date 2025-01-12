@@ -122,39 +122,50 @@ void Scene::LoadScene() {
   shadow_ray_epsilon_ = raw_scene.shadow_ray_epsilon;
   max_recursion_depth_ = raw_scene.max_recursion_depth;
 
+  for (const auto &raw_spectrum : raw_scene.spectrums) {
+    std::shared_ptr<BaseSpectrum> spectrum = std::make_shared<BaseSpectrum>(
+        raw_spectrum.samples, raw_spectrum.min_wavelength,
+        raw_spectrum.max_wavelength);
+    spectrums_.push_back(spectrum);
+  }
+
 #ifdef DEBUG
   std::cout << "\tLoading ambient lights." << std::endl;
 #endif
-  ambient_lights_.push_back(
-      std::make_shared<AmbientLightSource>(raw_scene.ambient_light));
+  ambient_lights_.push_back(std::make_shared<AmbientLightSource>(
+      raw_scene.ambient_light.power,
+      spectrums_[raw_scene.ambient_light.spectrum_id - 1]));
 
 #ifdef DEBUG
   std::cout << "\tLoading point lights." << std::endl;
 #endif
   for (const auto &raw_point_light : raw_scene.point_lights) {
     point_lights_.push_back(std::make_shared<PointLightSource>(
-        raw_point_light.position, raw_point_light.intensity));
+        raw_point_light.position, raw_point_light.power,
+        spectrums_[raw_point_light.spectrum_id - 1]));
   }
 #ifdef DEBUG
   std::cout << "\tLoading area lights." << std::endl;
 #endif
   for (const auto &raw_area_light : raw_scene.area_lights) {
     area_lights_.push_back(std::make_shared<AreaLightSource>(
-        raw_area_light.position, raw_area_light.radiance, raw_area_light.normal,
-        raw_area_light.size));
+        raw_area_light.position, raw_area_light.normal, raw_area_light.size,
+        raw_area_light.power, spectrums_[raw_area_light.spectrum_id - 1]));
   }
 #ifdef DEBUG
   std::cout << "\tLoading cameras." << std::endl;
 #endif
   for (const auto &raw_camera : raw_scene.cameras) {
     cameras_.push_back(std::make_shared<BaseCamera>(
-        raw_camera.look_at_camera, raw_camera.position, raw_camera.gaze,
-        raw_camera.gaze_point, raw_camera.up, raw_camera.near_plane,
-        raw_camera.fov_y, raw_camera.near_distance, raw_camera.image_width,
-        raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples,
+        raw_camera.position, raw_camera.gaze, raw_camera.up,
+        raw_camera.sensor_size, raw_camera.aperture, raw_camera.exposure_time,
+        raw_camera.iso, raw_camera.pixel_size, raw_camera.focal_length,
+        raw_camera.sensor_pattern, raw_camera.color_filter_array_spectrums,
+        raw_camera.quantum_efficiency_spectrum, raw_camera.full_well_capacity,
+        raw_camera.quantization_level, raw_camera.image_name,
         configuration_.sampling_.time_sampling_,
-        configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
-        raw_camera.aperture_size, configuration_.sampling_.aperture_sampling_,
+        configuration_.sampling_.pixel_sampling_,
+        configuration_.sampling_.aperture_sampling_,
         configuration_.sampling_.aperture_type_));
   }
 
@@ -165,28 +176,37 @@ void Scene::LoadScene() {
     switch (raw_material.material_type) {
       case RawMaterialType::kDefault:
         materials_.push_back(std::make_shared<BaseMaterial>(
-            raw_material.ambient, raw_material.diffuse, raw_material.specular,
+            spectrums_[raw_material.ambient_spectrum_id - 1],
+            spectrums_[raw_material.diffuse_spectrum_id - 1],
+            spectrums_[raw_material.specular_spectrum_id - 1],
             raw_material.phong_exponent, raw_material.roughness));
         break;
 
       case RawMaterialType::kMirror:
         materials_.push_back(std::make_shared<MirrorMaterial>(
-            raw_material.ambient, raw_material.diffuse, raw_material.specular,
+            spectrums_[raw_material.ambient_spectrum_id - 1],
+            spectrums_[raw_material.diffuse_spectrum_id - 1],
+            spectrums_[raw_material.specular_spectrum_id - 1],
             raw_material.phong_exponent, raw_material.roughness,
-            raw_material.mirror));
+            spectrums_[raw_material.mirror_spectrum_id - 1]));
         break;
       case RawMaterialType::kConductor:
         materials_.push_back(std::make_shared<ConductorMaterial>(
-            raw_material.ambient, raw_material.diffuse, raw_material.specular,
+            spectrums_[raw_material.ambient_spectrum_id - 1],
+            spectrums_[raw_material.diffuse_spectrum_id - 1],
+            spectrums_[raw_material.specular_spectrum_id - 1],
             raw_material.phong_exponent, raw_material.roughness,
-            raw_material.mirror, raw_material.refraction_index,
-            raw_material.absorption_index));
+            spectrums_[raw_material.mirror_spectrum_id - 1],
+            raw_material.refraction_index, raw_material.absorption_index));
         break;
       case RawMaterialType::kDielectric:
         materials_.push_back(std::make_shared<DielectricMaterial>(
-            raw_material.ambient, raw_material.diffuse, raw_material.specular,
+            spectrums_[raw_material.ambient_spectrum_id - 1],
+            spectrums_[raw_material.diffuse_spectrum_id - 1],
+            spectrums_[raw_material.specular_spectrum_id - 1],
             raw_material.phong_exponent, raw_material.roughness,
-            raw_material.mirror, raw_material.absorption_coefficient,
+            spectrums_[raw_material.mirror_spectrum_id - 1],
+            spectrums_[raw_material.absorption_coefficient_spectrum_id - 1],
             raw_material.refraction_index));
         break;
     }

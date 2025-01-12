@@ -93,41 +93,116 @@ struct Vec5f {
   float x, y, z, w, t;
 };
 
+struct RawSpectrum {
+  int min_wavelength;
+  int max_wavelength;
+  std::vector<float> samples;
+};
+
+enum struct SensorSize {
+  kFullFrame,
+  kAPSH,
+  kAPSC,
+  kFourThirds,
+  kOneInch,
+  kTwoOverThree,
+};
+
+enum struct Aperture {
+  kF1_0,
+  kF1_4,
+  kF2_0,
+  kF2_8,
+  kF4_0,
+  kF5_6,
+  kF8_0,
+  kF11_0,
+  kF16_0,
+  kF22_0,
+  kF32_0,
+};
+
+enum struct ExposureTime {
+  k1_8000,
+  k1_4000,
+  k1_2000,
+  k1_1000,
+  k1_500,
+  k1_250,
+  k1_125,
+  k1_60,
+  k1_30,
+  k1_15,
+  k1_8,
+  k1_4,
+  k1_2,
+  k1,
+  k2,
+  k4,
+  k8,
+  k15,
+  k30,
+};
+
+enum struct ISO {
+  k100,
+  k200,
+  k400,
+  k800,
+  k1600,
+  k3200,
+  k6400,
+  k12800,
+  k25600,
+  k51200,
+  k102400,
+};
+
 struct RawCamera {
-  bool look_at_camera = false;
   Vec3f position;
   Vec3f gaze;
-  Vec3f gaze_point;
   Vec3f up;
-  float fov_y;
-  Vec4f near_plane;
-  float near_distance;
-  float focus_distance;
-  float aperture_size;
-  unsigned int num_samples;
-  int image_width, image_height;
+  SensorSize sensor_size;
+  Aperture aperture;
+  ExposureTime exposure_time;
+  ISO iso;
+  int pixel_size;
+  int focal_length;
+  Vec2i sensor_pattern;
+  std::vector<int> color_filter_array_spectrums;
+  int quantum_efficiency_spectrum;
+  float full_well_capacity;
+  int quantization_level;
+
   std::string image_name;
+};
+
+struct RawAmbientLight {
+  float power;
+  int spectrum_id;
 };
 
 struct RawPointLight {
   Vec3f position;
-  Vec3f intensity;
+  float power;
+  int spectrum_id;
 };
 
 struct RawAreaLight {
   Vec3f position;
-  Vec3f radiance;
   Vec3f normal;
   float size;
+  float power;
+  int spectrum_id;
 };
 
 struct RawMaterial {
   RawMaterialType material_type;
-  Vec3f ambient;
-  Vec3f diffuse;
-  Vec3f specular;
-  Vec3f mirror;
-  Vec3f absorption_coefficient;
+  int ambient_spectrum_id;
+  int diffuse_spectrum_id;
+  int specular_spectrum_id;
+  int mirror_spectrum_id;
+  int absorption_coefficient_spectrum_id;
   float refraction_index;
   float absorption_index;
   float phong_exponent;
@@ -244,8 +319,9 @@ struct RawScene {
   Vec3i background_color;
   float shadow_ray_epsilon;
   int max_recursion_depth;
+  std::vector<RawSpectrum> spectrums;
   std::vector<RawCamera> cameras;
-  Vec3f ambient_light;
+  RawAmbientLight ambient_light;
   std::vector<RawPointLight> point_lights;
   std::vector<RawAreaLight> area_lights;
   std::vector<RawMaterial> materials;

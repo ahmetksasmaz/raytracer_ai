@@ -12,14 +12,15 @@ using namespace parser;
 class BaseCamera {
  public:
   BaseCamera(
-      const bool look_at_camera, const Vec3f& position, const Vec3f& gaze,
-      const Vec3f& gaze_point, const Vec3f& up, const Vec4f& near_plane,
-      const float fov_y, const float near_distance, const int image_width,
-      const int image_height, const std::string& image_name,
-      const unsigned int num_samples = 0,
+      const Vec3f& position, const Vec3f& gaze, const Vec3f& up,
+      const SensorSize sensor_size, const Aperture aperture,
+      const ExposureTime exposure_time, const ISO iso, const int pixel_size,
+      const int focal_length, const Vec2i sensor_pattern,
+      const std::vector<int> color_filter_array_spectrums,
+      const int quantum_efficiency_spectrum, const float full_well_capacity,
+      const int quantization_level, const std::string& image_name,
       const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,
       const SamplingAlgorithm pixel_sampling = SamplingAlgorithm::kBest,
-      const float focus_distance = 0.0, const float aperture_size = 0.0,
       const SamplingAlgorithm aperture_sampling = SamplingAlgorithm::kBest,
       const ApertureType aperture_type = ApertureType::kDefault);
   virtual ~BaseCamera() {

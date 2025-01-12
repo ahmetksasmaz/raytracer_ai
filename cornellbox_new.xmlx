@@ -4,11 +4,7 @@
     <BackgroundColor>0 0 0</BackgroundColor>
 
     <Spectrums>
-        <MinimumWavelength>380</MinimumWavelength>
-        <MaximumWavelength>780</MaximumWavelength>
-        <NumSpectralSamples>41</NumSpectralSamples>
-
-        <Spectrum id="1"> <!-- white -->
+        <Spectrum id="1" min="380" max="780">
         0.29
         0.383
         0.457
@@ -52,7 +48,7 @@
         0.374
         </Spectrum>
 
-        <Spectrum id="2"> <!-- blue -->
+        <Spectrum id="2" min="380" max="780">
         0.486
         0.772
         0.964
@@ -96,7 +92,7 @@
         0.163
         </Spectrum>
 
-        <Spectrum id="3"> <!-- red -->
+        <Spectrum id="3" min="380" max="780">
         0.169
         0.173
         0.177
@@ -141,7 +137,7 @@
         0.342
         </Spectrum>
 
-        <Spectrum id="4"> <!-- green -->
+        <Spectrum id="4" min="380" max="780">
         0.219
         0.23
         0.23
@@ -181,7 +177,7 @@
         0.433
         </Spectrum>
 
-        <Spectrum id="5"> <!-- bayer r -->
+        <Spectrum id="5" min="380" max="780">
         0.109
         0.105
         0.1
@@ -224,7 +220,8 @@
         0.258
         0.143
         </Spectrum>
-        <Spectrum id="6"> <!-- bayer g -->
+
+        <Spectrum id="6" min="380" max="780">
         0.105
         0.106
         0.107
@@ -263,7 +260,8 @@
         0.098
         0.096
         </Spectrum>
-        <Spectrum id="7"> <!-- bayer b -->
+
+        <Spectrum id="7" min="380" max="780">
         0.119
         0.143
         0.167
@@ -306,10 +304,108 @@
         0.103
         0.105
         </Spectrum>
+
+        <Spectrum id="8" min="380" max="780">
+        1.0
+        1.0
+        </Spectrum>
+
+        <Spectrum id="9" min="380" max="780">
+        0.0
+        0.0
+        </Spectrum>
+
+        <Spectrum id="10 min="380" max="780">
+        0.1
+        0.1
+        </Spectrum>
+
+        <Spectrum id="11 min="380" max="780">
+        0.9
+        0.9
+        </Spectrum>
+
+        <Spectrum id="12 min="380" max="780">
+        0.08
+        0.08
+        </Spectrum>
+
+        <Spectrum id="13 min="380" max="780">
+        1.0
+        1.0
+        0.0
+        0.0
+        </Spectrum>
+
+        <Spectrum id="14 min="380" max="780">
+        0.0
+        1.0
+        1.0
+        0.0
+        </Spectrum>
+
+        <Spectrum id="15 min="380" max="780">
+        0.0
+        0.0
+        1.0
+        1.0
+        </Spectrum>
+
+        <Spectrum id="16 min="380" max="780">
+        0.1
+        0.1
+        0.0
+        0.0
+        </Spectrum>
+
+        <Spectrum id="17 min="380" max="780">
+        0.0
+        0.1
+        0.1
+        0.0
+        </Spectrum>
+
+        <Spectrum id="18 min="380" max="780">
+        0.0
+        0.0
+        0.1
+        0.1
+        </Spectrum>
+
+        <Spectrum id="19 min="380" max="780">
+        0.8
+        0.8
+        0.5
+        0.1
+        </Spectrum>
+
     </Spectrums>
 
     <Cameras>
         <Camera id="1">
+            <Position>0 0 20</Position>
+            <Gaze>0 0 -1</Gaze>
+            <Up>0 1 0</Up>
+
+            <SensorSize>APS_C</SensorSize>
+            <PixelSize>15</PixelSize>
+
+            <FocalLength>18</FocalLength>
+            <Aperture>F_1_4</Aperture>
+            <ExposureTime>1_250</ExposureTime>
+            <ISO>ISO_100</ISO>
+
+            <SensorPattern>2 2</SensorPattern>
+            <ColorFilterArraySpectrums>5 6 6 7</ColorFilterArraySpectrums>
+            <QuantumEfficiencySpectrum>8</QuantumEfficiencySpectrum>
+            <FullWellCapacity>700.0</FullWellCapacity>
+
+            <QuantizationLevel>14</QuantizationLevel>
+
+            <ImageName>cornellbox_area.png</ImageName>
+        </Camera>
+
+        <!-- <Camera id="1">
             <Position>0 0 20</Position>
             <Gaze>0 0 -1</Gaze>
             <Up>0 1 0</Up>
@@ -318,51 +414,60 @@
             <ImageResolution>800 800</ImageResolution>
             <NumSamples>10</NumSamples>
             <ImageName>cornellbox_area.png</ImageName>
-        </Camera>
+        </Camera> -->
     </Cameras>
 
     <Lights>
-        <AmbientLight>20 20 20</AmbientLight>
+        <AmbientLight>
+            <Power>20</Power>
+            <Spectrum>1</Spectrum>
+        </AmbientLight>
         <AreaLight id="1">
             <Position>0 9.8 2</Position>
             <Normal>0 -1 0</Normal>
             <Size>3</Size> <!-- extent -->
-            <Radiance>150000 150000 150000</Radiance>
+            <Power>100</Power>
+            <Spectrum>1</Spectrum>
         </AreaLight>
+        <PointLight id="1">
+            <Position>0 9.8 2</Position>
+            <Power>20</Power>
+            <Spectrum>2</Spectrum>
+        </PointLight>
     </Lights>
 
     <Materials>
         <Material id="1">
-            <AmbientReflectance>1 1 1</AmbientReflectance>
-            <DiffuseReflectance>0.08 0.08 0.08</DiffuseReflectance>
-            <SpecularReflectance>0 0 0</SpecularReflectance>
+            <AmbientReflectance>8</AmbientReflectance>
+            <DiffuseReflectance>12</DiffuseReflectance>
+            <SpecularReflectance>9</SpecularReflectance>
         </Material>
         <Material id="2">
-            <AmbientReflectance>1 0 0</AmbientReflectance>
-            <DiffuseReflectance>0.1 0 0</DiffuseReflectance>
-            <SpecularReflectance>0 0 0</SpecularReflectance>
+            <AmbientReflectance>13</AmbientReflectance>
+            <DiffuseReflectance>16</DiffuseReflectance>
+            <SpecularReflectance>9</SpecularReflectance>
         </Material>
         <Material id="3">
-            <AmbientReflectance>0 0 1</AmbientReflectance>
-            <DiffuseReflectance>0 0 0.1</DiffuseReflectance>
-            <SpecularReflectance>0 0 0</SpecularReflectance>
+            <AmbientReflectance>15</AmbientReflectance>
+            <DiffuseReflectance>18</DiffuseReflectance>
+            <SpecularReflectance>9</SpecularReflectance>
         </Material>
         <Material id="4">
-            <AmbientReflectance>1 1 1</AmbientReflectance>
-            <DiffuseReflectance>0.08 0.08 0.01</DiffuseReflectance>
-            <SpecularReflectance>1 1 1</SpecularReflectance>
+            <AmbientReflectance>8</AmbientReflectance>
+            <DiffuseReflectance>19</DiffuseReflectance>
+            <SpecularReflectance>8</SpecularReflectance>
             <PhongExponent>300</PhongExponent>
         </Material>
         <Material id="5" type="mirror">
-            <AmbientReflectance>1 1 1</AmbientReflectance>
-            <DiffuseReflectance>0 0 0</DiffuseReflectance>
-            <SpecularReflectance>0 0 0</SpecularReflectance>
-            <MirrorReflectance>0.9 0.9 0.9</MirrorReflectance>
+            <AmbientReflectance>8</AmbientReflectance>
+            <DiffuseReflectance>9</DiffuseReflectance>
+            <SpecularReflectance>9</SpecularReflectance>
+            <MirrorReflectance>11</MirrorReflectance>
         </Material>
         <Material id="6">
-            <AmbientReflectance>1 1 1</AmbientReflectance>
-            <DiffuseReflectance>0.05 0.05 0.05</DiffuseReflectance>
-            <SpecularReflectance>0.1 0.1 0.1</SpecularReflectance>
+            <AmbientReflectance>8</AmbientReflectance>
+            <DiffuseReflectance>12</DiffuseReflectance>
+            <SpecularReflectance>10</SpecularReflectance>
         </Material>
     </Materials>
 

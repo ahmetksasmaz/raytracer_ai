@@ -1,9 +1,20 @@
 +++++ add spectrum to xml files
-parse spectrum from xml files
-create spectrum class
-represent all color triplets and color coefficients as spectrum
-parse spectrum id from xml files
-update class structures with spectrum id
-update camera sensor size, pixel size, focal length, aperture count, exposure time, sensor pattern, gain, and sensor spectrum, quantum efficiency, full well capacity
-update camera quantization size
-apply demosaicing algorithm
++++++ parse spectrum from xml files
++++++ create spectrum class
++++++ represent all color triplets and color coefficients as spectrum
++++++ parse spectrum id from xml files
++++++ update class structures with spectrum id
++++++ set min max wavelength per spectrum
++++++ update camera sensor size, pixel size, focal length, aperture count, exposure time, sensor pattern, gain, and sensor spectrum, quantum efficiency, full well capacity
++++++ update camera quantization size
+update base camera structure according to new parameters
+add spectrum wavelength map to ray
+update sample count according to pixel size and aperture size in camera
+update ray creation in camera
+update ray tracing algorithm according to wavelength (except refraction)
+update accumulated ray values into filter and apply exposure time and gain
+apply quantum efficiency and full well capacity to output
+apply quantization to output
+apply demosaicing finally
+
+update ray tracing algorithm according to wavelength (refraction)

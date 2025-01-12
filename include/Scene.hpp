@@ -41,6 +41,7 @@ class Scene {
   float shadow_ray_epsilon_;
   int max_recursion_depth_;
 
+  std::vector<std::shared_ptr<BaseSpectrum>> spectrums_;
   std::vector<std::shared_ptr<BaseCamera>> cameras_;
   std::vector<std::shared_ptr<PointLightSource>> point_lights_;
   std::vector<std::shared_ptr<AreaLightSource>> area_lights_;

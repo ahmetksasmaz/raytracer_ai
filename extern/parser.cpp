@@ -64,15 +64,28 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   stream >> max_recursion_depth;
   stream.clear();
 
+  // Get Spectrums
+  element = element->FirstChildElement("Spectrum");
+  while (element) {
+    RawSpectrum spectrum;
+    spectrum.min_wavelength = std::stoi(element->Attribute("min"));
+    spectrum.max_wavelength = std::stoi(element->Attribute("max"));
+    stream << element->GetText() << std::endl;
+    float sample;
+    while (!(stream >> sample).eof()) {
+      spectrum.samples.push_back(sample);
+    }
+    spectrums.push_back(spectrum);
+
+    element = element->NextSiblingElement("Spectrum");
+  }
+  stream.clear();
+
   // Get Cameras
   element = root->FirstChildElement("Cameras");
   element = element->FirstChildElement("Camera");
   while (element) {
     RawCamera camera;
-
-    if (element->Attribute("type", "lookAt") != NULL) {
-      camera.look_at_camera = true;
-    }
 
     auto child = element->FirstChildElement("Position");
     stream << child->GetText() << std::endl;
@@ -84,63 +97,188 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       stream >> camera.gaze.x >> camera.gaze.y >> camera.gaze.z;
     }
 
-    child = element->FirstChildElement("GazePoint");
-    if (child) {
-      stream << child->GetText() << std::endl;
-      stream >> camera.gaze_point.x >> camera.gaze_point.y >>
-          camera.gaze_point.z;
-    }
-
     child = element->FirstChildElement("Up");
     stream << child->GetText() << std::endl;
     stream >> camera.up.x >> camera.up.y >> camera.up.z;
 
-    child = element->FirstChildElement("NearPlane");
+    child = element->FirstChildElement("SensorSize");
     if (child) {
       stream << child->GetText() << std::endl;
-      stream >> camera.near_plane.x >> camera.near_plane.y >>
-          camera.near_plane.z >> camera.near_plane.w;
+      std::string sensor_size;
+      stream >> sensor_size;
+      if (sensor_size == "FullFrame") {
+        camera.sensor_size = SensorSize::kFullFrame;
+      } else if (sensor_size == "APS-C") {
+        camera.sensor_size = SensorSize::kAPSC;
+      } else if (sensor_size == "FourThirds") {
+        camera.sensor_size = SensorSize::kFourThirds;
+      } else if (sensor_size == "OneInch") {
+        camera.sensor_size = SensorSize::kOneInch;
+      } else if (sensor_size == "TwoOverThree") {
+        camera.sensor_size = SensorSize::kTwoOverThree;
+      } else {
+        camera.sensor_size = SensorSize::kFullFrame;
+      }
     }
 
-    child = element->FirstChildElement("FovY");
+    child = element->FirstChildElement("PixelSize");
     if (child) {
       stream << child->GetText() << std::endl;
-      stream >> camera.fov_y;
+      stream >> camera.pixel_size;
     }
 
-    child = element->FirstChildElement("NearDistance");
-    stream << child->GetText() << std::endl;
-    stream >> camera.near_distance;
-    child = element->FirstChildElement("ImageResolution");
-    stream << child->GetText() << std::endl;
-    stream >> camera.image_width >> camera.image_height;
+    child = element->FirstChildElement("FocalLength");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.focal_length;
+    }
+
+    child = element->FirstChildElement("Aperture");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      std::string aperture;
+      stream >> aperture;
+      if (aperture == "F_1_0") {
+        camera.aperture = Aperture::kF1_0;
+      } else if (aperture == "F_1_4") {
+        camera.aperture = Aperture::kF1_4;
+      } else if (aperture == "F_2_0") {
+        camera.aperture = Aperture::kF2_0;
+      } else if (aperture == "F_2_8") {
+        camera.aperture = Aperture::kF2_8;
+      } else if (aperture == "F_4_0") {
+        camera.aperture = Aperture::kF4_0;
+      } else if (aperture == "F_5_6") {
+        camera.aperture = Aperture::kF5_6;
+      } else if (aperture == "F_8_0") {
+        camera.aperture = Aperture::kF8_0;
+      } else if (aperture == "F_11_0") {
+        camera.aperture = Aperture::kF11_0;
+      } else if (aperture == "F_16_0") {
+        camera.aperture = Aperture::kF16_0;
+      } else if (aperture == "F_22_0") {
+        camera.aperture = Aperture::kF22_0;
+      } else {
+        camera.aperture = Aperture::kF1_0;
+      }
+    }
+
+    child = element->FirstChildElement("ExposureTime");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      std::string exposure_time;
+      stream >> exposure_time;
+      if (exposure_time == "1_8000") {
+        camera.exposure_time = ExposureTime::k1_8000;
+      } else if (exposure_time == "1_4000") {
+        camera.exposure_time = ExposureTime::k1_4000;
+      } else if (exposure_time == "1_2000") {
+        camera.exposure_time = ExposureTime::k1_2000;
+      } else if (exposure_time == "1_1000") {
+        camera.exposure_time = ExposureTime::k1_1000;
+      } else if (exposure_time == "1_500") {
+        camera.exposure_time = ExposureTime::k1_500;
+      } else if (exposure_time == "1_250") {
+        camera.exposure_time = ExposureTime::k1_250;
+      } else if (exposure_time == "1_125") {
+        camera.exposure_time = ExposureTime::k1_125;
+      } else if (exposure_time == "1_60") {
+        camera.exposure_time = ExposureTime::k1_60;
+      } else if (exposure_time == "1_30") {
+        camera.exposure_time = ExposureTime::k1_30;
+      } else if (exposure_time == "1_15") {
+        camera.exposure_time = ExposureTime::k1_15;
+      } else if (exposure_time == "1_8") {
+        camera.exposure_time = ExposureTime::k1_8;
+      } else if (exposure_time == "1_4") {
+        camera.exposure_time = ExposureTime::k1_4;
+      } else if (exposure_time == "1_2") {
+        camera.exposure_time = ExposureTime::k1_2;
+      } else if (exposure_time == "1") {
+        camera.exposure_time = ExposureTime::k1;
+      } else if (exposure_time == "2") {
+        camera.exposure_time = ExposureTime::k2;
+      } else if (exposure_time == "4") {
+        camera.exposure_time = ExposureTime::k4;
+      } else if (exposure_time == "8") {
+        camera.exposure_time = ExposureTime::k8;
+      } else if (exposure_time == "15") {
+        camera.exposure_time = ExposureTime::k15;
+      } else if (exposure_time == "30") {
+        camera.exposure_time = ExposureTime::k30;
+      } else {
+        camera.exposure_time = ExposureTime::k1;
+      }
+    }
+
+    child = element->FirstChildElement("ISO");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      std::string iso;
+      stream >> iso;
+      if (iso == "ISO_100") {
+        camera.iso = ISO::k100;
+      } else if (iso == "ISO_200") {
+        camera.iso = ISO::k200;
+      } else if (iso == "ISO_400") {
+        camera.iso = ISO::k400;
+      } else if (iso == "ISO_800") {
+        camera.iso = ISO::k800;
+      } else if (iso == "ISO_1600") {
+        camera.iso = ISO::k1600;
+      } else if (iso == "ISO_3200") {
+        camera.iso = ISO::k3200;
+      } else if (iso == "ISO_6400") {
+        camera.iso = ISO::k6400;
+      } else if (iso == "ISO_12800") {
+        camera.iso = ISO::k12800;
+      } else if (iso == "ISO_25600") {
+        camera.iso = ISO::k25600;
+      } else if (iso == "ISO_51200") {
+        camera.iso = ISO::k51200;
+      } else if (iso == "ISO_102400") {
+        camera.iso = ISO::k102400;
+      } else {
+        camera.iso = ISO::k100;
+      }
+    }
+
+    child = element->FirstChildElement("SensorPattern");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.sensor_pattern.x >> camera.sensor_pattern.y;
+    }
+
+    child = element->FirstChildElement("ColorFilterArraySpectrums");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      int spectrum_id;
+      while (!(stream >> spectrum_id).eof()) {
+        camera.color_filter_array_spectrums.push_back(spectrum_id);
+      }
+    }
+
+    child = element->FirstChildElement("QuantumEfficiencySpectrum");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.quantum_efficiency_spectrum;
+    }
+
+    child = element->FirstChildElement("FullWellCapacity");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.full_well_capacity;
+    }
+
+    child = element->FirstChildElement("QuantizationLevel");
+    if (child) {
+      stream << child->GetText() << std::endl;
+      stream >> camera.quantization_level;
+    }
+
     child = element->FirstChildElement("ImageName");
     stream << child->GetText() << std::endl;
     stream >> camera.image_name;
-
-    child = element->FirstChildElement("NumSamples");
-    if (child) {
-      stream << child->GetText() << std::endl;
-      stream >> camera.num_samples;
-    } else {
-      camera.num_samples = 0;
-    }
-
-    child = element->FirstChildElement("FocusDistance");
-    if (child) {
-      stream << child->GetText() << std::endl;
-      stream >> camera.focus_distance;
-    } else {
-      camera.focus_distance = 0;
-    }
-
-    child = element->FirstChildElement("ApertureSize");
-    if (child) {
-      stream << child->GetText() << std::endl;
-      stream >> camera.aperture_size;
-    } else {
-      camera.aperture_size = 0;
-    }
 
     cameras.push_back(camera);
     element = element->NextSiblingElement("Camera");
@@ -154,20 +292,26 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   // Get Lights
   element = root->FirstChildElement("Lights");
   auto child = element->FirstChildElement("AmbientLight");
-  stream << child->GetText() << std::endl;
-  stream >> ambient_light.x >> ambient_light.y >> ambient_light.z;
+  auto sub_child = child->FirstChildElement("Power");
+  stream << sub_child->GetText() << std::endl;
+  stream >> ambient_light.power;
+  sub_child = child->FirstChildElement("Spectrum");
+  stream << sub_child->GetText() << std::endl;
+  stream >> ambient_light.spectrum_id;
   element = element->FirstChildElement("PointLight");
   while (element) {
     RawPointLight point_light;
     child = element->FirstChildElement("Position");
     stream << child->GetText() << std::endl;
-    child = element->FirstChildElement("Intensity");
+    child = element->FirstChildElement("Power");
+    stream << child->GetText() << std::endl;
+    child = element->FirstChildElement("Spectrum");
     stream << child->GetText() << std::endl;
 
     stream >> point_light.position.x >> point_light.position.y >>
         point_light.position.z;
-    stream >> point_light.intensity.x >> point_light.intensity.y >>
-        point_light.intensity.z;
+    stream >> point_light.power;
+    stream >> point_light.spectrum_id;
 
     point_lights.push_back(point_light);
     element = element->NextSiblingElement("PointLight");
@@ -183,15 +327,17 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     stream << child->GetText() << std::endl;
     child = element->FirstChildElement("Size");
     stream << child->GetText() << std::endl;
-    child = element->FirstChildElement("Radiance");
+    child = element->FirstChildElement("Power");
+    stream << child->GetText() << std::endl;
+    child = element->FirstChildElement("Spectrum");
     stream << child->GetText() << std::endl;
 
     stream >> area_light.position.x >> area_light.position.y >>
         area_light.position.z;
     stream >> area_light.normal.x >> area_light.normal.y >> area_light.normal.z;
     stream >> area_light.size;
-    stream >> area_light.radiance.x >> area_light.radiance.y >>
-        area_light.radiance.z;
+    stream >> area_light.power;
+    stream >> area_light.spectrum_id;
 
     area_lights.push_back(area_light);
     element = element->NextSiblingElement("AreaLight");
@@ -254,16 +400,14 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       stream << child->GetText() << std::endl;
     }
 
-    stream >> material.ambient.x >> material.ambient.y >> material.ambient.z;
-    stream >> material.diffuse.x >> material.diffuse.y >> material.diffuse.z;
-    stream >> material.specular.x >> material.specular.y >> material.specular.z;
+    stream >> material.ambient_spectrum_id;
+    stream >> material.diffuse_spectrum_id;
+    stream >> material.specular_spectrum_id;
     if (mirror_reflectance_exists) {
-      stream >> material.mirror.x >> material.mirror.y >> material.mirror.z;
+      stream >> material.mirror_spectrum_id;
     }
     if (material.material_type == RawMaterialType::kDielectric) {
-      stream >> material.absorption_coefficient.x >>
-          material.absorption_coefficient.y >>
-          material.absorption_coefficient.z;
+      stream >> material.absorption_coefficient_spectrum_id;
     }
     if (material.material_type == RawMaterialType::kConductor ||
         material.material_type == RawMaterialType::kDielectric) {

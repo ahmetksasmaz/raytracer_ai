@@ -4,5 +4,7 @@
 
 class AmbientLightSource : public BaseLightSource {
  public:
-  AmbientLightSource(const Vec3f& intensity) : BaseLightSource(intensity) {}
+  AmbientLightSource(const float power,
+                     const std::shared_ptr<BaseSpectrum> spectrum)
+      : BaseLightSource(power, spectrum) {}
 };
