@@ -26,7 +26,7 @@ void Scene::NonThreadSchedulingAlgorithm(
         if (timer.configuration_.timer_.ray_tracing_)
           timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
                            y * camera->image_width_ + x, ray_index);
-        const Vec3f pixel_value =
+        const std::map<int, float> pixel_value =
             ray_tracing_algorithm_(rays[ray_index], nullptr,
                                    max_recursion_depth_, max_recursion_depth_);
 #ifdef DEBUG

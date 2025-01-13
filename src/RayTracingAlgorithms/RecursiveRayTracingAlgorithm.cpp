@@ -2,12 +2,15 @@
 
 #include "Scene.hpp"
 
-Vec3f Scene::RecursiveRayTracingAlgorithm(
+std::map<int, float> Scene::RecursiveRayTracingAlgorithm(
     Ray &ray,
     const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
     int remaining_recursion, int max_recursion)
 {
-  Vec3f pixel_value = {0, 0, 0};
+  std::map<int, float> pixel_value;
+  for(auto wavelength : ray.wavelengths_){
+    pixel_value.insert(std::make_pair(wavelength, 0.0f));
+  }
   float t_hit = std::numeric_limits<float>::max();
   Vec3f hit_normal;
   std::shared_ptr<BoundingVolumeHierarchyElement> hit_object_ptr = nullptr;
@@ -62,8 +65,9 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       {
         for (auto ambient_light : ambient_lights_)
         {
-          pixel_value +=
-              hadamard(material_ptr->ambient_, ambient_light->intensity_);
+          for(auto wavelength : ray.wavelengths_){
+            pixel_value[wavelength] += (*(material_ptr->ambient_))[wavelength] * (*(ambient_light->spectrum_))(wavelength, ambient_light->power_);
+          }
         }
       }
     }
@@ -114,11 +118,9 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 
           if (configuration_.shading_.diffuse_)
           {
-            Vec3f diffuse_term =
-                hadamard(material_ptr->diffuse_,
-                         point_light->intensity_ / distance_to_light) *
-                std::max(0.0f, dot(hit_normal, light_direction));
-            pixel_value += diffuse_term;
+            for(auto wavelength : ray.wavelengths_){
+              pixel_value[wavelength] += std::max(0.0f, dot(hit_normal, light_direction)) * ((*(material_ptr->diffuse_))[wavelength] * (*(point_light->spectrum_))(wavelength, point_light->power_) / distance_to_light);
+            }
           }
 
           if (configuration_.shading_.specular_)
@@ -126,13 +128,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             if (material_ptr->phong_exponent_ >= 0.0f)
             {
               Vec3f half_vector = normalize(light_direction - ray.direction_);
-              Vec3f specular_term = {0, 0, 0};
-              specular_term =
-                  hadamard(material_ptr->specular_,
-                           point_light->intensity_ / distance_to_light) *
-                  pow(std::max(0.0f, dot(hit_normal, half_vector)),
-                      material_ptr->phong_exponent_);
-              pixel_value += specular_term;
+              for(auto wavelength : ray.wavelengths_){
+              pixel_value[wavelength] += pow(std::max(0.0f, dot(hit_normal, half_vector)),
+                      material_ptr->phong_exponent_) * ((*(material_ptr->diffuse_))[wavelength] * (*(point_light->spectrum_))(wavelength, point_light->power_) / distance_to_light);
+            }
             }
           }
         }
@@ -220,11 +219,9 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 
           if (configuration_.shading_.diffuse_)
           {
-            Vec3f diffuse_term =
-                hadamard(material_ptr->diffuse_,
-                         area_light->radiance_ * irradiance_coeff) *
-                std::max(0.0f, dot(hit_normal, light_direction));
-            pixel_value += diffuse_term;
+            for(auto wavelength : ray.wavelengths_){
+              pixel_value[wavelength] += std::max(0.0f, dot(hit_normal, light_direction)) * ((*(material_ptr->diffuse_))[wavelength] * (*(area_light->spectrum_))(wavelength, area_light->power_) * irradiance_coeff);
+            }
           }
 
           if (configuration_.shading_.specular_)
@@ -232,13 +229,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             if (material_ptr->phong_exponent_ >= 0.0f)
             {
               Vec3f half_vector = normalize(light_direction - ray.direction_);
-              Vec3f specular_term = {0, 0, 0};
-              specular_term =
-                  hadamard(material_ptr->specular_,
-                           area_light->radiance_ * irradiance_coeff) *
-                  pow(std::max(0.0f, dot(hit_normal, half_vector)),
-                      material_ptr->phong_exponent_);
-              pixel_value += specular_term;
+              for(auto wavelength : ray.wavelengths_){
+                pixel_value[wavelength] += pow(std::max(0.0f, dot(hit_normal, half_vector)),
+                        material_ptr->phong_exponent_) * ((*(material_ptr->specular_))[wavelength] * (*(area_light->spectrum_))(wavelength, area_light->power_) * irradiance_coeff);
+              }
             }
           }
         }
@@ -300,10 +294,13 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             2 * dot(ray.direction_, distorted_normal) * distorted_normal;
         Ray reflection_ray = {ray.wavelengths_, ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
-        Vec3f reflection_color = RecursiveRayTracingAlgorithm(
+        std::map<int, float> reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
-        pixel_value += hadamard(reflection_color, mirror_material_ptr->mirror_);
+
+        for(auto wavelength : ray.wavelengths_){
+          pixel_value[wavelength] += (*(mirror_material_ptr->mirror_))[wavelength] * reflection_color[wavelength];
+        }
       }
       else if (conductor_material_ptr &&
                configuration_.materials_.conductor_)
@@ -313,7 +310,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             2 * dot(ray.direction_, distorted_normal) * distorted_normal;
         Ray reflection_ray = {ray.wavelengths_, ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
-        Vec3f reflection_color = RecursiveRayTracingAlgorithm(
+        std::map<int, float> reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
 
@@ -329,20 +326,20 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                    (n2_k2_2 * cos_theta_2 + n2_cos_theta_tw + 1);
         float fresnel_reflection_ratio = (rs + rp) / 2;
 
-        pixel_value +=
-            hadamard(reflection_color, conductor_material_ptr->mirror_ *
-                                           fresnel_reflection_ratio);
+        for(auto wavelength : ray.wavelengths_){
+          pixel_value[wavelength] += (*(mirror_material_ptr->mirror_))[wavelength] * reflection_color[wavelength] * fresnel_reflection_ratio;
+        }
+
       }
       else if (dielectric_material_ptr &&
                configuration_.materials_.dielectric_)
       {
-        Vec3f reflection_color = {0, 0, 0};
         Vec3f reflection_direction =
             ray.direction_ -
             2 * dot(ray.direction_, distorted_normal) * distorted_normal;
         Ray reflection_ray = {ray.wavelengths_, ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
-        reflection_color = RecursiveRayTracingAlgorithm(
+        std::map<int, float> reflection_color = RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
 
@@ -376,15 +373,20 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
               refraction_direction, ray.diff_, ray.time_};
           // If the object type is triangle, inside_object_ptr is nullptr, check
           // later
-          Vec3f refraction_color = RecursiveRayTracingAlgorithm(
+          std::map<int, float> refraction_color = RecursiveRayTracingAlgorithm(
               refraction_ray, inside_object_ptr ? nullptr : hit_object_casted,
               remaining_recursion - 1, max_recursion);
-          pixel_value += reflection_color * fresnel_reflection_ratio;
-          pixel_value += refraction_color * fresnel_transmission_ratio;
+
+          for(auto wavelength : ray.wavelengths_){
+            pixel_value[wavelength] += reflection_color[wavelength] * fresnel_reflection_ratio;
+            pixel_value[wavelength] += refraction_color[wavelength] * fresnel_transmission_ratio;
+          }
         }
         else
         {
-          pixel_value += reflection_color;
+          for(auto wavelength : ray.wavelengths_){
+            pixel_value[wavelength] += reflection_color[wavelength];
+          }
         }
       }
     }
@@ -394,27 +396,24 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       std::shared_ptr<BaseObject> inside_object_casted =
           std::dynamic_pointer_cast<BaseObject>(inside_object_ptr);
 
-      Vec3f absorption_coefficient =
+      std::shared_ptr<BaseSpectrum> absorption_coefficient =
           dynamic_cast<DielectricMaterial *>(
               (inside_object_casted->material_).get())
               ->absorption_coefficient_;
-      pixel_value.x *= exp(-absorption_coefficient.x * t_hit);
-      pixel_value.y *= exp(-absorption_coefficient.y * t_hit);
-      pixel_value.z *= exp(-absorption_coefficient.z * t_hit);
+      for(auto wavelength : ray.wavelengths_){
+        pixel_value[wavelength] *= exp(-(*absorption_coefficient)(wavelength, t_hit));
+      }
     }
   }
   else
   {
-    if (remaining_recursion == max_recursion)
-    {
-      pixel_value.x = background_color_.x;
-      pixel_value.y = background_color_.y;
-      pixel_value.z = background_color_.z;
-    }
-    else
-    {
-      pixel_value = {0, 0, 0};
-    }
+    // I do not want to update background color with spectrum :(
+    // if (remaining_recursion == max_recursion)
+    // {
+    //   pixel_value.x = background_color_.x;
+    //   pixel_value.y = background_color_.y;
+    //   pixel_value.z = background_color_.z;
+    // }
   }
 
   return pixel_value;

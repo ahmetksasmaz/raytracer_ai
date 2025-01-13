@@ -2,6 +2,8 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <algorithm>
+#include <map>
 
 #include "../extern/parser.h"
 #include "AmbientLightSource.hpp"
@@ -17,6 +19,7 @@
 #include "MeshObject.hpp"
 #include "MirrorMaterial.hpp"
 #include "PPMExporter.hpp"
+#include "QuantizedExporter.hpp"
 #include "PointLightSource.hpp"
 #include "STBExporter.hpp"
 #include "SphereObject.hpp"
@@ -53,9 +56,9 @@ class Scene {
 
   std::function<void(const std::shared_ptr<BaseCamera>, int)>
       scheduling_algorithm_;
-  std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, int)>
+  std::function<std::map<int, float>(Ray &, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
-  std::function<void(Vec5f *, int, int, int, Vec3f *)> filtering_algorithm_;
+  std::function<void(PixelSample *, int, int, int, Vec3f *)> filtering_algorithm_;
   std::function<void(Vec3f *, int, int, std::vector<unsigned char> &)>
       tone_mapping_algorithm_;
 
@@ -63,11 +66,11 @@ class Scene {
 
   std::shared_ptr<BaseExporter> exporter_;
 
-  Vec3f DefaultRayTracingAlgorithm(
+  std::map<int, float> DefaultRayTracingAlgorithm(
       Ray &ray,
       const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
       int, int);
-  Vec3f RecursiveRayTracingAlgorithm(
+  std::map<int, float> RecursiveRayTracingAlgorithm(
       Ray &ray,
       const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
       int remaining_recursion, int max_recursion);
@@ -77,12 +80,12 @@ class Scene {
   void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                       int camera_index);
 
-  void AveragingFilterAlgorithm(Vec5f *image_sampled_data, int image_width,
+  void AveragingFilterAlgorithm(PixelSample *image_sampled_data, int image_width,
                                 int image_height, int sample,
                                 Vec3f *image_data);
-  void GaussianFilterAlgorithm(Vec5f *image_sampled_data, int image_width,
+  void GaussianFilterAlgorithm(PixelSample *image_sampled_data, int image_width,
                                int image_height, int sample, Vec3f *image_data);
-  void ExtendedGaussianFilterAlgorithm(Vec5f *image_sampled_data,
+  void ExtendedGaussianFilterAlgorithm(PixelSample *image_sampled_data,
                                        int image_width, int image_height,
                                        int sample, Vec3f *image_data);
 

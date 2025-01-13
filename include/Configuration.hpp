@@ -49,7 +49,7 @@ enum class ApertureType {
 
 enum class ToneMappingAlgorithm { kClamp = 0, kBest = 0, kMax = 0 };
 
-enum class ExporterType { kPPM = 0, kSTB = 1, kBest = 1, kMax = 1 };
+enum class ExporterType { kPPM = 0, kSTB = 1, kQuantization = 2, kBest = 2, kMax = 2 };
 
 struct Configuration {
   struct Sampling {
@@ -253,7 +253,10 @@ struct Configuration {
       strategies_.exporter_type_ = ExporterType::kPPM;
     } else if (exporter_type == "stb") {
       strategies_.exporter_type_ = ExporterType::kSTB;
-    } else {
+    } else if (exporter_type == "quantization") {
+      strategies_.exporter_type_ = ExporterType::kQuantization;
+    }
+    else {
       strategies_.exporter_type_ = ExporterType::kBest;
     }
 

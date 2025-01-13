@@ -9,6 +9,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
     const std::shared_ptr<BaseCamera> camera, int camera_index) {
   std::queue<std::pair<int, int>> queue;
   std::mutex queue_mutex;
+
   for (int y = 0; y < camera->image_height_; ++y) {
     for (int x = 0; x < camera->image_width_; ++x) {
       queue.push({x, y});
@@ -35,12 +36,13 @@ void Scene::ThreadQueueSchedulingAlgorithm(
 
         std::vector<Ray> rays =
             camera->GenerateRay({index.first, index.second});
+        
         for (int ray_index = 0; ray_index < rays.size(); ray_index++) {
           if (timer.configuration_.timer_.ray_tracing_)
             timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
                              index.second * camera->image_width_ + index.first,
                              ray_index);
-          const Vec3f pixel_value = ray_tracing_algorithm_(
+          const std::map<int, float> pixel_value = ray_tracing_algorithm_(
               rays[ray_index], nullptr, max_recursion_depth_,
               max_recursion_depth_);
           camera->UpdateSampledPixelValue({index.first, index.second},
@@ -51,6 +53,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
                              index.second * camera->image_width_ + index.first,
                              ray_index);
         }
+        camera->CalculatePixelValue({index.first, index.second});
       }
     });
   }

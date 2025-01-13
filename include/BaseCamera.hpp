@@ -17,8 +17,8 @@ class BaseCamera {
       const SensorSize sensor_size, const Aperture aperture,
       const ExposureTime exposure_time, const ISO iso, const int pixel_size,
       const int focal_length, const Vec2i sensor_pattern,
-      const std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums,
-      const std::shared_ptr<BaseSpectrum> quantum_efficiency_spectrum, const float full_well_capacity,
+      std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums,
+      std::shared_ptr<BaseSpectrum> quantum_efficiency_spectrum, const float full_well_capacity,
       const int quantization_level, const std::string& image_name,
       const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,
       const SamplingAlgorithm pixel_sampling = SamplingAlgorithm::kBest,
@@ -31,15 +31,14 @@ class BaseCamera {
 
   virtual std::vector<Ray> GenerateRay(const Vec2i& pixel_coordinate) const;
 
-  virtual void UpdatePixelValue(const Vec2i& pixel_coordinate,
-                                const Vec3f& pixel_value);
+  virtual void CalculatePixelValue(const Vec2i& pixel_coordinate);
   virtual void UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                       const Vec3f& pixel_value,
+                                       const std::map<int, float>& pixel_value,
                                        const int sample_index,
                                        const Vec2f& diff);
 
-  Vec5f* GetImageSampledDataReference() { return image_sampled_data_; };
-  Vec3f* GetImageDataReference() { return image_data_; };
+  PixelSample* GetImageSampledDataReference() { return image_sampled_data_; };
+  unsigned char* GetImageDataReference() { return image_data_; };
   std::vector<unsigned char>& GetTonemappedImageDataReference() {
     return tonemapped_image_data_;
   };
@@ -57,8 +56,8 @@ class BaseCamera {
   const Vec3f v_;
   Vec3f q_;
   const Vec2i sensor_pattern_;
-  const std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums_;
-  const std::shared_ptr<BaseSpectrum> quantum_efficiency_spectrum_;
+  std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums_;
+  std::shared_ptr<BaseSpectrum> quantum_efficiency_spectrum_;
   const float full_well_capacity_;
   const int quantization_level_;
   
@@ -76,9 +75,9 @@ class BaseCamera {
   std::function<std::vector<float>(int)> time_sampling_algorithm_;
   std::function<std::vector<Vec2f>(int)> aperture_sampling_algorithm_;
 
-  Vec5f* image_sampled_data_;
-  Vec3f* image_data_;
+  PixelSample* image_sampled_data_;
+  unsigned char* image_data_;
   std::vector<unsigned char> tonemapped_image_data_;
 
-  const float sample_constant_{1e12};
+  const float sample_constant_{20.0f};
 };

@@ -4,6 +4,8 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include <map>
+#include <algorithm>
 
 #include "ply.h"
 
@@ -89,8 +91,9 @@ struct Vec4f {
   float x, y, z, w;
 };
 
-struct Vec5f {
-  float x, y, z, w, t;
+struct PixelSample {
+  std::map<int, float> values_;
+  float d_x_, d_y_;
 };
 
 struct RawSpectrum {
@@ -101,7 +104,6 @@ struct RawSpectrum {
 
 enum struct SensorSize {
   kFullFrame,
-  kAPSH,
   kAPSC,
   kFourThirds,
   kOneInch,

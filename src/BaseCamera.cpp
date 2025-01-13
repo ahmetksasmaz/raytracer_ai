@@ -5,8 +5,8 @@ BaseCamera::BaseCamera(
       const SensorSize sensor_size, const Aperture aperture,
       const ExposureTime exposure, const ISO iso, const int pixel_size,
       const int focal_length, const Vec2i sensor_pattern,
-      const std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums,
-      const std::shared_ptr<BaseSpectrum> quantum_efficiency_spectrum,
+      std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums,
+      std::shared_ptr<BaseSpectrum> quantum_efficiency_spectrum,
       const float full_well_capacity,
       const int quantization_level, const std::string& image_name,
       const SamplingAlgorithm time_sampling,
@@ -23,7 +23,6 @@ BaseCamera::BaseCamera(
       aperture_type_(ApertureType::kDefault),
       u_(normalize(cross(gaze, up))),
       v_(normalize(cross(u_, gaze))){
-
   switch (sensor_size) {
     case SensorSize::kFullFrame:
       sensor_width_ = 36.0f;
@@ -32,10 +31,6 @@ BaseCamera::BaseCamera(
     case SensorSize::kAPSC:
       sensor_width_ = 22.2f;
       sensor_height_ = 14.8f;
-      break;
-    case SensorSize::kAPSH:
-      sensor_width_ = 30.2f;
-      sensor_height_ = 16.7f;
       break;
     case SensorSize::kFourThirds:
       sensor_width_ = 17.3f;
@@ -67,41 +62,54 @@ BaseCamera::BaseCamera(
         (position_ +
         (normalize(gaze) *
           focal_length_) +
-        (u_ * sensor_width_ / 2));
+        (u_ * -sensor_width_ / 2));
     
+    float aperture_multiplier;
+
     switch(aperture){
       case Aperture::kF1_0:
         aperture_size_ = focal_length_ / 1.0;
+        aperture_multiplier = 1.0 * 1.0;
         break;
       case Aperture::kF1_4:
         aperture_size_ = focal_length_ / 1.4;
+        aperture_multiplier = 1.4 * 1.4;
         break;
       case Aperture::kF2_0:
         aperture_size_ = focal_length_ / 2.0;
+        aperture_multiplier = 2.0 * 2.0;
         break;
       case Aperture::kF2_8:
         aperture_size_ = focal_length_ / 2.8;
+        aperture_multiplier = 2.8 * 2.8;
         break;
       case Aperture::kF4_0:
         aperture_size_ = focal_length_ / 4.0;
+        aperture_multiplier = 4.0 * 4.0;
         break;
       case Aperture::kF5_6:
         aperture_size_ = focal_length_ / 5.6;
+        aperture_multiplier = 5.6 * 5.6;
         break;
       case Aperture::kF8_0:
         aperture_size_ = focal_length_ / 8.0;
+        aperture_multiplier = 8.0 * 8.0;
         break;
       case Aperture::kF11_0:
         aperture_size_ = focal_length_ / 11.0;
+        aperture_multiplier = 11.0 * 11.0;
         break;
       case Aperture::kF16_0:
         aperture_size_ = focal_length_ / 16.0;
+        aperture_multiplier = 16.0 * 16.0;
         break;
       case Aperture::kF22_0:
         aperture_size_ = focal_length_ / 22.0;
+        aperture_multiplier = 22.0 * 22.0;
         break;
       default:
         aperture_size_ = focal_length_ / 1.0;
+        aperture_multiplier = 1.0 * 1.0;
         break;
     }
 
@@ -207,11 +215,11 @@ BaseCamera::BaseCamera(
         break;
     }
 
-  mem_num_samples_ = pixel_size_ * pixel_size_ * aperture_size_ * aperture_size_ * sample_constant_;
+  mem_num_samples_ = sample_constant_ * (float(pixel_size) * float(pixel_size)) / aperture_multiplier;
 
-  image_data_ = new Vec3f[image_width_ * image_height_];
+  image_data_ = new unsigned char[image_width_ * image_height_];
   image_sampled_data_ =
-      new Vec5f[image_height_ * image_width_ * mem_num_samples_];
+      new PixelSample[image_height_ * image_width_ * mem_num_samples_];
   tonemapped_image_data_.resize(image_width_ * image_height_ * 3);
 
   switch (time_sampling) {
@@ -273,10 +281,11 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
 
   int cfa_index = (pixel_coordinate.y % sensor_pattern_.y) * sensor_pattern_.x +
                   (pixel_coordinate.x % sensor_pattern_.x);
-  
+
   auto cfa_spectrum = color_filter_array_spectrums_[cfa_index];
 
   std::vector<Ray> rays;
+
 
   std::vector<float> time_samples = time_sampling_algorithm_(mem_num_samples_);
 
@@ -387,23 +396,44 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
 }
 
 void BaseCamera::UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                         const Vec3f& pixel_value,
+                                         const std::map<int, float>& pixel_value,
                                          const int sample_index,
                                          const Vec2f& diff) {
   image_sampled_data_[(pixel_coordinate.y * image_width_ + pixel_coordinate.x) *
                           mem_num_samples_ +
                       sample_index] =
-      Vec5f{pixel_value.x, pixel_value.y, pixel_value.z, diff.x, diff.y};
+      PixelSample{pixel_value, diff.x, diff.y};
 }
 
-void BaseCamera::UpdatePixelValue(const Vec2i& pixel_coordinate,
-                                  const Vec3f& pixel_value) {
+void BaseCamera::CalculatePixelValue(const Vec2i& pixel_coordinate) {
+
+  int cfa_index = (pixel_coordinate.y % sensor_pattern_.y) * sensor_pattern_.x +
+                  (pixel_coordinate.x % sensor_pattern_.x);
+
+  auto cfa_spectrum = color_filter_array_spectrums_[cfa_index];
+
+  float final_sum = 0.0f;
+
+  for(int sample_index = 0; sample_index < mem_num_samples_; sample_index++){
+    auto &values = image_sampled_data_[(pixel_coordinate.y * image_width_ + pixel_coordinate.x) *
+                          mem_num_samples_ +
+                      sample_index].values_;
+    for(auto &pair : values){
+      final_sum += (*cfa_spectrum)[pair.first] * pair.second;
+    }
+  }
+  
+
   int index = (pixel_coordinate.y * image_width_ + pixel_coordinate.x);
-  image_data_[index] = pixel_value;
+  image_data_[index] = (unsigned char)(final_sum * 255.0 / full_well_capacity_);
+  // WILL BE UPDATED
 }
 
 void BaseCamera::ExportView(
     const std::shared_ptr<BaseExporter>& exporter) const {
-  exporter->Export(image_name_, tonemapped_image_data_.data(), image_width_,
+  // exporter->Export(image_name_, tonemapped_image_data_.data(), image_width_,
+  //                  image_height_);
+  exporter->Export(image_name_, image_data_, image_width_,
                    image_height_);
+                  
 }

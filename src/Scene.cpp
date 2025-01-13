@@ -11,6 +11,9 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
     case ExporterType::kSTB:
       exporter_ = std::make_shared<STBExporter>();
       break;
+    case ExporterType::kQuantization:
+      exporter_ = std::make_shared<QuantizedExporter>();
+      break;
   }
 
   switch (configuration_.strategies_.ray_tracing_algorithm_) {
@@ -158,7 +161,7 @@ void Scene::LoadScene() {
   for (const auto &raw_camera : raw_scene.cameras) {
     std::vector<std::shared_ptr<BaseSpectrum>> color_filter_array_spectrums;
 
-    for (const auto &color_filter_array_spectrum_id :
+    for (auto color_filter_array_spectrum_id :
          raw_camera.color_filter_array_spectrums) {
       color_filter_array_spectrums.push_back(
           spectrums_[color_filter_array_spectrum_id - 1]);
@@ -417,22 +420,22 @@ void Scene::Render() {
     std::cout << "Tonemapping result " << camera_index << std::endl;
 #endif
 
-    if (timer.configuration_.timer_.filtering_)
-      timer.AddTimeLog(Section::kFiltering, Event::kStart, camera_index);
-    filtering_algorithm_(camera->GetImageSampledDataReference(),
-                         camera->image_width_, camera->image_height_,
-                         camera->mem_num_samples_,
-                         camera->GetImageDataReference());
-    if (timer.configuration_.timer_.filtering_)
-      timer.AddTimeLog(Section::kFiltering, Event::kEnd, camera_index);
+    // if (timer.configuration_.timer_.filtering_)
+    //   timer.AddTimeLog(Section::kFiltering, Event::kStart, camera_index);
+    // filtering_algorithm_(camera->GetImageSampledDataReference(),
+    //                      camera->image_width_, camera->image_height_,
+    //                      camera->mem_num_samples_,
+    //                      camera->GetImageDataReference());
+    // if (timer.configuration_.timer_.filtering_)
+    //   timer.AddTimeLog(Section::kFiltering, Event::kEnd, camera_index);
 
-    if (timer.configuration_.timer_.tone_mapping_)
-      timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
-    tone_mapping_algorithm_(camera->GetImageDataReference(),
-                            camera->image_width_, camera->image_height_,
-                            camera->GetTonemappedImageDataReference());
-    if (timer.configuration_.timer_.tone_mapping_)
-      timer.AddTimeLog(Section::kToneMapping, Event::kEnd, camera_index);
+    // if (timer.configuration_.timer_.tone_mapping_)
+    //   timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
+    // tone_mapping_algorithm_(camera->GetImageDataReference(),
+    //                         camera->image_width_, camera->image_height_,
+    //                         camera->GetTonemappedImageDataReference());
+    // if (timer.configuration_.timer_.tone_mapping_)
+    //   timer.AddTimeLog(Section::kToneMapping, Event::kEnd, camera_index);
 #ifdef DEBUG
     std::cout << "Exporting result " << camera_index << std::endl;
 #endif

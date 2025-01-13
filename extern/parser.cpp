@@ -65,11 +65,14 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   stream.clear();
 
   // Get Spectrums
+  element = root->FirstChildElement("Spectrums");
   element = element->FirstChildElement("Spectrum");
   while (element) {
     RawSpectrum spectrum;
     spectrum.min_wavelength = std::stoi(element->Attribute("min"));
     spectrum.max_wavelength = std::stoi(element->Attribute("max"));
+    
+
     stream << element->GetText() << std::endl;
     float sample;
     while (!(stream >> sample).eof()) {
@@ -78,8 +81,8 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     spectrums.push_back(spectrum);
 
     element = element->NextSiblingElement("Spectrum");
+    stream.clear();
   }
-  stream.clear();
 
   // Get Cameras
   element = root->FirstChildElement("Cameras");
@@ -108,7 +111,7 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
       stream >> sensor_size;
       if (sensor_size == "FullFrame") {
         camera.sensor_size = SensorSize::kFullFrame;
-      } else if (sensor_size == "APS-C") {
+      } else if (sensor_size == "APS_C") {
         camera.sensor_size = SensorSize::kAPSC;
       } else if (sensor_size == "FourThirds") {
         camera.sensor_size = SensorSize::kFourThirds;
@@ -257,6 +260,7 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
         camera.color_filter_array_spectrums.push_back(spectrum_id);
       }
     }
+    stream.clear();
 
     child = element->FirstChildElement("QuantumEfficiencySpectrum");
     if (child) {

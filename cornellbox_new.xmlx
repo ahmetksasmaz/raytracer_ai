@@ -315,64 +315,64 @@
         0.0
         </Spectrum>
 
-        <Spectrum id="10 min="380" max="780">
+        <Spectrum id="10" min="380" max="780">
         0.1
         0.1
         </Spectrum>
 
-        <Spectrum id="11 min="380" max="780">
+        <Spectrum id="11" min="380" max="780">
         0.9
         0.9
         </Spectrum>
 
-        <Spectrum id="12 min="380" max="780">
+        <Spectrum id="12" min="380" max="780">
         0.08
         0.08
         </Spectrum>
 
-        <Spectrum id="13 min="380" max="780">
+        <Spectrum id="13" min="380" max="780">
         1.0
         1.0
         0.0
         0.0
         </Spectrum>
 
-        <Spectrum id="14 min="380" max="780">
+        <Spectrum id="14" min="380" max="780">
         0.0
         1.0
         1.0
         0.0
         </Spectrum>
 
-        <Spectrum id="15 min="380" max="780">
+        <Spectrum id="15" min="380" max="780">
         0.0
         0.0
         1.0
         1.0
         </Spectrum>
 
-        <Spectrum id="16 min="380" max="780">
+        <Spectrum id="16" min="380" max="780">
         0.1
         0.1
         0.0
         0.0
         </Spectrum>
 
-        <Spectrum id="17 min="380" max="780">
+        <Spectrum id="17" min="380" max="780">
         0.0
         0.1
         0.1
         0.0
         </Spectrum>
 
-        <Spectrum id="18 min="380" max="780">
+        <Spectrum id="18" min="380" max="780">
         0.0
         0.0
         0.1
         0.1
         </Spectrum>
 
-        <Spectrum id="19 min="380" max="780">
+        <Spectrum id="19" min="380" max="780">
         0.8
         0.8
         0.5
@@ -387,11 +387,18 @@
             <Gaze>0 0 -1</Gaze>
             <Up>0 1 0</Up>
 
-            <SensorSize>APS_C</SensorSize>
-            <PixelSize>15</PixelSize>
+            <!-- (PixelSize^2 / Aperture^2) proportional to ray into pixel -->
+            <!-- (SensorArea / Aperture^2) proportional to total ray -->
+            <!-- To ensure sampling, consider that : PixelSize > Aperture -->
+            <!-- Total ray count will be 10^6 * width(mm) * height(mm) / Aperture^2 -->
+            <!-- OneInch F_22_0 Will be 0.22 * 10^6 rays : minimum -->
+            <!-- FullFrame F_1_0 Will be 864 * 10^6 rays : maximum -->
 
-            <FocalLength>18</FocalLength>
-            <Aperture>F_1_4</Aperture>
+            <SensorSize>OneInch</SensorSize>
+            <PixelSize>25</PixelSize>
+
+            <FocalLength>5</FocalLength>
+            <Aperture>F_22_0</Aperture>
             <ExposureTime>1_250</ExposureTime>
             <ISO>ISO_100</ISO>
 
