@@ -1,12 +1,17 @@
 import cv2
 import numpy as np
+import sys
 
-# Specify the width and height of the image
-width = 528  # replace with your image width
-height = 352  # replace with your image height
+if len(sys.argv) < 2:
+    print("Specify file name!")
+    exit()
 
 # Read the raw Bayer BGGR image file as binary
-file_path = str(width)+"_"+str(height)+'_cornellbox_area.raw'  # replace with your file path
+file_path = sys.argv[1]
+
+width = int(file_path.split("_")[0])
+height = int(file_path.split("_")[1])
+
 with open(file_path, 'rb') as f:
     raw_data = f.read()
 

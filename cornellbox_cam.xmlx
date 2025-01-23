@@ -433,9 +433,9 @@
             <PixelSize>25</PixelSize>
 
             <FocalLength>7</FocalLength>
-            <Aperture>F_22_0</Aperture>
-            <ExposureTime>1_250</ExposureTime>
-            <ISO>ISO_32000</ISO>
+            <Aperture>F_22_0</Aperture> <!-- don't forget to change filename -->
+            <ExposureTime>1_0</ExposureTime> <!-- don't forget to change filename -->
+            <ISO>ISO_32000</ISO> <!-- don't forget to change filename -->
 
             <SensorPattern>2 2</SensorPattern>
             <ColorFilterArraySpectrums>5 6 6 7</ColorFilterArraySpectrums>
@@ -444,7 +444,7 @@
 
             <QuantizationLevel>14</QuantizationLevel>
 
-            <ImageName>cornellbox_area_F_22_0_ISO_32000_E_1_250.png</ImageName>
+            <ImageName>cornellbox_cam_F_22_0_ISO_32000_E_1_0.png</ImageName>
         </Camera>
     </Cameras>
 
