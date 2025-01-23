@@ -25,23 +25,14 @@ class BaseCamera {
       const SamplingAlgorithm aperture_sampling = SamplingAlgorithm::kBest,
       const ApertureType aperture_type = ApertureType::kDefault);
   virtual ~BaseCamera() {
-    delete[] image_sampled_data_;
     delete[] image_data_;
   };
 
   virtual std::vector<Ray> GenerateRay(const Vec2i& pixel_coordinate) const;
 
-  virtual void CalculatePixelValue(const Vec2i& pixel_coordinate);
-  virtual void UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                       const std::map<int, float>& pixel_value,
-                                       const int sample_index,
-                                       const Vec2f& diff);
+  virtual void CalculatePixelValue(const Vec2i& pixel_coordinate, const std::vector<PixelSample>& pixel_samples);
 
-  PixelSample* GetImageSampledDataReference() { return image_sampled_data_; };
   unsigned char* GetImageDataReference() { return image_data_; };
-  std::vector<unsigned char>& GetTonemappedImageDataReference() {
-    return tonemapped_image_data_;
-  };
 
   virtual void ExportView(const std::shared_ptr<BaseExporter>& exporter) const;
 
@@ -75,9 +66,7 @@ class BaseCamera {
   std::function<std::vector<float>(int)> time_sampling_algorithm_;
   std::function<std::vector<Vec2f>(int)> aperture_sampling_algorithm_;
 
-  PixelSample* image_sampled_data_;
   unsigned char* image_data_;
-  std::vector<unsigned char> tonemapped_image_data_;
 
   const float sample_constant_{20.0f};
 };

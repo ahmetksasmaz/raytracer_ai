@@ -33,8 +33,6 @@ void Scene::NonThreadSchedulingAlgorithm(
         std::cout << "Pixel value is " << "(" << pixel_value.x << pixel_value.y
                   << pixel_value.z << ")" << std::endl;
 #endif
-        camera->UpdateSampledPixelValue({x, y}, pixel_value, ray_index,
-                                        rays[ray_index].diff_);
         if (timer.configuration_.timer_.ray_tracing_)
           timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
                            y * camera->image_width_ + x, ray_index);

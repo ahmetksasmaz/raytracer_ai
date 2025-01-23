@@ -218,9 +218,6 @@ BaseCamera::BaseCamera(
   mem_num_samples_ = sample_constant_ * (float(pixel_size) * float(pixel_size)) / aperture_multiplier;
 
   image_data_ = new unsigned char[image_width_ * image_height_];
-  image_sampled_data_ =
-      new PixelSample[image_height_ * image_width_ * mem_num_samples_];
-  tonemapped_image_data_.resize(image_width_ * image_height_ * 3);
 
   switch (time_sampling) {
     case SamplingAlgorithm::kUniform:
@@ -395,17 +392,7 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
   return rays;
 }
 
-void BaseCamera::UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                         const std::map<int, float>& pixel_value,
-                                         const int sample_index,
-                                         const Vec2f& diff) {
-  image_sampled_data_[(pixel_coordinate.y * image_width_ + pixel_coordinate.x) *
-                          mem_num_samples_ +
-                      sample_index] =
-      PixelSample{pixel_value, diff.x, diff.y};
-}
-
-void BaseCamera::CalculatePixelValue(const Vec2i& pixel_coordinate) {
+void BaseCamera::CalculatePixelValue(const Vec2i& pixel_coordinate, const std::vector<PixelSample>& pixel_samples) {
 
   int cfa_index = (pixel_coordinate.y % sensor_pattern_.y) * sensor_pattern_.x +
                   (pixel_coordinate.x % sensor_pattern_.x);
@@ -415,24 +402,24 @@ void BaseCamera::CalculatePixelValue(const Vec2i& pixel_coordinate) {
   float final_sum = 0.0f;
 
   for(int sample_index = 0; sample_index < mem_num_samples_; sample_index++){
-    auto &values = image_sampled_data_[(pixel_coordinate.y * image_width_ + pixel_coordinate.x) *
-                          mem_num_samples_ +
-                      sample_index].values_;
+    auto &values = pixel_samples[sample_index].values_;
+    
     for(auto &pair : values){
-      final_sum += (*cfa_spectrum)[pair.first] * pair.second;
+      final_sum += (*cfa_spectrum)[pair.first] * (*quantum_efficiency_spectrum_)[pair.first] * pair.second * exposure_time_;
     }
   }
-  
+
+  final_sum = final_sum > full_well_capacity_ ? full_well_capacity_ : final_sum;
+  float ratio = final_sum * gain_ / full_well_capacity_;
+  ratio = ratio > 1.0f ? 1.0f : ratio;
 
   int index = (pixel_coordinate.y * image_width_ + pixel_coordinate.x);
-  image_data_[index] = (unsigned char)(final_sum * 255.0 / full_well_capacity_);
+  image_data_[index] = (unsigned char)(ratio * 255.0);
   // WILL BE UPDATED
 }
 
 void BaseCamera::ExportView(
     const std::shared_ptr<BaseExporter>& exporter) const {
-  // exporter->Export(image_name_, tonemapped_image_data_.data(), image_width_,
-  //                  image_height_);
   exporter->Export(image_name_, image_data_, image_width_,
                    image_height_);
                   

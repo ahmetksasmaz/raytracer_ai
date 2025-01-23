@@ -326,29 +326,47 @@
         </Spectrum>
 
         <Spectrum id="12" min="380" max="780">
-        0.08
-        0.08
+        0.9
+        0.9
         </Spectrum>
 
         <Spectrum id="13" min="380" max="780">
+        0.6
         1.0
-        1.0
+        0.6
+        0.0
+        0.0
+        0.0
+        0.0
+        0.0
         0.0
         0.0
         </Spectrum>
 
         <Spectrum id="14" min="380" max="780">
         0.0
+        0.0
+        0.6
         1.0
-        1.0
+        0.6
+        0.0
+        0.0
+        0.0
+        0.0
         0.0
         </Spectrum>
 
         <Spectrum id="15" min="380" max="780">
         0.0
         0.0
+        0.0
+        0.0
+        0.0
+        0.0
+        0.0
+        0.6
         1.0
-        1.0
+        0.6
         </Spectrum>
 
         <Spectrum id="16" min="380" max="780">
@@ -368,14 +386,31 @@
         <Spectrum id="18" min="380" max="780">
         0.0
         0.0
+        0.0
+        0.0
+        0.0
+        0.0
         0.1
-        0.1
+        0.4
+        0.8
+        0.95
+        0.90
+        0.6
+        0.2
         </Spectrum>
 
         <Spectrum id="19" min="380" max="780">
+        0.0
+        0.05
+        0.05
+        0.05
+        0.05
+        0.1
         0.8
-        0.8
-        0.5
+        0.90
+        0.95
+        0.90
+        0.6
         0.1
         </Spectrum>
 
@@ -397,50 +432,34 @@
             <SensorSize>OneInch</SensorSize>
             <PixelSize>25</PixelSize>
 
-            <FocalLength>5</FocalLength>
+            <FocalLength>7</FocalLength>
             <Aperture>F_22_0</Aperture>
             <ExposureTime>1_250</ExposureTime>
-            <ISO>ISO_100</ISO>
+            <ISO>ISO_32000</ISO>
 
             <SensorPattern>2 2</SensorPattern>
             <ColorFilterArraySpectrums>5 6 6 7</ColorFilterArraySpectrums>
             <QuantumEfficiencySpectrum>8</QuantumEfficiencySpectrum>
-            <FullWellCapacity>700.0</FullWellCapacity>
+            <FullWellCapacity>10000.0</FullWellCapacity>
 
             <QuantizationLevel>14</QuantizationLevel>
 
-            <ImageName>cornellbox_area.png</ImageName>
+            <ImageName>cornellbox_area_F_22_0_ISO_32000_E_1_250.png</ImageName>
         </Camera>
-
-        <!-- <Camera id="1">
-            <Position>0 0 20</Position>
-            <Gaze>0 0 -1</Gaze>
-            <Up>0 1 0</Up>
-            <NearPlane>-10 10 -10 10</NearPlane>
-            <NearDistance>10</NearDistance>
-            <ImageResolution>800 800</ImageResolution>
-            <NumSamples>10</NumSamples>
-            <ImageName>cornellbox_area.png</ImageName>
-        </Camera> -->
     </Cameras>
 
     <Lights>
         <AmbientLight>
-            <Power>20</Power>
+            <Power>1</Power>
             <Spectrum>1</Spectrum>
         </AmbientLight>
         <AreaLight id="1">
             <Position>0 9.8 2</Position>
             <Normal>0 -1 0</Normal>
             <Size>3</Size> <!-- extent -->
-            <Power>100</Power>
+            <Power>50000</Power> <!-- IDK why, but think as (RealLightWatt * 10000) -->
             <Spectrum>1</Spectrum>
         </AreaLight>
-        <PointLight id="1">
-            <Position>0 9.8 2</Position>
-            <Power>20</Power>
-            <Spectrum>2</Spectrum>
-        </PointLight>
     </Lights>
 
     <Materials>
@@ -450,19 +469,19 @@
             <SpecularReflectance>9</SpecularReflectance>
         </Material>
         <Material id="2">
-            <AmbientReflectance>13</AmbientReflectance>
-            <DiffuseReflectance>16</DiffuseReflectance>
+            <AmbientReflectance>15</AmbientReflectance>
+            <DiffuseReflectance>15</DiffuseReflectance>
             <SpecularReflectance>9</SpecularReflectance>
         </Material>
         <Material id="3">
-            <AmbientReflectance>15</AmbientReflectance>
-            <DiffuseReflectance>18</DiffuseReflectance>
+            <AmbientReflectance>13</AmbientReflectance>
+            <DiffuseReflectance>13</DiffuseReflectance>
             <SpecularReflectance>9</SpecularReflectance>
         </Material>
         <Material id="4">
             <AmbientReflectance>8</AmbientReflectance>
             <DiffuseReflectance>19</DiffuseReflectance>
-            <SpecularReflectance>8</SpecularReflectance>
+            <SpecularReflectance>18</SpecularReflectance>
             <PhongExponent>300</PhongExponent>
         </Material>
         <Material id="5" type="mirror">

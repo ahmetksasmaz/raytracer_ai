@@ -37,6 +37,8 @@ void Scene::ThreadQueueSchedulingAlgorithm(
         std::vector<Ray> rays =
             camera->GenerateRay({index.first, index.second});
         
+        std::vector<PixelSample> pixel_samples(rays.size());
+
         for (int ray_index = 0; ray_index < rays.size(); ray_index++) {
           if (timer.configuration_.timer_.ray_tracing_)
             timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
@@ -45,34 +47,39 @@ void Scene::ThreadQueueSchedulingAlgorithm(
           const std::map<int, float> pixel_value = ray_tracing_algorithm_(
               rays[ray_index], nullptr, max_recursion_depth_,
               max_recursion_depth_);
-          camera->UpdateSampledPixelValue({index.first, index.second},
-                                          pixel_value, ray_index,
-                                          rays[ray_index].diff_);
           if (timer.configuration_.timer_.ray_tracing_)
             timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
                              index.second * camera->image_width_ + index.first,
                              ray_index);
+          pixel_samples[ray_index] = PixelSample{pixel_value, rays[ray_index].diff_.x, rays[ray_index].diff_.y};
         }
-        camera->CalculatePixelValue({index.first, index.second});
+        camera->CalculatePixelValue({index.first, index.second}, pixel_samples);
       }
     });
   }
 
-  // std::thread status_thread([&]() {
-  //   while (true) {
-  //     std::this_thread::sleep_for(std::chrono::seconds(1));
-  //     std::lock_guard<std::mutex> lock(queue_mutex);
-  //     float progress =
-  //         1.0f - static_cast<float>(queue.size()) /
-  //                    (camera->image_width_ * camera->image_height_);
-  //     std::cout << "Progress: " << progress * 100 << "%" << std::endl;
-  //     if (queue.empty()) {
-  //       break;
-  //     }
-  //   }
-  // });
+  std::thread status_thread([&]() {
+    uint64_t second_counter = 0;
+    while (true) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+      second_counter++;
+      float progress = 0.0f;
+      bool done = false;
+      {
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        progress =
+            1.0f - static_cast<float>(queue.size()) /
+                      (camera->image_width_ * camera->image_height_);
+        done = queue.empty();
+      }
+      std::cout << "Progress: " << progress * 100 << "% , remaining time : " << ((1.0 - progress)/(progress / float(second_counter))) << " seconds approx." << std::endl;
+      if (done) {
+        break;
+      }
+    }
+  });
 
-  // status_thread.join();
+  status_thread.join();
 
   for (auto& thread : threads) {
     thread.join();

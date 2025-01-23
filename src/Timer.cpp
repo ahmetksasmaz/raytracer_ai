@@ -2,6 +2,7 @@
 
 void Timer::AddTimeLog(Section section, Event event, int camera_id,
                        int pixel_id, int ray_id) {
+  return;
   TimeLog time_log;
   time_log.section_ = section;
   time_log.event_ = event;

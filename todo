@@ -13,8 +13,8 @@
 +++++ update ray creation in camera
 +++++ update ray tracing algorithm according to wavelength (except refraction)
 +++++ update accumulated ray values into filter and apply exposure time and gain
-apply quantum efficiency and full well capacity to output
-apply quantization to output
-apply demosaicing finally
++++++ apply quantum efficiency and full well capacity to output
++++++ apply quantization to output
++++++ apply demosaicing finally
 
 update ray tracing algorithm according to wavelength (refraction)

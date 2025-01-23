@@ -29,6 +29,9 @@ class BaseSpectrum {
                     samples_.size();
 
     int index = static_cast<int>(index_f);
+    if(index >= samples_.size()-1){
+      return samples_.back();
+    }
     float floor = std::floor(index_f);
     float low = samples_[index];
     float high = samples_[index + 1];
