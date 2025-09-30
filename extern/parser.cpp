@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include "tinyxml2.h"
+#include "json.hpp"
 
 // #define PARSER_DEBUG
 
@@ -640,4 +641,380 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
 #ifdef PARSER_DEBUG
   std::cout << "\t\tSpheres parsed." << std::endl;
 #endif
+}
+
+void parser::RawScene::loadFromJSON(const std::string &filepath) {
+  std::ifstream file(filepath);
+  if (!file.is_open()) {
+    throw std::runtime_error("Error: The JSON file cannot be loaded.");
+  }
+
+  nlohmann::json json_data;
+  file >> json_data;
+
+  json_data = json_data["Scene"];
+
+  // Parse background color
+  if (json_data.contains("BackgroundColor")) {
+    auto bg_color = json_data["BackgroundColor"].get<std::vector<float>>();
+    background_color.x = bg_color[0];
+    background_color.y = bg_color[1];
+    background_color.z = bg_color[2];
+  } else {
+    background_color = {0, 0, 0};
+  }
+
+  // Parse shadow ray epsilon
+  if (json_data.contains("ShadowRayEpsilon")) {
+    shadow_ray_epsilon = json_data["ShadowRayEpsilon"].get<float>();
+  } else {
+    shadow_ray_epsilon = 0.001f;
+  }
+
+  // Parse max recursion depth
+  if (json_data.contains("MaxRecursionDepth")) {
+    max_recursion_depth = json_data["MaxRecursionDepth"].get<int>();
+  } else {
+    max_recursion_depth = 0;
+  }
+
+  // Parse intersection test epsilon
+  if (json_data.contains("IntersectionTestEpsilon")) {
+    intersection_test_epsilon = json_data["IntersectionTestEpsilon"].get<float>();
+  } else {
+    intersection_test_epsilon = 0.001f;
+  }
+
+  // Parse Cameras
+  if (json_data.contains("Cameras")) {
+    for (const auto& cam : json_data["Cameras"]["Camera"]) {
+      RawCamera camera;
+      cam.contains("_type") && cam["_type"].get<std::string>() == "lookAt" ? camera.look_at_camera = true : camera.look_at_camera = false;
+      auto pos = cam["Position"].get<std::vector<float>>();
+      camera.position = {pos[0], pos[1], pos[2]};
+      if (cam.contains("Gaze")) {
+        auto gaze = cam["Gaze"].get<std::vector<float>>();
+        camera.gaze = {gaze[0], gaze[1], gaze[2]};
+      }
+      if (cam.contains("GazePoint")) {
+        auto gp = cam["GazePoint"].get<std::vector<float>>();
+        camera.gaze_point = {gp[0], gp[1], gp[2]};
+      }
+      auto up = cam["Up"].get<std::vector<float>>();
+      camera.up = {up[0], up[1], up[2]};
+      if (cam.contains("NearPlane")) {
+        auto near_plane = cam["NearPlane"].get<std::vector<float>>();
+        camera.near_plane = {near_plane[0], near_plane[1], near_plane[2], near_plane[3]};
+      }
+      if (cam.contains("FovY")) {
+        camera.fov_y = cam["FovY"].get<float>();
+      }
+      camera.near_distance = cam["NearDistance"].get<float>();
+      camera.image_width = cam["ImageResolution"][0].get<int>();
+      camera.image_height = cam["ImageResolution"][1].get<int>();
+      camera.image_name = cam["ImageName"].get<std::string>();
+      camera.num_samples = cam.contains("NumSamples") ? cam["NumSamples"].get<int>() : 0;
+      camera.focus_distance = cam.contains("FocusDistance") ? cam["FocusDistance"].get<float>() : 0;
+      camera.aperture_size = cam.contains("ApertureSize") ? cam["ApertureSize"].get<float>() : 0;
+      cameras.push_back(camera);
+    }
+  }
+
+  // Parse Lights
+  if (json_data.contains("Lights")) {
+    auto lights = json_data["Lights"];
+    auto amb = lights["AmbientLight"].get<std::vector<float>>();
+    ambient_light = {amb[0], amb[1], amb[2]};
+    
+    for (const auto& light : lights["PointLight"]) {
+      RawPointLight point_light;
+      auto pos = light["Position"].get<std::vector<float>>();
+      auto inten = light["Intensity"].get<std::vector<float>>();
+      point_light.position = {pos[0], pos[1], pos[2]};
+      point_light.intensity = {inten[0], inten[1], inten[2]};
+      point_lights.push_back(point_light);
+    }
+    for (const auto& light : lights["AreaLight"]) {
+      RawAreaLight area_light;
+      auto pos = light["Position"].get<std::vector<float>>();
+      auto norm = light["Normal"].get<std::vector<float>>();
+      auto radiance = light["Radiance"].get<std::vector<float>>();
+      area_light.position = {pos[0], pos[1], pos[2]};
+      area_light.normal = {norm[0], norm[1], norm[2]};
+      area_light.size = light["Size"].get<float>();
+      area_light.radiance = {radiance[0], radiance[1], radiance[2]};
+      area_lights.push_back(area_light);
+    }
+  }
+
+  // Parse Materials
+  if (json_data.contains("Materials")) {
+    auto mats = json_data["Materials"]["Material"];
+    for (const auto& material_obj : mats) {
+      RawMaterial material;
+      if (material_obj.contains("_type")) {
+        if (material_obj["_type"] == "mirror") {
+          material.material_type = RawMaterialType::kMirror;
+        } else if (material_obj["_type"] == "conductor") {
+          material.material_type = RawMaterialType::kConductor;
+        } else if (material_obj["_type"] == "dielectric") {
+          material.material_type = RawMaterialType::kDielectric;
+        } else {
+          material.material_type = RawMaterialType::kDefault;
+        }
+      } else {
+        material.material_type = RawMaterialType::kDefault;
+      }
+
+      auto amb = material_obj["AmbientReflectance"].get<std::vector<float>>();
+      auto diff = material_obj["DiffuseReflectance"].get<std::vector<float>>();
+      auto spec = material_obj["SpecularReflectance"].get<std::vector<float>>();
+
+      material.ambient = {amb[0], amb[1], amb[2]};
+      material.diffuse = {diff[0], diff[1], diff[2]};
+      material.specular = {spec[0], spec[1], spec[2]};
+      if (material_obj.contains("MirrorReflectance")) {
+        auto mirror = material_obj["MirrorReflectance"].get<std::vector<float>>();
+        material.mirror = {mirror[0], mirror[1], mirror[2]};
+      }
+      if (material.material_type == RawMaterialType::kDielectric && material_obj.contains("AbsorptionCoefficient")) {
+        auto ac = material_obj["AbsorptionCoefficient"].get<std::vector<float>>();
+        material.absorption_coefficient = {ac[0], ac[1], ac[2]};
+      }
+      if ((material.material_type == RawMaterialType::kConductor || material.material_type == RawMaterialType::kDielectric) && material_obj.contains("RefractionIndex")) {
+        material.refraction_index = material_obj["RefractionIndex"].get<float>();
+      }
+      if (material.material_type == RawMaterialType::kConductor && material_obj.contains("AbsorptionIndex")) {
+        material.absorption_index = material_obj["AbsorptionIndex"].get<float>();
+      }
+      material.phong_exponent = material_obj.contains("PhongExponent") ? material_obj["PhongExponent"].get<float>() : 0.0f;
+      material.roughness = material_obj.contains("Roughness") ? material_obj["Roughness"].get<float>() : 0.0f;
+
+      materials.push_back(material);
+    }
+  }
+
+  // Parse Textures
+  if (json_data.contains("Textures")) {
+    auto tex = json_data["Textures"];
+    if (tex.contains("Images")) {
+      for (const auto& img : tex["Images"]["Image"]) {
+        RawImage image;
+        image.path = img.get<std::string>();
+        images.push_back(image);
+      }
+    }
+    if (tex.contains("TextureMap")) {
+      for (const auto& tm : tex["TextureMap"]) {
+        RawTextureMap texture_map;
+        if (tm.contains("_type")) {
+          if (tm["_type"] == "image") {
+            texture_map.type = RawTextureMapType::kImage;
+          } else if (tm["_type"] == "perlin") {
+            texture_map.type = RawTextureMapType::kPerlin;
+          } else if (tm["_type"] == "checkerboard") {
+            texture_map.type = RawTextureMapType::kCheckerboard;
+          }
+        }
+
+        if (tm.contains("ImageId")) {
+          texture_map.image_id = tm["ImageId"].get<int>();
+        }
+
+        if (tm.contains("DecalMode")) {
+          std::string decal_mode = tm["DecalMode"].get<std::string>();
+          if (decal_mode == "replace_kd") {
+            texture_map.decal_mode = RawTextureMapDecalMode::kReplaceKd;
+          } else if (decal_mode == "blend_kd") {
+            texture_map.decal_mode = RawTextureMapDecalMode::kBlendKd;
+          } else if (decal_mode == "replace_ks") {
+            texture_map.decal_mode = RawTextureMapDecalMode::kReplaceKs;
+          } else if (decal_mode == "replace_background") {
+            texture_map.decal_mode = RawTextureMapDecalMode::kReplaceBackground;
+          } else if (decal_mode == "replace_normal") {
+            texture_map.decal_mode = RawTextureMapDecalMode::kReplaceNormal;
+          } else if (decal_mode == "bump_normal") {
+            texture_map.decal_mode = RawTextureMapDecalMode::kBumpNormal;
+          } else if (decal_mode == "replace_all") {
+            texture_map.decal_mode = RawTextureMapDecalMode::kReplaceAll;
+          }
+        }
+
+        if (tm.contains("Interpolation")) {
+          std::string interpolation = tm["Interpolation"].get<std::string>();
+          if (interpolation == "nearest") {
+            texture_map.interpolation_mode = RawTextureMapInterpolationMode::kNearest;
+          } else if (interpolation == "bilinear") {
+            texture_map.interpolation_mode = RawTextureMapInterpolationMode::kBilinear;
+          }
+          else if (interpolation == "trilinear") {
+            texture_map.interpolation_mode = RawTextureMapInterpolationMode::kTrilinear;
+          }
+        }
+
+        texture_map.normalizer = tm.contains("Normalizer") ? tm["Normalizer"].get<float>() : 1.0f;
+        texture_map.bump_factor = tm.contains("BumpFactor") ? tm["BumpFactor"].get<float>() : 1.0f;
+        texture_map.noise_conversion = tm.contains("NoiseConversion") ? tm["NoiseConversion"].get<float>() : 1.0f;
+        texture_map.noise_scale = tm.contains("NoiseScale") ? tm["NoiseScale"].get<float>() : 1.0f;
+        texture_map.num_octaves = tm.contains("NumOctaves") ? tm["NumOctaves"].get<int>() : 1;
+        if (tm.contains("Scale")) {
+          texture_map.scale = tm["Scale"].get<float>();
+        } else {
+          texture_map.scale = 1.0f;
+        }
+        if (tm.contains("Offset")) {
+          texture_map.offset = tm["Offset"].get<float>();
+        } else {
+          texture_map.offset = 0.0f;
+        }
+        if (tm.contains("BlackColor")) {
+          auto black = tm["BlackColor"].get<std::vector<float>>();
+          texture_map.black_color = {black[0], black[1], black[2]};
+        } else {
+          texture_map.black_color = {0.0f, 0.0f, 0.0f};
+        }
+        if (tm.contains("WhiteColor")) {
+          auto white = tm["WhiteColor"].get<std::vector<float>>();
+          texture_map.white_color = {white[0], white[1], white[2]};
+        } else {
+          texture_map.white_color = {1.0f, 1.0f, 1.0f};
+        }
+
+        texture_maps.push_back(texture_map);
+      }
+    }
+  }
+
+  
+
+  // Parse Transformations
+  if (json_data.contains("Transformations")) {
+    auto transforms = json_data["Transformations"];
+    for (const auto& t : transforms["Translation"]) {
+      RawTranslation translation;
+      translation.tx = t["tx"].get<float>();
+      translation.ty = t["ty"].get<float>();
+      translation.tz = t["tz"].get<float>();
+      translations.push_back(translation);
+    }
+    for (const auto& t : transforms["Scaling"]) {
+      RawScaling scaling;
+      scaling.sx = t["sx"].get<float>();
+      scaling.sy = t["sy"].get<float>();
+      scaling.sz = t["sz"].get<float>();
+      scalings.push_back(scaling);
+    }
+    for (const auto& t : transforms["Rotation"]) {
+      RawRotation rotation;
+      rotation.angle = t["angle"].get<float>();
+      rotation.x = t["x"].get<float>();
+      rotation.y = t["y"].get<float>();
+      rotation.z = t["z"].get<float>();
+      rotations.push_back(rotation);
+    }
+    for (const auto& t : transforms["Composite"]) {
+      RawComposite composite;
+      auto m = t["m"].get<std::vector<std::vector<float>>>();
+      for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+          composite.m[i][j] = m[i][j];
+        }
+      }
+      composites.push_back(composite);
+    }
+  }
+
+  // Parse VertexData
+  if (json_data.contains("VertexData")) {
+    for (const auto& v : json_data["VertexData"]) {
+      Vec3f vertex;
+      std::vector<float> vec = v.get<std::vector<float>>();
+      vertex.x = vec[0];
+      vertex.y = vec[1];
+      vertex.z = vec[2];
+      vertex_data.push_back(vertex);
+    }
+  }
+
+  // Parse Meshes
+  if (json_data.contains("Objects")) {
+    for (const auto& obj : json_data["Objects"]["Mesh"]) {
+      RawMesh mesh;
+      mesh.object_id = obj["_id"];
+      mesh.material_id = obj["Material"];
+      mesh.transformations = obj.contains("Transformations") ? obj["Transformations"] : "";
+      if (obj.contains("Faces")) {
+        if (obj["Faces"].contains("_plyFile")) {
+          mesh.ply_filepath = obj["Faces"]["_plyFile"];
+        } else {
+          for (const auto& f : obj["Faces"]) {
+            RawFace face;
+            auto f_vec = f.get<std::vector<int>>();
+            face.v0_id = f_vec[0];
+            face.v1_id = f_vec[1];
+            face.v2_id = f_vec[2];
+            mesh.faces.push_back(face);
+          }
+        }
+      }
+      if (obj.contains("MotionBlur")) {
+        auto motion_blur = obj["MotionBlur"].get<std::vector<float>>();
+        mesh.motion_blur = {motion_blur[0], motion_blur[1], motion_blur[2]};
+      }
+      meshes.push_back(mesh);
+    }
+  }
+
+  // Parse Mesh Instances
+  if (json_data.contains("Objects")) {
+    for (const auto& mi : json_data["Objects"]["MeshInstance"]) {
+      RawMeshInstance mesh_instance;
+      mesh_instance.object_id = mi["_id"].get<int>();
+      mesh_instance.base_object_id = mi["baseMeshId"].get<int>();
+      mesh_instance.reset_transform = mi.contains("resetTransform") ? mi["resetTransform"].get<bool>() : false;
+      mesh_instance.material_id = mi.contains("Material") ? mi["Material"].get<int>() : -1;
+      mesh_instance.transformations = mi.contains("Transformations") ? mi["Transformations"] : "";
+      if (mi.contains("MotionBlur")) {
+        auto motion_blur = mi["MotionBlur"].get<std::vector<float>>();
+        mesh_instance.motion_blur = {motion_blur[0], motion_blur[1], motion_blur[2]};
+      }
+      mesh_instances.push_back(mesh_instance);
+    }
+  }
+
+  // Parse Triangles
+  if (json_data.contains("Objects")) {
+    for (const auto& t : json_data["Objects"]["Triangle"]) {
+      RawTriangle triangle;
+      triangle.object_id = t["_id"].get<int>();
+      triangle.material_id = t["Material"].get<int>();
+      triangle.transformations = t.contains("Transformations") ? t["Transformations"] : "";
+      triangle.indices.v0_id = t["Indices"][0].get<int>();
+      triangle.indices.v1_id = t["Indices"][1].get<int>();
+      triangle.indices.v2_id = t["Indices"][2].get<int>();
+      if (t.contains("MotionBlur")) {
+        auto motion_blur = t["MotionBlur"].get<std::vector<float>>();
+        triangle.motion_blur = {motion_blur[0], motion_blur[1], motion_blur[2]};
+      }
+      triangles.push_back(triangle);
+    }
+  }
+
+  // Parse Spheres
+  if (json_data.contains("Objects")) {
+    for (const auto& s : json_data["Objects"]["Sphere"]) {
+      RawSphere sphere;
+      sphere.object_id = s["_id"].get<int>();
+      sphere.material_id = s["Material"].get<int>();
+      sphere.transformations = s.contains("Transformations") ? s["Transformations"] : "";
+      sphere.center_vertex_id = s["Center"].get<int>();
+      sphere.radius = s["Radius"].get<float>();
+      if (s.contains("MotionBlur")) {
+        sphere.motion_blur = {s["MotionBlur"][0].get<float>(), s["MotionBlur"][1].get<float>(), s["MotionBlur"][2].get<float>()};
+      }
+      spheres.push_back(sphere);
+    }
+  }
+
+  file.close();
 }

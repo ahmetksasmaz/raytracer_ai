@@ -4,6 +4,12 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <sstream>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <algorithm>
 
 #include "ply.h"
 
@@ -279,6 +285,7 @@ struct RawScene {
   // Data
   Vec3i background_color;
   float shadow_ray_epsilon;
+  float intersection_test_epsilon;
   int max_recursion_depth;
   std::vector<RawCamera> cameras;
   Vec3f ambient_light;
@@ -301,6 +308,7 @@ struct RawScene {
 
   // Functions
   void loadFromXml(const std::string& filepath);
+  void loadFromJSON(const std::string& filepath);
 };
 }  // namespace parser
 

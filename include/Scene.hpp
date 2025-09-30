@@ -2,6 +2,10 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <algorithm>
+#include <string>
+#include <vector>
+#include <cctype>
 
 #include "../extern/parser.h"
 #include "AmbientLightSource.hpp"
