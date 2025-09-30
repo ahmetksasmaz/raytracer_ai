@@ -1,8 +1,8 @@
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
 #include "STBExporter.hpp"
-
 #include <algorithm>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "../extern/stb_image_write.h"
 
 void STBExporter::Export(const std::string &filename, const unsigned char *data,
                          const int width, const int height) const {

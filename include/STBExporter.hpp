@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../extern/stb_image_write.h"
 #include "BaseExporter.hpp"
 
 class STBExporter : public BaseExporter {
