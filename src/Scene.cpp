@@ -197,7 +197,7 @@ void Scene::LoadScene() {
 #endif
 
   for (const auto &raw_image : raw_scene.images) {
-    images_.push_back(std::make_shared<BaseImage>(raw_image));
+    images_.push_back(std::make_shared<BaseImage>(raw_image.path));
   }
 
 #ifdef DEBUG
