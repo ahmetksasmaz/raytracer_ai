@@ -45,7 +45,7 @@
         "__comment4": "Instance referencing: true for using reference of object (primitives also), false for deep copy"
     },
     "timer": {
-        "parse_xml": true,
+        "parse_scene_file": true,
         "load_scene": true,
         "preprocess_scene": true,
         "render_scene": true,

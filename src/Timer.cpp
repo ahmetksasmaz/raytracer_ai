@@ -40,7 +40,7 @@ void Timer::AnalyzeTimeLogs() {
               return a.section_ < b.section_;
             });
 
-  std::pair<uint64_t, uint64_t> parse_xml_time_pair;
+  std::pair<uint64_t, uint64_t> parse_scene_file_time_pair;
   std::pair<uint64_t, uint64_t> load_scene_time_pair;
   std::pair<uint64_t, uint64_t> preprocess_scene_time_pair;
   std::vector<std::pair<uint64_t, uint64_t>> render_scene_time_pair;
@@ -54,10 +54,10 @@ void Timer::AnalyzeTimeLogs() {
     if (time_logs_[i].section_ == Section::kParseXML) {
       switch (time_logs_[i].event_) {
         case Event::kStart:
-          parse_xml_time_pair.first = time_logs_[i].timestamp_;
+          parse_scene_file_time_pair.first = time_logs_[i].timestamp_;
           break;
         case Event::kEnd:
-          parse_xml_time_pair.second = time_logs_[i].timestamp_;
+          parse_scene_file_time_pair.second = time_logs_[i].timestamp_;
           break;
       }
     } else if (time_logs_[i].section_ == Section::kLoadScene) {
@@ -166,7 +166,7 @@ void Timer::AnalyzeTimeLogs() {
     }
   }
 
-  uint64_t parse_xml_time;
+  uint64_t parse_scene_file_time;
   uint64_t load_scene_time;
   uint64_t preprocess_scene_time;
   std::vector<uint64_t> render_scene_time;
@@ -175,7 +175,7 @@ void Timer::AnalyzeTimeLogs() {
   std::vector<uint64_t> export_image_time;
   std::vector<std::vector<std::vector<uint64_t>>> ray_tracing_time;
 
-  parse_xml_time = parse_xml_time_pair.second - parse_xml_time_pair.first;
+  parse_scene_file_time = parse_scene_file_time_pair.second - parse_scene_file_time_pair.first;
   load_scene_time = load_scene_time_pair.second - load_scene_time_pair.first;
   preprocess_scene_time =
       preprocess_scene_time_pair.second - preprocess_scene_time_pair.first;
@@ -315,7 +315,7 @@ void Timer::AnalyzeTimeLogs() {
   std_dev_ray_tracing_time_per_pixel =
       sqrt(std_dev_ray_tracing_time_per_pixel / pixel_count);
 
-  std::cout << "Parse XML: " << parse_xml_time << " ms" << std::endl;
+  std::cout << "Parse XML: " << parse_scene_file_time << " ms" << std::endl;
   std::cout << "Load Scene: " << load_scene_time << " ms" << std::endl;
   std::cout << "Preprocess Scene: " << preprocess_scene_time << " ms"
             << std::endl;

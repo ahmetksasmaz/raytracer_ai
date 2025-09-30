@@ -90,7 +90,7 @@ struct Configuration {
   } acceleration_;
 
   struct Timer {
-    bool parse_xml_ = true;
+    bool parse_scene_file_ = true;
     bool load_scene_ = true;
     bool preprocess_scene_ = true;
     bool render_scene_ = true;
@@ -264,7 +264,7 @@ struct Configuration {
         .at("bvh_high_level")
         .get_to(acceleration_.bvh_high_level_);
 
-    data.at("timer").at("parse_xml").get_to(timer_.parse_xml_);
+    data.at("timer").at("parse_scene_file").get_to(timer_.parse_scene_file_);
     data.at("timer").at("load_scene").get_to(timer_.load_scene_);
     data.at("timer").at("preprocess_scene").get_to(timer_.preprocess_scene_);
     data.at("timer").at("render_scene").get_to(timer_.render_scene_);

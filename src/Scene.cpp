@@ -106,10 +106,21 @@ void Scene::LoadScene() {
 #ifdef DEBUG
   std::cout << "\tLoading scene from " << filename_ << std::endl;
 #endif
-  if (timer.configuration_.timer_.parse_xml_)
+  if (timer.configuration_.timer_.parse_scene_file_)
     timer.AddTimeLog(Section::kParseXML, Event::kStart);
-  raw_scene.loadFromXml(filename_);
-  if (timer.configuration_.timer_.parse_xml_)
+  std::string file_extension = filename_.substr(filename_.find_last_of(".") + 1);
+  for (auto &c : file_extension){
+    c = std::tolower(c);
+  }
+  if (file_extension == "json")
+      raw_scene.loadFromJSON(filename_);
+  else if(file_extension == "xml") {
+    raw_scene.loadFromXml(filename_);
+  }
+  else {
+    throw std::runtime_error("Error: Unsupported file format: " + file_extension);
+  }
+  if (timer.configuration_.timer_.parse_scene_file_)
     timer.AddTimeLog(Section::kParseXML, Event::kEnd);
 #ifdef DEBUG
   std::cout << "\tLoading xml is done." << std::endl;
