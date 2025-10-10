@@ -656,101 +656,170 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
 
   // Parse background color
   if (json_data.contains("BackgroundColor")) {
-    auto bg_color = json_data["BackgroundColor"].get<std::vector<float>>();
-    background_color.x = bg_color[0];
-    background_color.y = bg_color[1];
-    background_color.z = bg_color[2];
+    auto bg_color = json_data["BackgroundColor"].get<std::string>();
+    std::stringstream ss(bg_color);
+    ss >> background_color.x >> background_color.y >> background_color.z;
   } else {
     background_color = {0, 0, 0};
   }
 
+  
   // Parse shadow ray epsilon
   if (json_data.contains("ShadowRayEpsilon")) {
-    shadow_ray_epsilon = json_data["ShadowRayEpsilon"].get<float>();
+    shadow_ray_epsilon = std::stof(json_data["ShadowRayEpsilon"].get<std::string>());
   } else {
     shadow_ray_epsilon = 0.001f;
   }
 
+  
   // Parse max recursion depth
   if (json_data.contains("MaxRecursionDepth")) {
-    max_recursion_depth = json_data["MaxRecursionDepth"].get<int>();
+    max_recursion_depth = std::stoi(json_data["MaxRecursionDepth"].get<std::string>());
   } else {
     max_recursion_depth = 0;
   }
 
+  
   // Parse intersection test epsilon
   if (json_data.contains("IntersectionTestEpsilon")) {
-    intersection_test_epsilon = json_data["IntersectionTestEpsilon"].get<float>();
+    intersection_test_epsilon = std::stof(json_data["IntersectionTestEpsilon"].get<std::string>());
   } else {
     intersection_test_epsilon = 0.001f;
   }
 
+
   // Parse Cameras
   if (json_data.contains("Cameras")) {
-    for (const auto& cam : json_data["Cameras"]["Camera"]) {
+    // Type check
+    std::vector<nlohmann::json> json_cams;
+    try {
+      auto cam_id = json_data["Cameras"]["Camera"]["_id"].get<std::string>();
+      json_cams.push_back(json_data["Cameras"]["Camera"]);
+    } catch (nlohmann::json::type_error& e) {
+      for (const auto& cam : json_data["Cameras"]["Camera"]) {
+        json_cams.push_back(cam);
+      }
+    }
+
+    for (const auto& cam : json_cams) {
       RawCamera camera;
       cam.contains("_type") && cam["_type"].get<std::string>() == "lookAt" ? camera.look_at_camera = true : camera.look_at_camera = false;
-      auto pos = cam["Position"].get<std::vector<float>>();
-      camera.position = {pos[0], pos[1], pos[2]};
+      auto pos = cam["Position"].get<std::string>();
+      std::stringstream ss(pos);
+      ss >> camera.position.x >> camera.position.y >> camera.position.z;
       if (cam.contains("Gaze")) {
-        auto gaze = cam["Gaze"].get<std::vector<float>>();
-        camera.gaze = {gaze[0], gaze[1], gaze[2]};
+        auto gaze = cam["Gaze"].get<std::string>();
+        std::stringstream ss_gaze(gaze);
+        ss_gaze >> camera.gaze.x >> camera.gaze.y >> camera.gaze.z;
       }
       if (cam.contains("GazePoint")) {
-        auto gp = cam["GazePoint"].get<std::vector<float>>();
-        camera.gaze_point = {gp[0], gp[1], gp[2]};
+        auto gp = cam["GazePoint"].get<std::string>();
+        std::stringstream ss_gp(gp);
+        ss_gp >> camera.gaze_point.x >> camera.gaze_point.y >> camera.gaze_point.z;
       }
-      auto up = cam["Up"].get<std::vector<float>>();
-      camera.up = {up[0], up[1], up[2]};
+      auto up = cam["Up"].get<std::string>();
+      std::stringstream ss_up(up);
+      ss_up >> camera.up.x >> camera.up.y >> camera.up.z;
       if (cam.contains("NearPlane")) {
-        auto near_plane = cam["NearPlane"].get<std::vector<float>>();
-        camera.near_plane = {near_plane[0], near_plane[1], near_plane[2], near_plane[3]};
+        auto near_plane = cam["NearPlane"].get<std::string>();
+        std::stringstream ss_near(near_plane);
+        ss_near >> camera.near_plane.x >> camera.near_plane.y >> camera.near_plane.z >> camera.near_plane.w;
       }
       if (cam.contains("FovY")) {
-        camera.fov_y = cam["FovY"].get<float>();
+        camera.fov_y = std::stof(cam["FovY"].get<std::string>());
       }
-      camera.near_distance = cam["NearDistance"].get<float>();
-      camera.image_width = cam["ImageResolution"][0].get<int>();
-      camera.image_height = cam["ImageResolution"][1].get<int>();
+      camera.near_distance = std::stof(cam["NearDistance"].get<std::string>());
+      auto img_res = cam["ImageResolution"].get<std::string>();
+      std::stringstream ss_img_res(img_res);
+      ss_img_res >> camera.image_width >> camera.image_height;
       camera.image_name = cam["ImageName"].get<std::string>();
-      camera.num_samples = cam.contains("NumSamples") ? cam["NumSamples"].get<int>() : 0;
-      camera.focus_distance = cam.contains("FocusDistance") ? cam["FocusDistance"].get<float>() : 0;
-      camera.aperture_size = cam.contains("ApertureSize") ? cam["ApertureSize"].get<float>() : 0;
+      camera.num_samples = cam.contains("NumSamples") ? std::stoi(cam["NumSamples"].get<std::string>()) : 0;
+      camera.focus_distance = cam.contains("FocusDistance") ? std::stof(cam["FocusDistance"].get<std::string>()) : 0;
+      camera.aperture_size = cam.contains("ApertureSize") ? std::stof(cam["ApertureSize"].get<std::string>()) : 0;
       cameras.push_back(camera);
     }
   }
 
+  
+  
   // Parse Lights
   if (json_data.contains("Lights")) {
     auto lights = json_data["Lights"];
-    auto amb = lights["AmbientLight"].get<std::vector<float>>();
-    ambient_light = {amb[0], amb[1], amb[2]};
-    
-    for (const auto& light : lights["PointLight"]) {
-      RawPointLight point_light;
-      auto pos = light["Position"].get<std::vector<float>>();
-      auto inten = light["Intensity"].get<std::vector<float>>();
-      point_light.position = {pos[0], pos[1], pos[2]};
-      point_light.intensity = {inten[0], inten[1], inten[2]};
-      point_lights.push_back(point_light);
+    if (lights.contains("AmbientLight")) {
+      auto amb = lights["AmbientLight"].get<std::string>();
+      std::stringstream ss_amb(amb);
+      ss_amb >> ambient_light.x >> ambient_light.y >> ambient_light.z;
     }
-    for (const auto& light : lights["AreaLight"]) {
-      RawAreaLight area_light;
-      auto pos = light["Position"].get<std::vector<float>>();
-      auto norm = light["Normal"].get<std::vector<float>>();
-      auto radiance = light["Radiance"].get<std::vector<float>>();
-      area_light.position = {pos[0], pos[1], pos[2]};
-      area_light.normal = {norm[0], norm[1], norm[2]};
-      area_light.size = light["Size"].get<float>();
-      area_light.radiance = {radiance[0], radiance[1], radiance[2]};
-      area_lights.push_back(area_light);
+    else{
+      ambient_light = {0, 0, 0};
+    }
+    
+    // Type check
+    if (json_data["Lights"].contains("PointLight")) {
+      std::vector<nlohmann::json> json_point_lights;
+      try {
+        auto light_id = json_data["Lights"]["PointLight"]["_id"].get<std::string>();
+        json_point_lights.push_back(json_data["Lights"]["PointLight"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Lights"]["PointLight"]) {
+          json_point_lights.push_back(cam);
+        }
+      }
+      
+      for (const auto& light : json_point_lights) {
+        RawPointLight point_light;
+        auto pos = light["Position"].get<std::string>();
+        auto inten = light["Intensity"].get<std::string>();
+        std::stringstream ss_pos(pos);
+        ss_pos >> point_light.position.x >> point_light.position.y >> point_light.position.z;
+        std::stringstream ss_inten(inten);
+        ss_inten >> point_light.intensity.x >> point_light.intensity.y >> point_light.intensity.z;
+        point_lights.push_back(point_light);
+      }
+    }
+    
+    if (json_data["Lights"].contains("AreaLight")){
+      // Type check
+      std::vector<nlohmann::json> json_area_lights;
+      try {
+        auto light_id = json_data["Lights"]["AreaLight"]["_id"].get<std::string>();
+        json_area_lights.push_back(json_data["Lights"]["AreaLight"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Lights"]["AreaLight"]) {
+          json_area_lights.push_back(cam);
+        }
+      }
+      
+      for (const auto& light : json_area_lights) {
+        RawAreaLight area_light;
+        auto pos = light["Position"].get<std::string>();
+        auto norm = light["Normal"].get<std::string>();
+        auto radiance = light["Radiance"].get<std::string>();
+        std::stringstream ss_pos(pos);
+        ss_pos >> area_light.position.x >> area_light.position.y >> area_light.position.z;
+        std::stringstream ss_norm(norm);
+        ss_norm >> area_light.normal.x >> area_light.normal.y >> area_light.normal.z;
+        area_light.size = light["Size"].get<float>();
+        std::stringstream ss_rad(radiance);
+        ss_rad >> area_light.radiance.x >> area_light.radiance.y >> area_light.radiance.z;
+        area_lights.push_back(area_light);
+      }
     }
   }
-
+  
   // Parse Materials
   if (json_data.contains("Materials")) {
-    auto mats = json_data["Materials"]["Material"];
-    for (const auto& material_obj : mats) {
+    // Type check
+    std::vector<nlohmann::json> json_materials;
+    try {
+      auto light_id = json_data["Materials"]["Material"]["_id"].get<std::string>();
+      json_materials.push_back(json_data["Materials"]["Material"]);
+    } catch (nlohmann::json::type_error& e) {
+      for (const auto& cam : json_data["Materials"]["Material"]) {
+        json_materials.push_back(cam);
+      }
+    }
+    for (const auto& material_obj : json_materials) {
       RawMaterial material;
       if (material_obj.contains("_type")) {
         if (material_obj["_type"] == "mirror") {
@@ -765,35 +834,40 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       } else {
         material.material_type = RawMaterialType::kDefault;
       }
-
-      auto amb = material_obj["AmbientReflectance"].get<std::vector<float>>();
-      auto diff = material_obj["DiffuseReflectance"].get<std::vector<float>>();
-      auto spec = material_obj["SpecularReflectance"].get<std::vector<float>>();
-
-      material.ambient = {amb[0], amb[1], amb[2]};
-      material.diffuse = {diff[0], diff[1], diff[2]};
-      material.specular = {spec[0], spec[1], spec[2]};
+      
+      auto amb = material_obj["AmbientReflectance"].get<std::string>();
+      auto diff = material_obj["DiffuseReflectance"].get<std::string>();
+      auto spec = material_obj["SpecularReflectance"].get<std::string>();
+      
+      std::stringstream ss_amb(amb);
+      ss_amb >> material.ambient.x >> material.ambient.y >> material.ambient.z;
+      std::stringstream ss_diff(diff);
+      ss_diff >> material.diffuse.x >> material.diffuse.y >> material.diffuse.z;
+      std::stringstream ss_spec(spec);
+      ss_spec >> material.specular.x >> material.specular.y >> material.specular.z;
       if (material_obj.contains("MirrorReflectance")) {
-        auto mirror = material_obj["MirrorReflectance"].get<std::vector<float>>();
-        material.mirror = {mirror[0], mirror[1], mirror[2]};
+        auto mirror = material_obj["MirrorReflectance"].get<std::string>();
+        std::stringstream ss_mirror(mirror);
+        ss_mirror >> material.mirror.x >> material.mirror.y >> material.mirror.z;
       }
       if (material.material_type == RawMaterialType::kDielectric && material_obj.contains("AbsorptionCoefficient")) {
-        auto ac = material_obj["AbsorptionCoefficient"].get<std::vector<float>>();
-        material.absorption_coefficient = {ac[0], ac[1], ac[2]};
+        auto ac = material_obj["AbsorptionCoefficient"].get<std::string>();
+        std::stringstream ss_ac(ac);
+        ss_ac >> material.absorption_coefficient.x >> material.absorption_coefficient.y >> material.absorption_coefficient.z;
       }
       if ((material.material_type == RawMaterialType::kConductor || material.material_type == RawMaterialType::kDielectric) && material_obj.contains("RefractionIndex")) {
-        material.refraction_index = material_obj["RefractionIndex"].get<float>();
+        material.refraction_index = std::stof(material_obj["RefractionIndex"].get<std::string>());
       }
       if (material.material_type == RawMaterialType::kConductor && material_obj.contains("AbsorptionIndex")) {
-        material.absorption_index = material_obj["AbsorptionIndex"].get<float>();
+        material.absorption_index = std::stof(material_obj["AbsorptionIndex"].get<std::string>());
       }
-      material.phong_exponent = material_obj.contains("PhongExponent") ? material_obj["PhongExponent"].get<float>() : 0.0f;
-      material.roughness = material_obj.contains("Roughness") ? material_obj["Roughness"].get<float>() : 0.0f;
-
+      material.phong_exponent = material_obj.contains("PhongExponent") ? std::stof(material_obj["PhongExponent"].get<std::string>()) : 0.0f;
+      material.roughness = material_obj.contains("Roughness") ? std::stof(material_obj["Roughness"].get<std::string>()) : 0.0f;
+      
       materials.push_back(material);
     }
   }
-
+  
   // Parse Textures
   if (json_data.contains("Textures")) {
     auto tex = json_data["Textures"];
@@ -816,11 +890,11 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
             texture_map.type = RawTextureMapType::kCheckerboard;
           }
         }
-
+        
         if (tm.contains("ImageId")) {
-          texture_map.image_id = tm["ImageId"].get<int>();
+          texture_map.image_id = std::stoi(tm["ImageId"].get<std::string>());
         }
-
+        
         if (tm.contains("DecalMode")) {
           std::string decal_mode = tm["DecalMode"].get<std::string>();
           if (decal_mode == "replace_kd") {
@@ -839,7 +913,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
             texture_map.decal_mode = RawTextureMapDecalMode::kReplaceAll;
           }
         }
-
+        
         if (tm.contains("Interpolation")) {
           std::string interpolation = tm["Interpolation"].get<std::string>();
           if (interpolation == "nearest") {
@@ -851,60 +925,100 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
             texture_map.interpolation_mode = RawTextureMapInterpolationMode::kTrilinear;
           }
         }
-
-        texture_map.normalizer = tm.contains("Normalizer") ? tm["Normalizer"].get<float>() : 1.0f;
-        texture_map.bump_factor = tm.contains("BumpFactor") ? tm["BumpFactor"].get<float>() : 1.0f;
-        texture_map.noise_conversion = tm.contains("NoiseConversion") ? tm["NoiseConversion"].get<float>() : 1.0f;
-        texture_map.noise_scale = tm.contains("NoiseScale") ? tm["NoiseScale"].get<float>() : 1.0f;
-        texture_map.num_octaves = tm.contains("NumOctaves") ? tm["NumOctaves"].get<int>() : 1;
+        
+        texture_map.normalizer = tm.contains("Normalizer") ? std::stof(tm["Normalizer"].get<std::string>()) : 1.0f;
+        texture_map.bump_factor = tm.contains("BumpFactor") ? std::stof(tm["BumpFactor"].get<std::string>()) : 1.0f;
+        texture_map.noise_conversion = tm.contains("NoiseConversion") ? std::stof(tm["NoiseConversion"].get<std::string>()) : 1.0f;
+        texture_map.noise_scale = tm.contains("NoiseScale") ? std::stof(tm["NoiseScale"].get<std::string>()) : 1.0f;
+        texture_map.num_octaves = tm.contains("NumOctaves") ? std::stoi(tm["NumOctaves"].get<std::string>()) : 1;
         if (tm.contains("Scale")) {
-          texture_map.scale = tm["Scale"].get<float>();
+          texture_map.scale = std::stof(tm["Scale"].get<std::string>());
         } else {
           texture_map.scale = 1.0f;
         }
         if (tm.contains("Offset")) {
-          texture_map.offset = tm["Offset"].get<float>();
+          texture_map.offset = std::stof(tm["Offset"].get<std::string>());
         } else {
           texture_map.offset = 0.0f;
         }
         if (tm.contains("BlackColor")) {
-          auto black = tm["BlackColor"].get<std::vector<float>>();
-          texture_map.black_color = {black[0], black[1], black[2]};
+          auto black = tm["BlackColor"].get<std::string>();
+          std::stringstream ss_black(black);
+          ss_black >> texture_map.black_color.x >> texture_map.black_color.y >> texture_map.black_color.z;
         } else {
           texture_map.black_color = {0.0f, 0.0f, 0.0f};
         }
         if (tm.contains("WhiteColor")) {
-          auto white = tm["WhiteColor"].get<std::vector<float>>();
-          texture_map.white_color = {white[0], white[1], white[2]};
+          auto white = tm["WhiteColor"].get<std::string>();
+          std::stringstream ss_white(white);
+          ss_white >> texture_map.white_color.x >> texture_map.white_color.y >> texture_map.white_color.z;
         } else {
           texture_map.white_color = {1.0f, 1.0f, 1.0f};
         }
-
+        
         texture_maps.push_back(texture_map);
       }
     }
   }
-
   
-
+  
+  
   // Parse Transformations
   if (json_data.contains("Transformations")) {
     auto transforms = json_data["Transformations"];
-    for (const auto& t : transforms["Translation"]) {
+    // Type check
+    std::vector<nlohmann::json> json_translations;
+    std::vector<nlohmann::json> json_scalings;
+    std::vector<nlohmann::json> json_rotations;
+    std::vector<nlohmann::json> json_composites;
+    try {
+      auto light_id = transforms["Translation"]["_id"].get<std::string>();
+      json_translations.push_back(transforms["Translation"]);
+    } catch (nlohmann::json::type_error& e) {
+      for (const auto& cam : transforms["Translation"]) {
+        json_translations.push_back(cam);
+      }
+    }
+    try {
+      auto light_id = transforms["Scaling"]["_id"].get<std::string>();
+      json_scalings.push_back(transforms["Scaling"]);
+    } catch (nlohmann::json::type_error& e) {
+      for (const auto& cam : transforms["Scaling"]) {
+        json_scalings.push_back(cam);
+      }
+    }
+    try {
+      auto light_id = transforms["Rotation"]["_id"].get<std::string>();
+      json_rotations.push_back(transforms["Rotation"]);
+    } catch (nlohmann::json::type_error& e) {
+      for (const auto& cam : transforms["Rotation"]) {
+        json_rotations.push_back(cam);
+      }
+    }
+    try {
+      auto light_id = transforms["Composite"]["_id"].get<std::string>();
+      json_composites.push_back(transforms["Composite"]);
+    } catch (nlohmann::json::type_error& e) {
+      for (const auto& cam : transforms["Composite"]) {
+        json_composites.push_back(cam);
+      }
+    }
+    
+    for (const auto& t : json_translations) {
       RawTranslation translation;
       translation.tx = t["tx"].get<float>();
       translation.ty = t["ty"].get<float>();
       translation.tz = t["tz"].get<float>();
       translations.push_back(translation);
     }
-    for (const auto& t : transforms["Scaling"]) {
+    for (const auto& t : json_scalings) {
       RawScaling scaling;
       scaling.sx = t["sx"].get<float>();
       scaling.sy = t["sy"].get<float>();
       scaling.sz = t["sz"].get<float>();
       scalings.push_back(scaling);
     }
-    for (const auto& t : transforms["Rotation"]) {
+    for (const auto& t : json_rotations) {
       RawRotation rotation;
       rotation.angle = t["angle"].get<float>();
       rotation.x = t["x"].get<float>();
@@ -912,109 +1026,176 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       rotation.z = t["z"].get<float>();
       rotations.push_back(rotation);
     }
-    for (const auto& t : transforms["Composite"]) {
+    for (const auto& t : json_composites) {
       RawComposite composite;
-      auto m = t["m"].get<std::vector<std::vector<float>>>();
+      auto composite_str = t["m"].get<std::string>();
+      std::stringstream ss(composite_str);
       for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-          composite.m[i][j] = m[i][j];
+          ss >> composite.m[i][j];
         }
       }
       composites.push_back(composite);
     }
   }
-
+  
   // Parse VertexData
   if (json_data.contains("VertexData")) {
-    for (const auto& v : json_data["VertexData"]) {
+    auto vertex_datas = json_data["VertexData"]["_data"].get<std::string>();
+    std::stringstream ss(vertex_datas);
+    while (ss.peek() != EOF) {
       Vec3f vertex;
-      std::vector<float> vec = v.get<std::vector<float>>();
-      vertex.x = vec[0];
-      vertex.y = vec[1];
-      vertex.z = vec[2];
+      ss >> vertex.x >> vertex.y >> vertex.z;
       vertex_data.push_back(vertex);
     }
   }
-
+  
   // Parse Meshes
   if (json_data.contains("Objects")) {
-    for (const auto& obj : json_data["Objects"]["Mesh"]) {
+    std::vector<nlohmann::json> json_meshes(0);
+    std::vector<nlohmann::json> json_mesh_instances(0);
+    std::vector<nlohmann::json> json_triangles(0);
+    std::vector<nlohmann::json> json_spheres(0);
+    std::vector<nlohmann::json> json_planes(0);
+    if(json_data["Objects"].contains("Mesh")){
+      try {
+        auto light_id = json_data["Objects"]["Mesh"]["_id"].get<std::string>();
+        json_meshes.push_back(json_data["Objects"]["Mesh"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Objects"]["Mesh"]) {
+          json_meshes.push_back(cam);
+        }
+      }
+    }
+    if(json_data["Objects"].contains("MeshInstance")){
+      try {
+        auto light_id = json_data["Objects"]["MeshInstance"]["_id"].get<std::string>();
+        json_mesh_instances.push_back(json_data["Objects"]["MeshInstance"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Objects"]["MeshInstance"]) {
+          json_mesh_instances.push_back(cam);
+        }
+      }
+    }
+    if(json_data["Objects"].contains("Triangle")){
+      try {
+        auto light_id = json_data["Objects"]["Triangle"]["_id"].get<std::string>();
+        json_triangles.push_back(json_data["Objects"]["Triangle"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Objects"]["Triangle"]) {
+          json_triangles.push_back(cam);
+        }
+      }
+    }
+    if(json_data["Objects"].contains("Sphere")){
+      try {
+        auto light_id = json_data["Objects"]["Sphere"]["_id"].get<std::string>();
+        json_spheres.push_back(json_data["Objects"]["Sphere"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Objects"]["Sphere"]) {
+          json_spheres.push_back(cam);
+        }
+      }
+    }
+    if(json_data["Objects"].contains("Plane")){
+      try {
+        auto light_id = json_data["Objects"]["Plane"]["_id"].get<std::string>();
+        json_planes.push_back(json_data["Objects"]["Plane"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Objects"]["Plane"]) {
+          json_planes.push_back(cam);
+        }
+      }
+    }
+    for (const auto& obj : json_meshes) {
       RawMesh mesh;
-      mesh.object_id = obj["_id"];
-      mesh.material_id = obj["Material"];
-      mesh.transformations = obj.contains("Transformations") ? obj["Transformations"] : "";
+      mesh.object_id = std::stoi(obj["_id"].get<std::string>());
+      mesh.material_id = std::stoi(obj["Material"].get<std::string>());
+      mesh.transformations = obj.contains("Transformations") ? obj["Transformations"].get<std::string>() : "";
       if (obj.contains("Faces")) {
         if (obj["Faces"].contains("_plyFile")) {
-          mesh.ply_filepath = obj["Faces"]["_plyFile"];
+          mesh.ply_filepath = obj["Faces"]["_plyFile"].get<std::string>();
         } else {
-          for (const auto& f : obj["Faces"]) {
+          auto face_data = obj["Faces"]["_data"].get<std::string>();
+          std::stringstream ss(face_data);
+          while (ss.peek() != EOF) {
             RawFace face;
-            auto f_vec = f.get<std::vector<int>>();
-            face.v0_id = f_vec[0];
-            face.v1_id = f_vec[1];
-            face.v2_id = f_vec[2];
+            ss >> face.v0_id >> face.v1_id >> face.v2_id;
             mesh.faces.push_back(face);
           }
         }
       }
       if (obj.contains("MotionBlur")) {
-        auto motion_blur = obj["MotionBlur"].get<std::vector<float>>();
-        mesh.motion_blur = {motion_blur[0], motion_blur[1], motion_blur[2]};
+        auto motion_blur = obj["MotionBlur"].get<std::string>();
+        std::stringstream ss(motion_blur);
+        ss >> mesh.motion_blur.x >> mesh.motion_blur.y >> mesh.motion_blur.z;
       }
       meshes.push_back(mesh);
     }
-  }
-
-  // Parse Mesh Instances
-  if (json_data.contains("Objects")) {
-    for (const auto& mi : json_data["Objects"]["MeshInstance"]) {
+    
+    for (const auto& mi : json_mesh_instances) {
       RawMeshInstance mesh_instance;
-      mesh_instance.object_id = mi["_id"].get<int>();
-      mesh_instance.base_object_id = mi["baseMeshId"].get<int>();
+      mesh_instance.object_id = std::stoi(mi["_id"].get<std::string>());
+      mesh_instance.base_object_id = std::stoi(mi["baseMeshId"].get<std::string>());
       mesh_instance.reset_transform = mi.contains("resetTransform") ? mi["resetTransform"].get<bool>() : false;
-      mesh_instance.material_id = mi.contains("Material") ? mi["Material"].get<int>() : -1;
-      mesh_instance.transformations = mi.contains("Transformations") ? mi["Transformations"] : "";
+      mesh_instance.material_id = mi.contains("Material") ? std::stoi(mi["Material"].get<std::string>()) : -1;
+      mesh_instance.transformations = mi.contains("Transformations") ? mi["Transformations"].get<std::string>() : "";
       if (mi.contains("MotionBlur")) {
-        auto motion_blur = mi["MotionBlur"].get<std::vector<float>>();
-        mesh_instance.motion_blur = {motion_blur[0], motion_blur[1], motion_blur[2]};
+        auto motion_blur = mi["MotionBlur"].get<std::string>();
+        std::stringstream ss(motion_blur);
+        ss >> mesh_instance.motion_blur.x >> mesh_instance.motion_blur.y >> mesh_instance.motion_blur.z;
       }
       mesh_instances.push_back(mesh_instance);
     }
-  }
-
-  // Parse Triangles
-  if (json_data.contains("Objects")) {
-    for (const auto& t : json_data["Objects"]["Triangle"]) {
+    
+    for (const auto& t : json_triangles) {
       RawTriangle triangle;
-      triangle.object_id = t["_id"].get<int>();
-      triangle.material_id = t["Material"].get<int>();
-      triangle.transformations = t.contains("Transformations") ? t["Transformations"] : "";
-      triangle.indices.v0_id = t["Indices"][0].get<int>();
-      triangle.indices.v1_id = t["Indices"][1].get<int>();
-      triangle.indices.v2_id = t["Indices"][2].get<int>();
+      triangle.object_id = std::stoi(t["_id"].get<std::string>());
+      triangle.material_id = std::stoi(t["Material"].get<std::string>());
+      triangle.transformations = t.contains("Transformations") ? t["Transformations"].get<std::string>() : "";
+      auto indices = t["Indices"].get<std::string>();
+      std::stringstream ss_indices(indices);
+      ss_indices >> triangle.indices.v0_id >> triangle.indices.v1_id >> triangle.indices.v2_id;
       if (t.contains("MotionBlur")) {
-        auto motion_blur = t["MotionBlur"].get<std::vector<float>>();
-        triangle.motion_blur = {motion_blur[0], motion_blur[1], motion_blur[2]};
+        auto motion_blur = t["MotionBlur"].get<std::string>();
+        std::stringstream ss(motion_blur);
+        ss >> triangle.motion_blur.x >> triangle.motion_blur.y >> triangle.motion_blur.z;
       }
       triangles.push_back(triangle);
     }
-  }
-
-  // Parse Spheres
-  if (json_data.contains("Objects")) {
-    for (const auto& s : json_data["Objects"]["Sphere"]) {
+    
+    for (const auto& s : json_spheres) {
       RawSphere sphere;
-      sphere.object_id = s["_id"].get<int>();
-      sphere.material_id = s["Material"].get<int>();
-      sphere.transformations = s.contains("Transformations") ? s["Transformations"] : "";
-      sphere.center_vertex_id = s["Center"].get<int>();
-      sphere.radius = s["Radius"].get<float>();
+      sphere.object_id = std::stoi(s["_id"].get<std::string>());
+      sphere.material_id = std::stoi(s["Material"].get<std::string>());
+      sphere.transformations = s.contains("Transformations") ? s["Transformations"].get<std::string>() : "";
+      sphere.center_vertex_id = std::stoi(s["Center"].get<std::string>());
+      sphere.radius = std::stof(s["Radius"].get<std::string>());
       if (s.contains("MotionBlur")) {
-        sphere.motion_blur = {s["MotionBlur"][0].get<float>(), s["MotionBlur"][1].get<float>(), s["MotionBlur"][2].get<float>()};
+        auto motion_blur = s["MotionBlur"].get<std::string>();
+        std::stringstream ss(motion_blur);
+        ss >> sphere.motion_blur.x >> sphere.motion_blur.y >> sphere.motion_blur.z;
       }
       spheres.push_back(sphere);
     }
-  }
 
+    for(const auto& p : json_planes) {
+      RawPlane plane;
+      plane.object_id = std::stoi(p["_id"].get<std::string>());
+      plane.material_id = std::stoi(p["Material"].get<std::string>());
+      plane.transformations = p.contains("Transformations") ? p["Transformations"].get<std::string>() : "";
+      plane.point_vertex_id = std::stoi(p["Point"].get<std::string>());
+      auto norm = p["Normal"].get<std::string>();
+      std::stringstream ss_norm(norm);
+      ss_norm >> plane.normal.x >> plane.normal.y >> plane.normal.z;
+      if (p.contains("MotionBlur")) {
+        auto motion_blur = p["MotionBlur"].get<std::string>();
+        std::stringstream ss(motion_blur);
+        ss >> plane.motion_blur.x >> plane.motion_blur.y >> plane.motion_blur.z;
+      }
+      planes.push_back(plane);
+    }
+  }
+  
   file.close();
 }

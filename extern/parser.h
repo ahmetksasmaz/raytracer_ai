@@ -195,6 +195,15 @@ struct RawSphere {
   Vec3f motion_blur = {0, 0, 0};
 };
 
+struct RawPlane {
+  int object_id;
+  int material_id;
+  int point_vertex_id;
+  Vec3f normal;
+  std::string transformations = "";
+  Vec3f motion_blur = {0, 0, 0};
+};
+
 struct RawTranslation {
   float tx, ty, tz;
 };
@@ -278,6 +287,7 @@ struct RawScene {
     meshes.clear();
     triangles.clear();
     spheres.clear();
+    planes.clear();
     images.clear();
     texture_maps.clear();
   }
@@ -297,6 +307,7 @@ struct RawScene {
   std::vector<RawMeshInstance> mesh_instances;
   std::vector<RawTriangle> triangles;
   std::vector<RawSphere> spheres;
+  std::vector<RawPlane> planes;
 
   std::vector<RawTranslation> translations;
   std::vector<RawScaling> scalings;

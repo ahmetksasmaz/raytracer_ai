@@ -37,6 +37,25 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         }
       }
     }
+
+    for (const auto &plane : plane_objects_)
+    {
+      // Plane cast plane object
+      auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
+
+      float temp_hit = std::numeric_limits<float>::max();
+      Vec3f normal;
+      if (plane_casted->IntersectPlane(ray, temp_hit, normal))
+      {
+        if (t_hit > temp_hit)
+        {
+          t_hit = temp_hit;
+          hit_object_ptr = plane;
+          hit_normal = normal;
+        }
+      }
+    }
+
   }
   else
   {
@@ -98,6 +117,19 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           {
             if (object->Intersect(shadow_ray, shadow_hit, shadow_normal,
                                   false))
+            {
+              if (shadow_hit < sqrt(distance_to_light))
+              {
+                is_in_shadow = true;
+                break;
+              }
+            }
+          }
+          for (const auto &plane : plane_objects_)
+          {
+            // Plane cast plane object
+            auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
+            if (plane_casted->IntersectPlane(shadow_ray, shadow_hit, shadow_normal))
             {
               if (shadow_hit < sqrt(distance_to_light))
               {
@@ -200,6 +232,19 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           {
             if (object->Intersect(shadow_ray, shadow_hit, shadow_normal,
                                   false))
+            {
+              if (shadow_hit < sqrt(distance_to_light))
+              {
+                is_in_shadow = true;
+                break;
+              }
+            }
+          }
+          for (const auto &plane : plane_objects_)
+          {
+            // Plane cast plane object
+            auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
+            if (plane_casted->IntersectPlane(shadow_ray, shadow_hit, shadow_normal))
             {
               if (shadow_hit < sqrt(distance_to_light))
               {

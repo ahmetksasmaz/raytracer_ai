@@ -27,6 +27,7 @@
 #include "STBExporter.hpp"
 #include "SphereObject.hpp"
 #include "TriangleObject.hpp"
+#include "PlaneObject.hpp"
 
 using namespace parser;
 
@@ -53,6 +54,7 @@ class Scene {
   std::vector<std::shared_ptr<AmbientLightSource>> ambient_lights_;
   std::vector<std::shared_ptr<BaseMaterial>> materials_;
   std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> objects_;
+  std::vector<std::shared_ptr<PlaneObject>> plane_objects_;
 
   std::vector<std::shared_ptr<BaseImage>> images_;
   std::vector<std::shared_ptr<BaseTextureMap>> texture_maps_;

@@ -232,6 +232,21 @@ void Scene::LoadScene() {
                 scaling_flip)));
   }
 #ifdef DEBUG
+  std::cout << "\tLoading planes." << std::endl;
+#endif
+  for (const auto &raw_plane : raw_scene.planes) {
+    RawScalingFlip scaling_flip{false, false, false};
+    Mat4x4f transform_matrix = parse_transformation(
+        raw_plane.transformations, scaling_flip, raw_scene.translations,
+        raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    plane_objects_.push_back(
+            std::make_shared<PlaneObject>(
+                materials_[raw_plane.material_id - 1],
+                raw_scene.vertex_data[raw_plane.point_vertex_id - 1],
+                raw_plane.normal, raw_plane.motion_blur, transform_matrix,
+                scaling_flip));
+  }
+#ifdef DEBUG
   std::cout << "\tLoading triangles." << std::endl;
 #endif
   for (const auto &raw_triangle : raw_scene.triangles) {
