@@ -84,6 +84,12 @@ class Scene {
 
   void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                     int camera_index);
+
+  void BlockDivideThreadSchedulingAlgorithm(
+      const std::shared_ptr<BaseCamera> camera, int camera_index);
+
+  void SlidingThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
+                                        int camera_index);
   void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                       int camera_index);
 
