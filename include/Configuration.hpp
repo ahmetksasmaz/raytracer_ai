@@ -14,6 +14,8 @@ enum class RayTracingAlgorithm {
 enum class SchedulingAlgorithm {
   kNonThread = 0,
   kThreadQueue = 1,
+  kBlockDivide = 2,
+  kSlidingThread = 3,
   kBest = 1,
   kMax = 1
 };
@@ -235,6 +237,10 @@ struct Configuration {
       strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kNonThread;
     } else if (scheduling_algorithm == "thread_queue") {
       strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kThreadQueue;
+    } else if (scheduling_algorithm == "block_divide") {
+      strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kBlockDivide;
+    } else if (scheduling_algorithm == "sliding_thread") {
+      strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kSlidingThread;
     } else {
       strategies_.scheduling_algorithm_ = SchedulingAlgorithm::kBest;
     }

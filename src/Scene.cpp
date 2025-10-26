@@ -37,6 +37,14 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
           std::bind(&Scene::ThreadQueueSchedulingAlgorithm, this,
                     std::placeholders::_1, std::placeholders::_2);
       break;
+    case SchedulingAlgorithm::kBlockDivide:
+      scheduling_algorithm_ = std::bind(&Scene::BlockDivideThreadSchedulingAlgorithm, this,
+                    std::placeholders::_1, std::placeholders::_2);
+      break;
+    case SchedulingAlgorithm::kSlidingThread:
+      scheduling_algorithm_ = std::bind(&Scene::SlidingThreadSchedulingAlgorithm, this,
+                    std::placeholders::_1, std::placeholders::_2);
+      break;
   }
 
   switch (configuration_.sampling_.area_light_sampling_) {
