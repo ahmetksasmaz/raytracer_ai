@@ -648,11 +648,21 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   if (!file.is_open()) {
     throw std::runtime_error("Error: The JSON file cannot be loaded.");
   }
-
+#ifdef PARSER_DEBUG
+  std::cout << "Json reading." << std::endl;
+#endif
   nlohmann::json json_data;
   file >> json_data;
 
+#ifdef PARSER_DEBUG
+  std::cout << "Json read." << std::endl;
+#endif
+
   json_data = json_data["Scene"];
+
+#ifdef PARSER_DEBUG
+  std::cout << "Scene object." << std::endl;
+#endif
 
   // Parse background color
   if (json_data.contains("BackgroundColor")) {
@@ -663,6 +673,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     background_color = {0, 0, 0};
   }
 
+#ifdef PARSER_DEBUG
+  std::cout << "Background color parsed." << std::endl;
+#endif
   
   // Parse shadow ray epsilon
   if (json_data.contains("ShadowRayEpsilon")) {
@@ -671,6 +684,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     shadow_ray_epsilon = 0.001f;
   }
 
+#ifdef PARSER_DEBUG
+  std::cout << "Shadow ray epsilon parsed." << std::endl;
+#endif
   
   // Parse max recursion depth
   if (json_data.contains("MaxRecursionDepth")) {
@@ -679,7 +695,10 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     max_recursion_depth = 0;
   }
 
-  
+#ifdef PARSER_DEBUG
+  std::cout << "Max recursion depth parsed." << std::endl;
+#endif
+
   // Parse intersection test epsilon
   if (json_data.contains("IntersectionTestEpsilon")) {
     intersection_test_epsilon = std::stof(json_data["IntersectionTestEpsilon"].get<std::string>());
@@ -687,6 +706,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     intersection_test_epsilon = 0.001f;
   }
 
+#ifdef PARSER_DEBUG
+  std::cout << "Intersection test epsilon parsed." << std::endl;
+#endif
 
   // Parse Cameras
   if (json_data.contains("Cameras")) {
@@ -740,7 +762,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     }
   }
 
-  
+#ifdef PARSER_DEBUG
+  std::cout << "Cameras parsed." << std::endl;
+#endif
   
   // Parse Lights
   if (json_data.contains("Lights")) {
@@ -806,7 +830,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       }
     }
   }
-  
+#ifdef PARSER_DEBUG
+  std::cout << "Lights parsed." << std::endl;
+#endif
   // Parse Materials
   if (json_data.contains("Materials")) {
     // Type check
@@ -867,7 +893,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       materials.push_back(material);
     }
   }
-  
+  #ifdef PARSER_DEBUG
+  std::cout << "Materials parsed." << std::endl;
+#endif
   // Parse Textures
   if (json_data.contains("Textures")) {
     auto tex = json_data["Textures"];
@@ -961,7 +989,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     }
   }
   
-  
+  #ifdef PARSER_DEBUG
+  std::cout << "Textures parsed." << std::endl;
+#endif
   
   // Parse Transformations
   if (json_data.contains("Transformations")) {
@@ -971,23 +1001,30 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     std::vector<nlohmann::json> json_scalings;
     std::vector<nlohmann::json> json_rotations;
     std::vector<nlohmann::json> json_composites;
-    try {
-      auto light_id = transforms["Translation"]["_id"].get<std::string>();
-      json_translations.push_back(transforms["Translation"]);
-    } catch (nlohmann::json::type_error& e) {
-      for (const auto& cam : transforms["Translation"]) {
-        json_translations.push_back(cam);
+    if (transforms.contains("Translation")){
+
+      try {
+        auto light_id = transforms["Translation"]["_id"].get<std::string>();
+        json_translations.push_back(transforms["Translation"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : transforms["Translation"]) {
+          json_translations.push_back(cam);
+        }
       }
     }
-    try {
-      auto light_id = transforms["Scaling"]["_id"].get<std::string>();
-      json_scalings.push_back(transforms["Scaling"]);
-    } catch (nlohmann::json::type_error& e) {
-      for (const auto& cam : transforms["Scaling"]) {
-        json_scalings.push_back(cam);
+    if (transforms.contains("Scaling")){
+
+      try {
+        auto light_id = transforms["Scaling"]["_id"].get<std::string>();
+        json_scalings.push_back(transforms["Scaling"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : transforms["Scaling"]) {
+          json_scalings.push_back(cam);
+        }
       }
     }
-    try {
+    if (transforms.contains("Rotation")){
+      try {
       auto light_id = transforms["Rotation"]["_id"].get<std::string>();
       json_rotations.push_back(transforms["Rotation"]);
     } catch (nlohmann::json::type_error& e) {
@@ -995,6 +1032,8 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         json_rotations.push_back(cam);
       }
     }
+  }
+  if (transforms.contains("Composite")){
     try {
       auto light_id = transforms["Composite"]["_id"].get<std::string>();
       json_composites.push_back(transforms["Composite"]);
@@ -1003,32 +1042,40 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         json_composites.push_back(cam);
       }
     }
-    
+  }
     for (const auto& t : json_translations) {
       RawTranslation translation;
-      translation.tx = t["tx"].get<float>();
-      translation.ty = t["ty"].get<float>();
-      translation.tz = t["tz"].get<float>();
+      auto data = t["_data"].get<std::string>();
+      std::stringstream ss_data(data);
+      ss_data >> translation.tx >> translation.ty >> translation.tz;
       translations.push_back(translation);
     }
+    #ifdef PARSER_DEBUG
+  std::cout << "\tTranslations parsed." << std::endl;
+#endif
     for (const auto& t : json_scalings) {
       RawScaling scaling;
-      scaling.sx = t["sx"].get<float>();
-      scaling.sy = t["sy"].get<float>();
-      scaling.sz = t["sz"].get<float>();
+      auto data = t["_data"].get<std::string>();
+      std::stringstream ss_data(data);
+      ss_data >> scaling.sx >> scaling.sy >> scaling.sz;
       scalings.push_back(scaling);
     }
+    #ifdef PARSER_DEBUG
+  std::cout << "\tScalings parsed." << std::endl;
+#endif
     for (const auto& t : json_rotations) {
       RawRotation rotation;
-      rotation.angle = t["angle"].get<float>();
-      rotation.x = t["x"].get<float>();
-      rotation.y = t["y"].get<float>();
-      rotation.z = t["z"].get<float>();
+      auto data = t["_data"].get<std::string>();
+      std::stringstream ss_data(data);
+      ss_data >> rotation.angle >> rotation.x >> rotation.y >> rotation.z;
       rotations.push_back(rotation);
     }
+    #ifdef PARSER_DEBUG
+  std::cout << "\tRotations parsed." << std::endl;
+#endif
     for (const auto& t : json_composites) {
       RawComposite composite;
-      auto composite_str = t["m"].get<std::string>();
+      auto composite_str = t["_data"].get<std::string>();
       std::stringstream ss(composite_str);
       for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -1037,8 +1084,13 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       }
       composites.push_back(composite);
     }
+    #ifdef PARSER_DEBUG
+  std::cout << "\tComposites parsed." << std::endl;
+#endif
   }
-  
+#ifdef PARSER_DEBUG
+  std::cout << "Transformations parsed." << std::endl;
+#endif
   // Parse VertexData
   if (json_data.contains("VertexData")) {
     auto vertex_datas = json_data["VertexData"]["_data"].get<std::string>();
@@ -1049,7 +1101,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       vertex_data.push_back(vertex);
     }
   }
-  
+  #ifdef PARSER_DEBUG
+  std::cout << "Vertex data parsed." << std::endl;
+#endif
   // Parse Meshes
   if (json_data.contains("Objects")) {
     std::vector<nlohmann::json> json_meshes(0);
@@ -1136,8 +1190,8 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     for (const auto& mi : json_mesh_instances) {
       RawMeshInstance mesh_instance;
       mesh_instance.object_id = std::stoi(mi["_id"].get<std::string>());
-      mesh_instance.base_object_id = std::stoi(mi["baseMeshId"].get<std::string>());
-      mesh_instance.reset_transform = mi.contains("resetTransform") ? mi["resetTransform"].get<bool>() : false;
+      mesh_instance.base_object_id = std::stoi(mi["_baseMeshId"].get<std::string>());
+      mesh_instance.reset_transform = mi.contains("_resetTransform") ? (mi["_resetTransform"].get<std::string>() == "true") : false;
       mesh_instance.material_id = mi.contains("Material") ? std::stoi(mi["Material"].get<std::string>()) : -1;
       mesh_instance.transformations = mi.contains("Transformations") ? mi["Transformations"].get<std::string>() : "";
       if (mi.contains("MotionBlur")) {
@@ -1196,6 +1250,8 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       planes.push_back(plane);
     }
   }
-  
+  #ifdef PARSER_DEBUG
+  std::cout << "Objects parsed." << std::endl;
+#endif
   file.close();
 }
