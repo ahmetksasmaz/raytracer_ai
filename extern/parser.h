@@ -13,6 +13,8 @@
 
 #include "ply.h"
 
+#define FP_PRECISION double
+
 namespace parser {
 // Notice that all the structures are as simple as possible
 // so that you are not enforced to adopt any style or design.
@@ -33,13 +35,13 @@ enum RawTextureMapDecalMode {
 enum RawTextureMapInterpolationMode { kNearest, kBilinear, kTrilinear };
 
 struct Vec2f {
-  float x, y;
+  FP_PRECISION x, y;
 };
 
 struct Vec3f {
-  float x, y, z;
+  FP_PRECISION x, y, z;
 
-  float operator[](size_t index) {
+  FP_PRECISION operator[](size_t index) {
     switch (index) {
       case 0:
         return x;
@@ -74,7 +76,7 @@ struct Vec2i {
 struct Vec3i {
   int x, y, z;
 
-  float operator[](size_t index) {
+  FP_PRECISION operator[](size_t index) {
     switch (index) {
       case 0:
         return x;
@@ -91,7 +93,7 @@ struct Vec3i {
 struct Vec3uc {
   unsigned char r, g, b;
 
-  float operator[](size_t index) {
+  FP_PRECISION operator[](size_t index) {
     switch (index) {
       case 0:
         return r;
@@ -106,11 +108,11 @@ struct Vec3uc {
 };
 
 struct Vec4f {
-  float x, y, z, w;
+  FP_PRECISION x, y, z, w;
 };
 
 struct Vec5f {
-  float x, y, z, w, t;
+  FP_PRECISION x, y, z, w, t;
 };
 
 struct RawCamera {
@@ -119,11 +121,11 @@ struct RawCamera {
   Vec3f gaze;
   Vec3f gaze_point;
   Vec3f up;
-  float fov_y;
+  FP_PRECISION fov_y;
   Vec4f near_plane;
-  float near_distance;
-  float focus_distance;
-  float aperture_size;
+  FP_PRECISION near_distance;
+  FP_PRECISION focus_distance;
+  FP_PRECISION aperture_size;
   unsigned int num_samples;
   int image_width, image_height;
   std::string image_name;
@@ -138,7 +140,7 @@ struct RawAreaLight {
   Vec3f position;
   Vec3f radiance;
   Vec3f normal;
-  float size;
+  FP_PRECISION size;
 };
 
 struct RawMaterial {
@@ -148,10 +150,10 @@ struct RawMaterial {
   Vec3f specular;
   Vec3f mirror;
   Vec3f absorption_coefficient;
-  float refraction_index;
-  float absorption_index;
-  float phong_exponent;
-  float roughness = 0.0;
+  FP_PRECISION refraction_index;
+  FP_PRECISION absorption_index;
+  FP_PRECISION phong_exponent;
+  FP_PRECISION roughness = 0.0;
 };
 
 struct RawFace {
@@ -190,7 +192,7 @@ struct RawSphere {
   int object_id;
   int material_id;
   int center_vertex_id;
-  float radius;
+  FP_PRECISION radius;
   std::string transformations = "";
   Vec3f motion_blur = {0, 0, 0};
 };
@@ -205,11 +207,11 @@ struct RawPlane {
 };
 
 struct RawTranslation {
-  float tx, ty, tz;
+  FP_PRECISION tx, ty, tz;
 };
 
 struct RawScaling {
-  float sx, sy, sz;
+  FP_PRECISION sx, sy, sz;
 };
 
 struct RawScalingFlip {
@@ -217,11 +219,11 @@ struct RawScalingFlip {
 };
 
 struct RawRotation {
-  float angle, x, y, z;
+  FP_PRECISION angle, x, y, z;
 };
 
 struct RawComposite {
-  float m[4][4];
+  FP_PRECISION m[4][4];
 };
 
 struct RawImage {
@@ -233,20 +235,20 @@ struct RawTextureMap {
   int image_id;
   RawTextureMapDecalMode decal_mode;
   RawTextureMapInterpolationMode interpolation_mode;
-  float normalizer;
-  float bump_factor;
+  FP_PRECISION normalizer;
+  FP_PRECISION bump_factor;
   bool noise_conversion;
-  float noise_scale;
+  FP_PRECISION noise_scale;
   int num_octaves;
-  float scale;
-  float offset;
+  FP_PRECISION scale;
+  FP_PRECISION offset;
   Vec3f black_color;
   Vec3f white_color;
 };
 
 struct Mat4x4f {
   Mat4x4f() {}
-  Mat4x4f(std::vector<std::vector<float>> a) {
+  Mat4x4f(std::vector<std::vector<FP_PRECISION>> a) {
     for (int i = 0; i < 4; i++) {
       for (int j = 0; j < 4; j++) {
         m[i][j] = a[i][j];
@@ -261,9 +263,9 @@ struct Mat4x4f {
     }
   }
 
-  float m[4][4];
+  FP_PRECISION m[4][4];
 
-  float operator[](size_t index) { return m[index / 4][index % 4]; }
+  FP_PRECISION operator[](size_t index) { return m[index / 4][index % 4]; }
 
   friend std::ostream& operator<<(std::ostream& os, const Mat4x4f& matrix) {
     for (int i = 0; i < 4; i++) {
@@ -294,8 +296,8 @@ struct RawScene {
 
   // Data
   Vec3i background_color;
-  float shadow_ray_epsilon;
-  float intersection_test_epsilon;
+  FP_PRECISION shadow_ray_epsilon;
+  FP_PRECISION intersection_test_epsilon;
   int max_recursion_depth;
   std::vector<RawCamera> cameras;
   Vec3f ambient_light;

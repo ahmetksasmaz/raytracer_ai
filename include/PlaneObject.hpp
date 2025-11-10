@@ -14,7 +14,7 @@ class PlaneObject : public BaseObject {
         {}
 
   std::shared_ptr<BaseObject> IntersectPlane(
-      Ray& ray, float& t_hit, Vec3f& intersection_normal, bool backface_culling = true, bool stop_at_any_hit = false) const;
+      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool backface_culling = true, bool stop_at_any_hit = false) const;
 
   virtual ~PlaneObject() = default;
 

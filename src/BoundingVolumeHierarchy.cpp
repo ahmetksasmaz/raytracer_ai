@@ -7,7 +7,7 @@ bool BoundingVolumeHierarchyElement::trace_ = false;
 std::vector<Vec2i> BoundingVolumeHierarchyElement::trace_pixels_;
 
 std::shared_ptr<BoundingVolumeHierarchyElement>
-BoundingVolumeHierarchyElement::Intersect(Ray& ray, float& t_hit,
+BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
                                           Vec3f& intersection_normal,
                                           bool backface_culling,
                                           bool stop_at_any_hit) const {
@@ -21,15 +21,15 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, float& t_hit,
     std::cout << "Ray direction: " << ray.direction_ << std::endl;
   }
   // Calculate the intersection of the ray with the bounding box
-  float t_min = (min_point_.x - ray.origin_.x) / ray.direction_.x;
-  float t_max = (max_point_.x - ray.origin_.x) / ray.direction_.x;
+  FP_PRECISION t_min = (min_point_.x - ray.origin_.x) / ray.direction_.x;
+  FP_PRECISION t_max = (max_point_.x - ray.origin_.x) / ray.direction_.x;
 
   if (t_min > t_max) {
     std::swap(t_min, t_max);
   }
 
-  float t_y_min = (min_point_.y - ray.origin_.y) / ray.direction_.y;
-  float t_y_max = (max_point_.y - ray.origin_.y) / ray.direction_.y;
+  FP_PRECISION t_y_min = (min_point_.y - ray.origin_.y) / ray.direction_.y;
+  FP_PRECISION t_y_max = (max_point_.y - ray.origin_.y) / ray.direction_.y;
 
   if (t_y_min > t_y_max) {
     std::swap(t_y_min, t_y_max);
@@ -47,8 +47,8 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, float& t_hit,
     t_max = t_y_max;
   }
 
-  float t_z_min = (min_point_.z - ray.origin_.z) / ray.direction_.z;
-  float t_z_max = (max_point_.z - ray.origin_.z) / ray.direction_.z;
+  FP_PRECISION t_z_min = (min_point_.z - ray.origin_.z) / ray.direction_.z;
+  FP_PRECISION t_z_max = (max_point_.z - ray.origin_.z) / ray.direction_.z;
 
   if (t_z_min > t_z_max) {
     std::swap(t_z_min, t_z_max);
@@ -76,7 +76,7 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, float& t_hit,
     std::cout << "Intersects with node id: " << id_ << std::endl;
   }
 
-  float left_t_hit, right_t_hit;
+  FP_PRECISION left_t_hit, right_t_hit;
   Vec3f left_intersection_normal, right_intersection_normal;
   std::shared_ptr<BoundingVolumeHierarchyElement> left_intersection = nullptr,
                                                   right_intersection = nullptr;

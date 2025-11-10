@@ -7,8 +7,8 @@ using namespace parser;
 class BaseMaterial {
  public:
   BaseMaterial(const Vec3f& ambient, const Vec3f& diffuse,
-               const Vec3f& specular, const float phong_exponent,
-               const float roughness)
+               const Vec3f& specular, const FP_PRECISION phong_exponent,
+               const FP_PRECISION roughness)
       : ambient_(ambient),
         diffuse_(diffuse),
         specular_(specular),
@@ -19,6 +19,6 @@ class BaseMaterial {
   const Vec3f ambient_;
   const Vec3f diffuse_;
   const Vec3f specular_;
-  const float phong_exponent_;
-  const float roughness_;
+  const FP_PRECISION phong_exponent_;
+  const FP_PRECISION roughness_;
 };

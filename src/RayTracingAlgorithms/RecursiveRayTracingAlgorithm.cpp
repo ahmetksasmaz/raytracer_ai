@@ -8,7 +8,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     int remaining_recursion, int max_recursion)
 {
   Vec3f pixel_value = {0, 0, 0};
-  float t_hit = std::numeric_limits<float>::max();
+  FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
   Vec3f hit_normal;
   std::shared_ptr<BoundingVolumeHierarchyElement> hit_object_ptr = nullptr;
 
@@ -22,7 +22,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     {
       for (auto object : objects_)
       {
-        float temp_hit = std::numeric_limits<float>::max();
+        FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
         Vec3f normal;
         std::shared_ptr<BaseObject> hit_object_casted =
             std::dynamic_pointer_cast<BaseObject>(object);
@@ -43,7 +43,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       // Plane cast plane object
       auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
 
-      float temp_hit = std::numeric_limits<float>::max();
+      FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
       Vec3f normal;
       if (plane_casted->IntersectPlane(ray, temp_hit, normal))
       {
@@ -97,10 +97,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             ray.pixel_, intersection_point,
             normalize(point_light->position_ - intersection_point), ray.diff_,
             ray.time_};
-        float distance_to_light =
+        FP_PRECISION distance_to_light =
             norm2(point_light->position_ - intersection_point);
         bool is_in_shadow = false;
-        float shadow_hit = std::numeric_limits<float>::max();
+        FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
         Vec3f shadow_normal;
         if (configuration_.acceleration_.bvh_high_level_)
         {
@@ -149,7 +149,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             Vec3f diffuse_term =
                 hadamard(material_ptr->diffuse_,
                          point_light->intensity_ / distance_to_light) *
-                std::max(0.0f, dot(hit_normal, light_direction));
+                std::max(0.0, dot(hit_normal, light_direction));
             pixel_value += diffuse_term;
           }
 
@@ -162,7 +162,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
               specular_term =
                   hadamard(material_ptr->specular_,
                            point_light->intensity_ / distance_to_light) *
-                  pow(std::max(0.0f, dot(hit_normal, half_vector)),
+                  pow(std::max(0.0, dot(hit_normal, half_vector)),
                       material_ptr->phong_exponent_);
               pixel_value += specular_term;
             }
@@ -179,7 +179,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f area_light_normal = -normalize(area_light->normal_);
         Vec3f normal_prime = area_light_normal;
         int min_index = 0;
-        float min_value = area_light_normal.x;
+        FP_PRECISION min_value = area_light_normal.x;
         if (area_light_normal.y < min_value)
         {
           min_value = area_light_normal.y;
@@ -212,10 +212,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             ray.pixel_, intersection_point,
             normalize(area_light_position - intersection_point), ray.diff_,
             ray.time_};
-        float distance_to_light =
+        FP_PRECISION distance_to_light =
             norm2(area_light_position - intersection_point);
         bool is_in_shadow = false;
-        float shadow_hit = std::numeric_limits<float>::max();
+        FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
         Vec3f shadow_normal;
         if (configuration_.acceleration_.bvh_high_level_)
         {
@@ -259,7 +259,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           Vec3f light_direction =
               normalize(area_light_position - intersection_point);
 
-          float irradiance_coeff = area_light->size_ * area_light->size_ * dot(area_light_normal, light_direction) / distance_to_light;
+          FP_PRECISION irradiance_coeff = area_light->size_ * area_light->size_ * dot(area_light_normal, light_direction) / distance_to_light;
 
           irradiance_coeff = abs(irradiance_coeff);
 
@@ -268,7 +268,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             Vec3f diffuse_term =
                 hadamard(material_ptr->diffuse_,
                          area_light->radiance_ * irradiance_coeff) *
-                std::max(0.0f, dot(hit_normal, light_direction));
+                std::max(0.0, dot(hit_normal, light_direction));
             pixel_value += diffuse_term;
           }
 
@@ -281,7 +281,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
               specular_term =
                   hadamard(material_ptr->specular_,
                            area_light->radiance_ * irradiance_coeff) *
-                  pow(std::max(0.0f, dot(hit_normal, half_vector)),
+                  pow(std::max(0.0, dot(hit_normal, half_vector)),
                       material_ptr->phong_exponent_);
               pixel_value += specular_term;
             }
@@ -305,7 +305,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       {
         Vec3f normal_prime = hit_normal;
         int min_index = 0;
-        float min_value = hit_normal.x;
+        FP_PRECISION min_value = hit_normal.x;
         if (hit_normal.y < min_value)
         {
           min_value = hit_normal.y;
@@ -334,8 +334,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 
         distorted_normal = normalize(
             hit_normal + material_ptr->roughness_ *
-                             (u * (((float)rand() / RAND_MAX) - 0.5f) +
-                              v * (((float)rand() / RAND_MAX) - 0.5f)));
+                             (u * (((FP_PRECISION)rand() / RAND_MAX) - 0.5f) +
+                              v * (((FP_PRECISION)rand() / RAND_MAX) - 0.5f)));
       }
 
       if (mirror_material_ptr && configuration_.materials_.mirror_)
@@ -362,17 +362,17 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
 
-        float n2 = conductor_material_ptr->refraction_index_;
-        float k2 = conductor_material_ptr->absorption_index_;
-        float cos_theta = -dot(ray.direction_, distorted_normal);
-        float n2_k2_2 = n2 * n2 + k2 * k2;
-        float n2_cos_theta_tw = 2 * n2 * cos_theta;
-        float cos_theta_2 = cos_theta * cos_theta;
-        float rs = (n2_k2_2 - n2_cos_theta_tw + cos_theta_2) /
+        FP_PRECISION n2 = conductor_material_ptr->refraction_index_;
+        FP_PRECISION k2 = conductor_material_ptr->absorption_index_;
+        FP_PRECISION cos_theta = -dot(ray.direction_, distorted_normal);
+        FP_PRECISION n2_k2_2 = n2 * n2 + k2 * k2;
+        FP_PRECISION n2_cos_theta_tw = 2 * n2 * cos_theta;
+        FP_PRECISION cos_theta_2 = cos_theta * cos_theta;
+        FP_PRECISION rs = (n2_k2_2 - n2_cos_theta_tw + cos_theta_2) /
                    (n2_k2_2 + n2_cos_theta_tw + cos_theta_2);
-        float rp = (n2_k2_2 * cos_theta_2 - n2_cos_theta_tw + 1) /
+        FP_PRECISION rp = (n2_k2_2 * cos_theta_2 - n2_cos_theta_tw + 1) /
                    (n2_k2_2 * cos_theta_2 + n2_cos_theta_tw + 1);
-        float fresnel_reflection_ratio = (rs + rp) / 2;
+        FP_PRECISION fresnel_reflection_ratio = (rs + rp) / 2;
 
         pixel_value +=
             hadamard(reflection_color, conductor_material_ptr->mirror_ *
@@ -391,26 +391,26 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             reflection_ray, inside_object_ptr, remaining_recursion - 1,
             max_recursion);
 
-        float n1 = inside_object_ptr
+        FP_PRECISION n1 = inside_object_ptr
                        ? dielectric_material_ptr->refraction_index_
                        : 1.0f;
-        float n2 = inside_object_ptr
+        FP_PRECISION n2 = inside_object_ptr
                        ? 1.0
                        : dielectric_material_ptr->refraction_index_;
 
-        float cos_theta = dot(-ray.direction_, distorted_normal);
-        float cos_phi_2 =
+        FP_PRECISION cos_theta = dot(-ray.direction_, distorted_normal);
+        FP_PRECISION cos_phi_2 =
             1 - (n1 * n1 / (n2 * n2)) * (1 - cos_theta * cos_theta);
         if (cos_phi_2 > 0.0)
         {
-          float cos_phi = sqrt(cos_phi_2);
-          float r_p =
+          FP_PRECISION cos_phi = sqrt(cos_phi_2);
+          FP_PRECISION r_p =
               (n1 * cos_theta - n2 * cos_phi) / (n1 * cos_theta + n2 * cos_phi);
-          float r_s =
+          FP_PRECISION r_s =
               (n1 * cos_phi - n2 * cos_theta) / (n1 * cos_phi + n2 * cos_theta);
 
-          float fresnel_reflection_ratio = (r_p * r_p + r_s * r_s) / 2;
-          float fresnel_transmission_ratio = 1.0 - fresnel_reflection_ratio;
+          FP_PRECISION fresnel_reflection_ratio = (r_p * r_p + r_s * r_s) / 2;
+          FP_PRECISION fresnel_transmission_ratio = 1.0 - fresnel_reflection_ratio;
 
           Vec3f refraction_direction =
               normalize((n1 / n2) * ray.direction_ +

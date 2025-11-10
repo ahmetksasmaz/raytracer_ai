@@ -4,6 +4,8 @@
 #include <iostream>
 #include <mutex>
 
+#include "../extern/parser.h"
+
 #include "Configuration.hpp"
 
 enum class Event { kStart = 0, kEnd };

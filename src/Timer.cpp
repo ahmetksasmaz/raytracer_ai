@@ -206,14 +206,14 @@ void Timer::AnalyzeTimeLogs() {
     }
   }
 
-  float mean_render_scene_time = 0.0;
-  float std_dev_render_scene_time = 0.0;
-  float mean_filtering_time = 0.0;
-  float std_dev_filtering_time = 0.0;
-  float mean_tone_mapping_time = 0.0;
-  float std_dev_tone_mapping_time = 0.0;
-  float mean_export_image_time = 0.0;
-  float std_dev_export_image_time = 0.0;
+  FP_PRECISION mean_render_scene_time = 0.0;
+  FP_PRECISION std_dev_render_scene_time = 0.0;
+  FP_PRECISION mean_filtering_time = 0.0;
+  FP_PRECISION std_dev_filtering_time = 0.0;
+  FP_PRECISION mean_tone_mapping_time = 0.0;
+  FP_PRECISION std_dev_tone_mapping_time = 0.0;
+  FP_PRECISION mean_export_image_time = 0.0;
+  FP_PRECISION std_dev_export_image_time = 0.0;
 
   for (int i = 0; i < render_scene_time.size(); i++) {
     mean_render_scene_time += render_scene_time[i];
@@ -261,10 +261,10 @@ void Timer::AnalyzeTimeLogs() {
   std_dev_export_image_time =
       sqrt(std_dev_export_image_time / export_image_time.size());
 
-  float mean_ray_tracing_time = 0.0;
-  float std_dev_ray_tracing_time = 0.0;
-  float mean_ray_tracing_time_per_pixel = 0.0;
-  float std_dev_ray_tracing_time_per_pixel = 0.0;
+  FP_PRECISION mean_ray_tracing_time = 0.0;
+  FP_PRECISION std_dev_ray_tracing_time = 0.0;
+  FP_PRECISION mean_ray_tracing_time_per_pixel = 0.0;
+  FP_PRECISION std_dev_ray_tracing_time_per_pixel = 0.0;
 
   uint64_t ray_count = 0;
   for (int i = 0; i < ray_tracing_time.size(); i++) {
@@ -291,7 +291,7 @@ void Timer::AnalyzeTimeLogs() {
   uint64_t pixel_count = 0;
   for (int i = 0; i < ray_tracing_time.size(); i++) {
     for (int j = 0; j < ray_tracing_time[i].size(); j++) {
-      float temp = 0.0;
+      FP_PRECISION temp = 0.0;
       for (int k = 0; k < ray_tracing_time[i][j].size(); k++) {
         temp += ray_tracing_time[i][j][k];
       }
@@ -303,7 +303,7 @@ void Timer::AnalyzeTimeLogs() {
 
   for (int i = 0; i < ray_tracing_time.size(); i++) {
     for (int j = 0; j < ray_tracing_time[i].size(); j++) {
-      float temp = 0.0;
+      FP_PRECISION temp = 0.0;
       for (int k = 0; k < ray_tracing_time[i][j].size(); k++) {
         temp += ray_tracing_time[i][j][k];
       }

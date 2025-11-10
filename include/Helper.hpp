@@ -25,35 +25,35 @@ inline Vec3f cross(Vec3f a, Vec3f b) {
 }
 
 inline Vec3f normalize(Vec3f a) {
-  float norm = sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+  FP_PRECISION norm = sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
   return Vec3f{a.x / norm, a.y / norm, a.z / norm};
 }
 
-inline float norm2(Vec3f a) { return a.x * a.x + a.y * a.y + a.z * a.z; }
+inline FP_PRECISION norm2(Vec3f a) { return a.x * a.x + a.y * a.y + a.z * a.z; }
 
-inline float norm(Vec3f a) { return sqrt(norm2(a)); }
+inline FP_PRECISION norm(Vec3f a) { return sqrt(norm2(a)); }
 
-inline float norm(Vec2f a) { return sqrt(a.x * a.x + a.y * a.y); }
+inline FP_PRECISION norm(Vec2f a) { return sqrt(a.x * a.x + a.y * a.y); }
 
-inline float dot(Vec3f a, Vec3f b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+inline FP_PRECISION dot(Vec3f a, Vec3f b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
 inline Vec3f hadamard(Vec3f a, Vec3f b) {
   return Vec3f{a.x * b.x, a.y * b.y, a.z * b.z};
 }
 
-inline Vec3f operator*(Vec3f a, float b) {
+inline Vec3f operator*(Vec3f a, FP_PRECISION b) {
   return Vec3f{a.x * b, a.y * b, a.z * b};
 }
 
-inline Vec3f operator*(float a, Vec3f b) {
+inline Vec3f operator*(FP_PRECISION a, Vec3f b) {
   return Vec3f{a * b.x, a * b.y, a * b.z};
 };
 
-inline Vec3f operator/(Vec3f a, float b) {
+inline Vec3f operator/(Vec3f a, FP_PRECISION b) {
   return Vec3f{a.x / b, a.y / b, a.z / b};
 }
 
-inline Vec2f operator/(Vec2f a, float b) { return Vec2f{a.x / b, a.y / b}; }
+inline Vec2f operator/(Vec2f a, FP_PRECISION b) { return Vec2f{a.x / b, a.y / b}; }
 
 inline Vec3f operator+(Vec3f a, Vec3f b) {
   return Vec3f{a.x + b.x, a.y + b.y, a.z + b.z};
@@ -122,7 +122,7 @@ inline Mat4x4f operator*(Mat4x4f a, Mat4x4f b) {
   return result;
 }
 
-inline Mat4x4f operator*(Mat4x4f a, float b) {
+inline Mat4x4f operator*(Mat4x4f a, FP_PRECISION b) {
   Mat4x4f result;
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 4; j++) {
@@ -208,7 +208,7 @@ inline Mat4x4f operator~(Mat4x4f a) {
                    a[4] * a[1] * a[10] + a[4] * a[2] * a[9] +
                    a[8] * a[1] * a[6] - a[8] * a[2] * a[5];
 
-  float det = a[0] * result[0] + a[1] * result[4] + a[2] * result[8] +
+  FP_PRECISION det = a[0] * result[0] + a[1] * result[4] + a[2] * result[8] +
               a[3] * result[12];
 
   det = 1.0 / det;
@@ -234,24 +234,24 @@ inline Mat4x4f scaling_matrix(RawScaling s) {
       {{s.sx, 0, 0, 0}, {0, s.sy, 0, 0}, {0, 0, s.sz, 0}, {0, 0, 0, 1}}};
 }
 
-inline Mat4x4f rotation_matrix_x(float angle_degree) {
-  float angle = angle_degree * M_PI / 180;
+inline Mat4x4f rotation_matrix_x(FP_PRECISION angle_degree) {
+  FP_PRECISION angle = angle_degree * M_PI / 180;
   return Mat4x4f{{{1, 0, 0, 0},
                   {0, cos(angle), -sin(angle), 0},
                   {0, sin(angle), cos(angle), 0},
                   {0, 0, 0, 1}}};
 }
 
-inline Mat4x4f rotation_matrix_y(float angle_degree) {
-  float angle = angle_degree * M_PI / 180;
+inline Mat4x4f rotation_matrix_y(FP_PRECISION angle_degree) {
+  FP_PRECISION angle = angle_degree * M_PI / 180;
   return Mat4x4f{{{cos(angle), 0, sin(angle), 0},
                   {0, 1, 0, 0},
                   {-sin(angle), 0, cos(angle), 0},
                   {0, 0, 0, 1}}};
 }
 
-inline Mat4x4f rotation_matrix_z(float angle_degree) {
-  float angle = angle_degree * M_PI / 180;
+inline Mat4x4f rotation_matrix_z(FP_PRECISION angle_degree) {
+  FP_PRECISION angle = angle_degree * M_PI / 180;
   return Mat4x4f{{{cos(angle), -sin(angle), 0, 0},
                   {sin(angle), cos(angle), 0, 0},
                   {0, 0, 1, 0},
@@ -318,10 +318,10 @@ inline void shuffle(std::vector<T>& samples) {
   }
 }
 
-inline std::vector<float> uniform_1d(int num_samples) {
-  std::vector<float> samples;
+inline std::vector<FP_PRECISION> uniform_1d(int num_samples) {
+  std::vector<FP_PRECISION> samples;
   for (int i = 0; i < num_samples; i++) {
-    samples.push_back((float)i / num_samples);
+    samples.push_back((FP_PRECISION)i / num_samples);
   }
   shuffle(samples);
   return samples;
@@ -331,17 +331,17 @@ inline std::vector<Vec2f> uniform_2d(int num_samples) {
   std::vector<Vec2f> samples;
   for (int i = 0; i < num_samples; i++) {
     for (int j = 0; j < num_samples; j++) {
-      samples.push_back(Vec2f{(float)i / num_samples, (float)j / num_samples});
+      samples.push_back(Vec2f{(FP_PRECISION)i / num_samples, (FP_PRECISION)j / num_samples});
     }
   }
   shuffle(samples);
   return samples;
 }
 
-inline std::vector<float> uniform_random_1d(int num_samples) {
-  std::vector<float> samples;
+inline std::vector<FP_PRECISION> uniform_random_1d(int num_samples) {
+  std::vector<FP_PRECISION> samples;
   for (int i = 0; i < num_samples; i++) {
-    samples.push_back((float)rand() / RAND_MAX);
+    samples.push_back((FP_PRECISION)rand() / RAND_MAX);
   }
   shuffle(samples);
   return samples;
@@ -352,17 +352,17 @@ inline std::vector<Vec2f> uniform_random_2d(int num_samples) {
   for (int i = 0; i < num_samples; i++) {
     for (int j = 0; j < num_samples; j++) {
       samples.push_back(
-          Vec2f{(float)rand() / RAND_MAX, (float)rand() / RAND_MAX});
+          Vec2f{(FP_PRECISION)rand() / RAND_MAX, (FP_PRECISION)rand() / RAND_MAX});
     }
   }
   shuffle(samples);
   return samples;
 }
 
-inline std::vector<float> jittered_1d(int num_samples) {
-  std::vector<float> samples;
+inline std::vector<FP_PRECISION> jittered_1d(int num_samples) {
+  std::vector<FP_PRECISION> samples;
   for (int i = 0; i < num_samples; i++) {
-    samples.push_back((i + (float)rand() / RAND_MAX) / num_samples);
+    samples.push_back((i + (FP_PRECISION)rand() / RAND_MAX) / num_samples);
   }
   shuffle(samples);
   return samples;
@@ -372,8 +372,8 @@ inline std::vector<Vec2f> jittered_2d(int num_samples) {
   std::vector<Vec2f> samples;
   for (int i = 0; i < num_samples; i++) {
     for (int j = 0; j < num_samples; j++) {
-      samples.push_back(Vec2f{(i + (float)rand() / RAND_MAX) / num_samples,
-                              (j + (float)rand() / RAND_MAX) / num_samples});
+      samples.push_back(Vec2f{(i + (FP_PRECISION)rand() / RAND_MAX) / num_samples,
+                              (j + (FP_PRECISION)rand() / RAND_MAX) / num_samples});
     }
   }
   shuffle(samples);
@@ -383,22 +383,22 @@ inline std::vector<Vec2f> jittered_2d(int num_samples) {
 inline std::vector<Vec2f> multi_jittered_2d(int num_samples) {
   std::vector<Vec2f> samples;
   int n = sqrt(num_samples);
-  float subcell_width = 1.0 / num_samples;
+  FP_PRECISION subcell_width = 1.0 / num_samples;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       samples.push_back(
-          Vec2f{(i * n + j + (float)rand() / RAND_MAX) * subcell_width,
-                (j * n + i + (float)rand() / RAND_MAX) * subcell_width});
+          Vec2f{(i * n + j + (FP_PRECISION)rand() / RAND_MAX) * subcell_width,
+                (j * n + i + (FP_PRECISION)rand() / RAND_MAX) * subcell_width});
     }
   }
   shuffle(samples);
   return samples;
 }
 
-inline float radical_inverse(unsigned int n, unsigned int base) {
-  float val = 0;
-  float inv_base = 1.0 / base;
-  float inv_bi = inv_base;
+inline FP_PRECISION radical_inverse(unsigned int n, unsigned int base) {
+  FP_PRECISION val = 0;
+  FP_PRECISION inv_base = 1.0 / base;
+  FP_PRECISION inv_bi = inv_base;
   while (n > 0) {
     unsigned int d_i = n % base;
     val += d_i * inv_bi;
@@ -411,8 +411,8 @@ inline float radical_inverse(unsigned int n, unsigned int base) {
 inline std::vector<Vec2f> hammersley_2d(int num_samples) {
   std::vector<Vec2f> samples;
   for (int i = 0; i < num_samples; i++) {
-    float x = (float)i / num_samples;
-    float y = (float)radical_inverse(i, 2);
+    FP_PRECISION x = (FP_PRECISION)i / num_samples;
+    FP_PRECISION y = (FP_PRECISION)radical_inverse(i, 2);
     samples.push_back(Vec2f{x, y});
   }
   shuffle(samples);
@@ -422,24 +422,24 @@ inline std::vector<Vec2f> hammersley_2d(int num_samples) {
 inline std::vector<Vec2f> halton_2d(int num_samples) {
   std::vector<Vec2f> samples;
   for (int i = 0; i < num_samples; i++) {
-    float x = (float)radical_inverse(i, 2);
-    float y = (float)radical_inverse(i, 3);
+    FP_PRECISION x = (FP_PRECISION)radical_inverse(i, 2);
+    FP_PRECISION y = (FP_PRECISION)radical_inverse(i, 3);
     samples.push_back(Vec2f{x, y});
   }
   shuffle(samples);
   return samples;
 }
 
-inline float gaussian_kernel_weight(Vec2f diff, float sigma) {
+inline FP_PRECISION gaussian_kernel_weight(Vec2f diff, FP_PRECISION sigma) {
   // Center the coordinates (assuming the Gaussian kernel is centered at (0.5,
   // 0.5))
-  float x_centered = diff.x - 0.5;
-  float y_centered = diff.y - 0.5;
+  FP_PRECISION x_centered = diff.x - 0.5;
+  FP_PRECISION y_centered = diff.y - 0.5;
 
   // Compute the Gaussian weight
-  float exponent = -(x_centered * x_centered + y_centered * y_centered) /
+  FP_PRECISION exponent = -(x_centered * x_centered + y_centered * y_centered) /
                    (2 * sigma * sigma);
-  float weight = std::exp(exponent) / (2 * M_PI * sigma * sigma);
+  FP_PRECISION weight = std::exp(exponent) / (2 * M_PI * sigma * sigma);
 
   return weight;
 }

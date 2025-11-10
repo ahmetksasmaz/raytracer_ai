@@ -3,11 +3,11 @@
 BaseCamera::BaseCamera(
     const bool look_at_camera, const Vec3f& position, const Vec3f& gaze,
     const Vec3f& gaze_point, const Vec3f& up, const Vec4f& near_plane,
-    const float fov_y, const float near_distance, const int image_width,
+    const FP_PRECISION fov_y, const FP_PRECISION near_distance, const int image_width,
     const int image_height, const std::string& image_name,
     const unsigned int num_samples, const SamplingAlgorithm time_sampling,
-    const SamplingAlgorithm pixel_sampling, const float focus_distance,
-    const float aperture_size, const SamplingAlgorithm aperture_sampling,
+    const SamplingAlgorithm pixel_sampling, const FP_PRECISION focus_distance,
+    const FP_PRECISION aperture_size, const SamplingAlgorithm aperture_sampling,
     const ApertureType aperture_type)
     : position_(position),
       image_width_(image_width),
@@ -19,10 +19,10 @@ BaseCamera::BaseCamera(
       aperture_size_(aperture_size),
       aperture_type_(ApertureType::kDefault),
       l_(look_at_camera ? -near_distance * tan(fov_y * M_PI / 360.0f) *
-                              float(image_width) / float(image_height)
+                              FP_PRECISION(image_width) / FP_PRECISION(image_height)
                         : near_plane.x),
       r_(look_at_camera ? near_distance * tan(fov_y * M_PI / 360.0f) *
-                              float(image_width) / float(image_height)
+                              FP_PRECISION(image_width) / FP_PRECISION(image_height)
                         : near_plane.y),
       b_(look_at_camera ? -near_distance * tan(fov_y * M_PI / 360.0f)
                         : near_plane.z),
@@ -98,22 +98,22 @@ BaseCamera::BaseCamera(
 
 std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
   if (!num_samples_) {
-    float su = (pixel_coordinate.x + 0.5) * (r_ - l_) / image_width_;
-    float sv = (pixel_coordinate.y + 0.5) * (t_ - b_) / image_height_;
+    FP_PRECISION su = (pixel_coordinate.x + 0.5) * (r_ - l_) / image_width_;
+    FP_PRECISION sv = (pixel_coordinate.y + 0.5) * (t_ - b_) / image_height_;
     Vec3f d = normalize((q_ + (u_ * su)) - (v_ * sv) - position_);
     return {Ray(pixel_coordinate, position_, d)};
   }
 
   std::vector<Ray> rays;
 
-  std::vector<float> time_samples = time_sampling_algorithm_(num_samples_);
+  std::vector<FP_PRECISION> time_samples = time_sampling_algorithm_(num_samples_);
 
   if (aperture_size_ > 0.0) {
-    float aperture_sample_ratio = 1.0f;
+    FP_PRECISION aperture_sample_ratio = 1.0f;
 
     if (aperture_type_ != ApertureType::kCircular &&
         aperture_type_ != ApertureType::kSquare) {
-      float area_of_unit_circle = M_PI;
+      FP_PRECISION area_of_unit_circle = M_PI;
       int edge_count;
 
       switch (aperture_type_) {
@@ -128,10 +128,10 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
           break;
       }
 
-      float center_angle_of_primitive_triangle = 2.0 * M_PI / (float)edge_count;
-      float area_of_primitive_triangle =
+      FP_PRECISION center_angle_of_primitive_triangle = 2.0 * M_PI / (FP_PRECISION)edge_count;
+      FP_PRECISION area_of_primitive_triangle =
           0.5f * sin(center_angle_of_primitive_triangle);
-      float area_of_primitive_polygon = area_of_primitive_triangle * edge_count;
+      FP_PRECISION area_of_primitive_polygon = area_of_primitive_triangle * edge_count;
       aperture_sample_ratio = area_of_unit_circle / area_of_primitive_polygon;
     }
 
@@ -145,8 +145,8 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
           std::remove_if(
               aperture_samples.begin(), aperture_samples.end(),
               [this](const Vec2f& sample) {
-                float radius = sqrt(sample.y);
-                float angle = 2.0f * M_PI * sample.x;
+                FP_PRECISION radius = sqrt(sample.y);
+                FP_PRECISION angle = 2.0f * M_PI * sample.x;
 
                 int edge_count;
                 switch (aperture_type_) {
@@ -162,9 +162,9 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
                   default:
                     return false;
                 }
-                float sector_angle = 2.0f * M_PI / edge_count;
-                float primitive_triangle_angle = fmod(angle, sector_angle);
-                float primitive_triangle_max_radius_for_angle =
+                FP_PRECISION sector_angle = 2.0f * M_PI / edge_count;
+                FP_PRECISION primitive_triangle_angle = fmod(angle, sector_angle);
+                FP_PRECISION primitive_triangle_max_radius_for_angle =
                     1.0f / cos(primitive_triangle_angle);
                 return radius > primitive_triangle_max_radius_for_angle;
               }),
@@ -182,12 +182,12 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
       auto pixel_sample = pixel_samples[i];
       auto aperture_sample = aperture_samples[i];
 
-      float su =
+      FP_PRECISION su =
           (pixel_coordinate.x + pixel_sample.x) * (r_ - l_) / image_width_;
-      float sv =
+      FP_PRECISION sv =
           (pixel_coordinate.y + pixel_sample.y) * (t_ - b_) / image_height_;
       Vec3f d = normalize((q_ + (u_ * su)) - (v_ * sv) - position_);
-      float t = focus_distance_ / dot(d, normalize(cross(v_, u_)));
+      FP_PRECISION t = focus_distance_ / dot(d, normalize(cross(v_, u_)));
       Vec3f focus_point = position_ + (d * t);
 
       Vec3f aperture_position;
@@ -197,11 +197,11 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
                             (u_ * (aperture_sample.x - 0.5f) * aperture_size_) +
                             (v_ * (aperture_sample.y - 0.5f) * aperture_size_);
       } else {
-        float r = aperture_size_ / 2.0f;
-        float theta = 2.0f * M_PI * aperture_sample.x;
-        float s = r * sqrt(aperture_sample.y);
-        float x = s * cos(theta);
-        float y = s * sin(theta);
+        FP_PRECISION r = aperture_size_ / 2.0f;
+        FP_PRECISION theta = 2.0f * M_PI * aperture_sample.x;
+        FP_PRECISION s = r * sqrt(aperture_sample.y);
+        FP_PRECISION x = s * cos(theta);
+        FP_PRECISION y = s * sin(theta);
         aperture_position = position_ + (u_ * x) + (v_ * y);
       }
       Ray ray(pixel_coordinate, aperture_position,
@@ -213,8 +213,8 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
   } else {
     std::vector<Vec2f> samples = pixel_sampling_algorithm_(num_samples_);
     for (int i = 0; i < samples.size(); i++) {
-      float su = (pixel_coordinate.x + samples[i].x) * (r_ - l_) / image_width_;
-      float sv =
+      FP_PRECISION su = (pixel_coordinate.x + samples[i].x) * (r_ - l_) / image_width_;
+      FP_PRECISION sv =
           (pixel_coordinate.y + samples[i].y) * (t_ - b_) / image_height_;
       Vec3f d = normalize((q_ + (u_ * su)) - (v_ * sv) - position_);
       rays.push_back(Ray(pixel_coordinate, position_, d,

@@ -45,7 +45,7 @@ class Scene {
   const Configuration configuration_;
 
   Vec3i background_color_;
-  float shadow_ray_epsilon_;
+  FP_PRECISION shadow_ray_epsilon_;
   int max_recursion_depth_;
 
   std::vector<std::shared_ptr<BaseCamera>> cameras_;

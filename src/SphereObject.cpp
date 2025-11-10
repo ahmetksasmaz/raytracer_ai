@@ -1,7 +1,7 @@
 #include "SphereObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
-    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool, bool) const {
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool, bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
   Vec3f transformed_ray_destination =
@@ -14,41 +14,41 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
 
   // Calculate the discriminant
   Vec3f oc = transformed_ray.origin_ - center_;
-  float a = dot(transformed_ray.direction_, transformed_ray.direction_);
-  float b = 2.0f * dot(oc, transformed_ray.direction_);
-  float c = dot(oc, oc) - radius_ * radius_;
-  float discriminant = b * b - 4 * a * c;
+  FP_PRECISION a = dot(transformed_ray.direction_, transformed_ray.direction_);
+  FP_PRECISION b = 2.0f * dot(oc, transformed_ray.direction_);
+  FP_PRECISION c = dot(oc, oc) - radius_ * radius_;
+  FP_PRECISION discriminant = b * b - 4 * a * c;
 
   // Check if the ray intersects with the sphere
   if (discriminant > 0) {
     // Find the closest intersection point
-    float t1 = (-b - sqrt(discriminant)) / (2.0f * a);
-    float t2 = (-b + sqrt(discriminant)) / (2.0f * a);
-    float t = t1 > 1e-5 ? t1 : t2;
+    FP_PRECISION t1 = (-b - sqrt(discriminant)) / (2.0f * a);
+    FP_PRECISION t2 = (-b + sqrt(discriminant)) / (2.0f * a);
+    FP_PRECISION t = t1 > 1e-5 ? t1 : t2;
     if (t > 1e-5) {
       Vec3f local_point =
           transformed_ray.origin_ + t * transformed_ray.direction_;
       Vec3f local_normal = normalize(local_point - center_);
 
-      float x = local_normal.x;
-      float y = local_normal.y;
-      float z = local_normal.z;
-      float r = sqrt(x * x + y * y + z * z);
-      float t = atan2(y, x);
-      float p = acos(z / r);
+      FP_PRECISION x = local_normal.x;
+      FP_PRECISION y = local_normal.y;
+      FP_PRECISION z = local_normal.z;
+      FP_PRECISION r = sqrt(x * x + y * y + z * z);
+      FP_PRECISION t = atan2(y, x);
+      FP_PRECISION p = acos(z / r);
 
       Vec3f local_normal_sample_1 =
-          Vec3f{float(sin(p + 0.05) * cos(t)), float(sin(p + 0.05) * sin(t)),
-                float(cos(p + 0.05))};
+          Vec3f{FP_PRECISION(sin(p + 0.05) * cos(t)), FP_PRECISION(sin(p + 0.05) * sin(t)),
+                FP_PRECISION(cos(p + 0.05))};
       Vec3f local_normal_sample_2 =
-          Vec3f{float(sin(p - 0.05) * cos(t)), float(sin(p - 0.05) * sin(t)),
-                float(cos(p - 0.05))};
+          Vec3f{FP_PRECISION(sin(p - 0.05) * cos(t)), FP_PRECISION(sin(p - 0.05) * sin(t)),
+                FP_PRECISION(cos(p - 0.05))};
       Vec3f local_normal_sample_3 =
-          Vec3f{float(sin(p) * cos(t + 0.05)), float(sin(p) * sin(t + 0.05)),
-                float(cos(p))};
+          Vec3f{FP_PRECISION(sin(p) * cos(t + 0.05)), FP_PRECISION(sin(p) * sin(t + 0.05)),
+                FP_PRECISION(cos(p))};
       Vec3f local_normal_sample_4 =
-          Vec3f{float(sin(p) * cos(t - 0.05)), float(sin(p) * sin(t - 0.05)),
-                float(cos(p))};
+          Vec3f{FP_PRECISION(sin(p) * cos(t - 0.05)), FP_PRECISION(sin(p) * sin(t - 0.05)),
+                FP_PRECISION(cos(p))};
 
       Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
       Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;
@@ -87,12 +87,12 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
 void SphereObject::Preprocess(bool high_level_bvh_enabled,
                               bool low_level_bvh_enabled, bool) {
   if (high_level_bvh_enabled) {
-    float x_min = center_.x - radius_;
-    float y_min = center_.y - radius_;
-    float z_min = center_.z - radius_;
-    float x_max = center_.x + radius_;
-    float y_max = center_.y + radius_;
-    float z_max = center_.z + radius_;
+    FP_PRECISION x_min = center_.x - radius_;
+    FP_PRECISION y_min = center_.y - radius_;
+    FP_PRECISION z_min = center_.z - radius_;
+    FP_PRECISION x_max = center_.x + radius_;
+    FP_PRECISION y_max = center_.y + radius_;
+    FP_PRECISION z_max = center_.z + radius_;
 
     Vec3f p0 = Vec3f{x_min, y_min, z_min};
     Vec3f p1 = Vec3f{x_max, y_min, z_min};

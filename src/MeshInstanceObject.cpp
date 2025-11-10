@@ -14,7 +14,7 @@ MeshInstanceObject::MeshInstanceObject(std::shared_ptr<BaseMaterial> material,
       mesh_object_(mesh_object) {};
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
-    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -30,7 +30,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
-  float mesh_hit = std::numeric_limits<float>::max();
+  FP_PRECISION mesh_hit = std::numeric_limits<FP_PRECISION>::max();
   if (mesh_object_->left_) {
     if (mesh_object_->left_->Intersect(transformed_ray, mesh_hit,
                                        temp_intersection_normal,
@@ -39,7 +39,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
     }
   } else {
     for (size_t i = 0; i < mesh_object_->triangle_objects_.size(); i++) {
-      float temp_hit = std::numeric_limits<float>::max();
+      FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
       Vec3f normal;
       if (!mesh_object_->triangle_objects_[i]->Intersect(
               transformed_ray, temp_hit, normal, backface_culling,
@@ -88,12 +88,12 @@ void MeshInstanceObject::Preprocess(bool high_level_bvh_enabled,
     min_point = mesh_object_->inverse_transform_matrix_ * min_point;
     max_point = mesh_object_->inverse_transform_matrix_ * max_point;
 
-    float x_min = min_point.x;
-    float y_min = min_point.y;
-    float z_min = min_point.z;
-    float x_max = max_point.x;
-    float y_max = max_point.y;
-    float z_max = max_point.z;
+    FP_PRECISION x_min = min_point.x;
+    FP_PRECISION y_min = min_point.y;
+    FP_PRECISION z_min = min_point.z;
+    FP_PRECISION x_max = max_point.x;
+    FP_PRECISION y_max = max_point.y;
+    FP_PRECISION z_max = max_point.z;
 
     Vec3f p0 = Vec3f{x_min, y_min, z_min};
     Vec3f p1 = Vec3f{x_max, y_min, z_min};
