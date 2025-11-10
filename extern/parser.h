@@ -129,11 +129,13 @@ struct RawCamera {
   unsigned int num_samples;
   int image_width, image_height;
   std::string image_name;
+  std::string transformations = "";
 };
 
 struct RawPointLight {
   Vec3f position;
   Vec3f intensity;
+  std::string transformations = "";
 };
 
 struct RawAreaLight {
@@ -141,6 +143,7 @@ struct RawAreaLight {
   Vec3f radiance;
   Vec3f normal;
   FP_PRECISION size;
+  std::string transformations = "";
 };
 
 struct RawMaterial {

@@ -151,25 +151,58 @@ void Scene::LoadScene() {
   std::cout << "\tLoading point lights." << std::endl;
 #endif
   for (const auto &raw_point_light : raw_scene.point_lights) {
+    RawScalingFlip scaling_flip{false, false, false};
+    Mat4x4f transform_matrix = parse_transformation(
+        raw_point_light.transformations, scaling_flip, raw_scene.translations,
+        raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    
     point_lights_.push_back(std::make_shared<PointLightSource>(
-        raw_point_light.position, raw_point_light.intensity));
+        transform_matrix * raw_point_light.position, raw_point_light.intensity));
   }
 #ifdef DEBUG
   std::cout << "\tLoading area lights." << std::endl;
 #endif
   for (const auto &raw_area_light : raw_scene.area_lights) {
+    RawScalingFlip scaling_flip{false, false, false};
+    Mat4x4f transform_matrix = parse_transformation(
+        raw_area_light.transformations, scaling_flip, raw_scene.translations,
+        raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    Vec3f transformed_position = transform_matrix * raw_area_light.position;
+    Vec3f transformed_second_position = transform_matrix * (raw_area_light.position + raw_area_light.normal);
+    Vec3f transformed_normal = normalize(transformed_second_position - transformed_position);
     area_lights_.push_back(std::make_shared<AreaLightSource>(
-        raw_area_light.position, raw_area_light.radiance, raw_area_light.normal,
+        transformed_position, raw_area_light.radiance, transformed_normal,
         raw_area_light.size));
   }
 #ifdef DEBUG
   std::cout << "\tLoading cameras." << std::endl;
 #endif
   for (const auto &raw_camera : raw_scene.cameras) {
+    RawScalingFlip scaling_flip{false, false, false};
+    Mat4x4f transform_matrix = parse_transformation(
+        raw_camera.transformations, scaling_flip, raw_scene.translations,
+        raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    Vec3f transformed_position = raw_camera.position;
+    Vec3f transformed_gaze_point = raw_camera.gaze_point;
+    Vec3f transformed_gaze = raw_camera.gaze;
+    FP_PRECISION near_distance = raw_camera.near_distance;
+    if(raw_camera.look_at_camera){
+      transformed_position = transform_matrix * raw_camera.position;
+      transformed_gaze_point = transform_matrix * raw_camera.gaze_point;
+      FP_PRECISION first_distance = norm(transformed_gaze_point - transformed_position);
+      FP_PRECISION second_distance = norm(raw_camera.gaze_point - raw_camera.position);
+      near_distance = near_distance * first_distance / second_distance;
+    }
+    else{
+      transformed_position = transform_matrix * raw_camera.position;
+      transformed_gaze = transform_matrix * (raw_camera.position + normalize(raw_camera.gaze));
+      near_distance = near_distance * norm(transformed_gaze - transformed_position);
+      transformed_gaze = normalize(transformed_gaze - transformed_position);
+    }
     cameras_.push_back(std::make_shared<BaseCamera>(
-        raw_camera.look_at_camera, raw_camera.position, raw_camera.gaze,
-        raw_camera.gaze_point, raw_camera.up, raw_camera.near_plane,
-        raw_camera.fov_y, raw_camera.near_distance, raw_camera.image_width,
+        raw_camera.look_at_camera, transformed_position, transformed_gaze,
+        transformed_gaze_point, raw_camera.up, raw_camera.near_plane,
+        raw_camera.fov_y, near_distance, raw_camera.image_width,
         raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples,
         configuration_.sampling_.time_sampling_,
         configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
