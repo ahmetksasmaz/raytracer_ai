@@ -750,6 +750,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       if (cam.contains("FovY")) {
         camera.fov_y = std::stof(cam["FovY"].get<std::string>());
       }
+      camera.transformations = cam.contains("Transformations") ? cam["Transformations"].get<std::string>() : "";
       camera.near_distance = std::stof(cam["NearDistance"].get<std::string>());
       auto img_res = cam["ImageResolution"].get<std::string>();
       std::stringstream ss_img_res(img_res);
@@ -794,6 +795,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         RawPointLight point_light;
         auto pos = light["Position"].get<std::string>();
         auto inten = light["Intensity"].get<std::string>();
+        point_light.transformations = light.contains("Transformations") ? light["Transformations"].get<std::string>() : "";
         std::stringstream ss_pos(pos);
         ss_pos >> point_light.position.x >> point_light.position.y >> point_light.position.z;
         std::stringstream ss_inten(inten);
@@ -819,6 +821,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         auto pos = light["Position"].get<std::string>();
         auto norm = light["Normal"].get<std::string>();
         auto radiance = light["Radiance"].get<std::string>();
+        area_light.transformations = light.contains("Transformations") ? light["Transformations"].get<std::string>() : "";
         std::stringstream ss_pos(pos);
         ss_pos >> area_light.position.x >> area_light.position.y >> area_light.position.z;
         std::stringstream ss_norm(norm);
