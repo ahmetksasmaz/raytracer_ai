@@ -116,7 +116,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
 }
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
-    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -132,7 +132,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
-  float mesh_hit = std::numeric_limits<float>::max();
+  FP_PRECISION mesh_hit = std::numeric_limits<FP_PRECISION>::max();
   if (left_) {
     if (left_->Intersect(transformed_ray, mesh_hit, temp_intersection_normal,
                          backface_culling, stop_at_any_hit)) {
@@ -140,7 +140,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
     }
   } else {
     for (size_t i = 0; i < triangle_objects_.size(); i++) {
-      float temp_hit = std::numeric_limits<float>::max();
+      FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
       Vec3f normal;
       if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal,
                                            backface_culling, stop_at_any_hit)) {
@@ -182,12 +182,12 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
 
 void MeshObject::Preprocess(bool high_level_bvh_enabled,
                             bool low_level_bvh_enabled, bool) {
-  float x_min = std::numeric_limits<float>::max();
-  float y_min = std::numeric_limits<float>::max();
-  float z_min = std::numeric_limits<float>::max();
-  float x_max = std::numeric_limits<float>::min();
-  float y_max = std::numeric_limits<float>::min();
-  float z_max = std::numeric_limits<float>::min();
+  FP_PRECISION x_min = std::numeric_limits<FP_PRECISION>::max();
+  FP_PRECISION y_min = std::numeric_limits<FP_PRECISION>::max();
+  FP_PRECISION z_min = std::numeric_limits<FP_PRECISION>::max();
+  FP_PRECISION x_max = std::numeric_limits<FP_PRECISION>::min();
+  FP_PRECISION y_max = std::numeric_limits<FP_PRECISION>::min();
+  FP_PRECISION z_max = std::numeric_limits<FP_PRECISION>::min();
 
   for (const auto& triangle_object : triangle_objects_) {
     std::shared_ptr<TriangleObject> triangle_object_casted =

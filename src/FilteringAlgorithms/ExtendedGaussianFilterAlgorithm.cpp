@@ -7,7 +7,7 @@ void Scene::ExtendedGaussianFilterAlgorithm(Vec5f* image_sampled_data,
   for (int i = 0; i < image_height; i++) {
     for (int j = 0; j < image_width; j++) {
       Vec3f sum{0.0f, 0.0f, 0.0f};
-      float sum_of_weights = 0.0;
+      FP_PRECISION sum_of_weights = 0.0;
 
       for (int a = -gaussian_kernel_size; a <= gaussian_kernel_size; a++) {
         for (int b = -gaussian_kernel_size; b <= gaussian_kernel_size; b++) {
@@ -21,8 +21,8 @@ void Scene::ExtendedGaussianFilterAlgorithm(Vec5f* image_sampled_data,
                                    k];
             Vec3f pixel_value = Vec3f{packet.x, packet.y, packet.z};
             Vec2f diff = Vec2f{packet.w, packet.t};
-            float weight = gaussian_kernel_weight(
-                (diff + Vec2f{float(a), float(b)}) /
+            FP_PRECISION weight = gaussian_kernel_weight(
+                (diff + Vec2f{FP_PRECISION(a), FP_PRECISION(b)}) /
                     (configuration_.sampling_.gaussian_kernel_size_),
                 configuration_.sampling_.gaussian_kernel_sigma_);
             sum_of_weights += weight;

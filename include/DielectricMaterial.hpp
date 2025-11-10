@@ -7,10 +7,10 @@ using namespace parser;
 class DielectricMaterial : public BaseMaterial {
  public:
   DielectricMaterial(const Vec3f& ambient, const Vec3f& diffuse,
-                     const Vec3f& specular, const float phong_exponent,
-                     float roughness, const Vec3f& mirror,
+                     const Vec3f& specular, const FP_PRECISION phong_exponent,
+                     FP_PRECISION roughness, const Vec3f& mirror,
                      const Vec3f& absorption_coefficient,
-                     const float refraction_index)
+                     const FP_PRECISION refraction_index)
       : BaseMaterial(ambient, diffuse, specular, phong_exponent, roughness),
         mirror_(mirror),
         absorption_coefficient_(absorption_coefficient),
@@ -18,5 +18,5 @@ class DielectricMaterial : public BaseMaterial {
 
   const Vec3f mirror_;
   const Vec3f absorption_coefficient_;
-  const float refraction_index_;
+  const FP_PRECISION refraction_index_;
 };

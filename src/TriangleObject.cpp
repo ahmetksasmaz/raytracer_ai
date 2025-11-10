@@ -1,7 +1,7 @@
 #include "TriangleObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
-    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool backface_culling,
     bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
@@ -20,24 +20,24 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
   Vec3f edge1 = v1_ - v0_;
   Vec3f edge2 = v2_ - v0_;
   Vec3f ray_cross_e2 = cross(transformed_ray.direction_, edge2);
-  float det = dot(edge1, ray_cross_e2);
+  FP_PRECISION det = dot(edge1, ray_cross_e2);
 
-  float inv_det = 1.0 / det;
+  FP_PRECISION inv_det = 1.0 / det;
   Vec3f s = transformed_ray.origin_ - v0_;
-  float u = inv_det * dot(s, ray_cross_e2);
+  FP_PRECISION u = inv_det * dot(s, ray_cross_e2);
 
   if (u < 0 || u > 1) {
     return nullptr;
   }
 
   Vec3f s_cross_e1 = cross(s, edge1);
-  float v = inv_det * dot(transformed_ray.direction_, s_cross_e1);
+  FP_PRECISION v = inv_det * dot(transformed_ray.direction_, s_cross_e1);
 
   if (v < 0 || u + v > 1) {
     return nullptr;
   }
 
-  float t = inv_det * dot(edge2, s_cross_e1);
+  FP_PRECISION t = inv_det * dot(edge2, s_cross_e1);
 
   if (t > 1e-5) {
     Vec3f local_point =
@@ -66,12 +66,12 @@ void TriangleObject::Preprocess(bool high_level_bvh_enabled,
   normal_ = normalize(cross(v1_ - v0_, v2_ - v0_));
 
   if (high_level_bvh_enabled || low_level_bvh_enabled) {
-    float x_min = std::min({v0_.x, v1_.x, v2_.x});
-    float y_min = std::min({v0_.y, v1_.y, v2_.y});
-    float z_min = std::min({v0_.z, v1_.z, v2_.z});
-    float x_max = std::max({v0_.x, v1_.x, v2_.x});
-    float y_max = std::max({v0_.y, v1_.y, v2_.y});
-    float z_max = std::max({v0_.z, v1_.z, v2_.z});
+    FP_PRECISION x_min = std::min({v0_.x, v1_.x, v2_.x});
+    FP_PRECISION y_min = std::min({v0_.y, v1_.y, v2_.y});
+    FP_PRECISION z_min = std::min({v0_.z, v1_.z, v2_.z});
+    FP_PRECISION x_max = std::max({v0_.x, v1_.x, v2_.x});
+    FP_PRECISION y_max = std::max({v0_.y, v1_.y, v2_.y});
+    FP_PRECISION z_max = std::max({v0_.z, v1_.z, v2_.z});
 
     Vec3f p0 = Vec3f{x_min, y_min, z_min};
     Vec3f p1 = Vec3f{x_max, y_min, z_min};

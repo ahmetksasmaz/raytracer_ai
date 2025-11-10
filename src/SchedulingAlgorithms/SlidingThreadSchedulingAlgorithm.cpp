@@ -90,8 +90,8 @@ void Scene::SlidingThreadSchedulingAlgorithm(
   //   while (true) {
   //     std::this_thread::sleep_for(std::chrono::seconds(1));
   //     std::lock_guard<std::mutex> lock(queue_mutex);
-  //     float progress =
-  //         1.0f - static_cast<float>(queue.size()) /
+  //     FP_PRECISION progress =
+  //         1.0f - static_cast<FP_PRECISION>(queue.size()) /
   //                    (camera->image_width_ * camera->image_height_);
   //     std::cout << "Progress: " << progress * 100 << "%" << std::endl;
   //     if (queue.empty()) {

@@ -7,7 +7,7 @@ using namespace parser;
 class Ray {
  public:
   Ray(const Vec2i& pixel, const Vec3f origin, Vec3f direction,
-      Vec2f diff = {0.0, 0.0}, float time = 0.0)
+      Vec2f diff = {0.0, 0.0}, FP_PRECISION time = 0.0)
       : pixel_(pixel),
         origin_(origin),
         direction_(direction),
@@ -17,6 +17,6 @@ class Ray {
   const Vec3f origin_;
   Vec3f direction_;
   const Vec2f diff_;
-  const float time_;
+  const FP_PRECISION time_;
   ~Ray() {}
 };

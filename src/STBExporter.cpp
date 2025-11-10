@@ -23,5 +23,5 @@ void STBExporter::Export(const std::string &filename, const unsigned char *data,
     std::cerr << "Unsupported file format" << std::endl;
   }
 
-  // stbi_write_hdr(filename.c_str(), width, height, 0, const float *data);
+  // stbi_write_hdr(filename.c_str(), width, height, 0, const FP_PRECISION *data);
 }

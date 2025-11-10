@@ -1,11 +1,11 @@
 #include "PlaneObject.hpp"
 
 std::shared_ptr<BaseObject> PlaneObject::IntersectPlane(
-    Ray& ray, float& t_hit, Vec3f& intersection_normal, bool, bool) const {
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool, bool) const {
 
         
     // Calculate the cos value between the ray and the plane normal
-    float denom = dot(ray.direction_, normal_);
+    FP_PRECISION denom = dot(ray.direction_, normal_);
     // Check if the ray intersects with the sphere
     // (P-P0).N = 0
     // Ray: P = O + tD
@@ -13,7 +13,7 @@ std::shared_ptr<BaseObject> PlaneObject::IntersectPlane(
     // t = -(O.N + P0.N) / (D.N)
     if (abs(denom) > 1e-5) {
         // Calculate the intersection point
-        float t = dot(point_ - ray.origin_, normal_) / denom;
+        FP_PRECISION t = dot(point_ - ray.origin_, normal_) / denom;
         if (t > 1e-5) {
             t_hit = t;
             intersection_normal = normal_;
