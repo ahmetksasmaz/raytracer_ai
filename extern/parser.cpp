@@ -826,7 +826,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         ss_pos >> area_light.position.x >> area_light.position.y >> area_light.position.z;
         std::stringstream ss_norm(norm);
         ss_norm >> area_light.normal.x >> area_light.normal.y >> area_light.normal.z;
-        area_light.size = light["Size"].get<FP_PRECISION>();
+        area_light.size = (FP_PRECISION)(std::stof(light["Size"].get<std::string>()));
         std::stringstream ss_rad(radiance);
         ss_rad >> area_light.radiance.x >> area_light.radiance.y >> area_light.radiance.z;
         area_lights.push_back(area_light);

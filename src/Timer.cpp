@@ -321,9 +321,9 @@ void Timer::AnalyzeTimeLogs() {
             << std::endl;
   std::cout << "Render Scene: " << mean_render_scene_time << " ms - "
             << std_dev_render_scene_time << " ms" << std::endl;
-  for(int i = 0; i < render_scene_time.size(); i++) {
-      std::cout << "\tCamera [" << i << "] -> Individual Render Time: " << render_scene_time[i] << " ms" << std::endl;
-  }
+  // for(int i = 0; i < render_scene_time.size(); i++) {
+  //     std::cout << "\tCamera [" << i << "] -> Individual Render Time: " << render_scene_time[i] << " ms" << std::endl;
+  // }
   std::cout << "Filtering: " << mean_filtering_time << " ms - "
             << std_dev_filtering_time << " ms" << std::endl;
   std::cout << "Tone Mapping: " << mean_tone_mapping_time << " ms - "
