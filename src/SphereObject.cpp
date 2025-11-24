@@ -55,10 +55,10 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       Vec3f local_point_sample_3 = center_ + radius_ * local_normal_sample_3;
       Vec3f local_point_sample_4 = center_ + radius_ * local_normal_sample_4;
 
-      Vec3f global_point_sample_1 = transform_matrix_ * local_point_sample_1;
-      Vec3f global_point_sample_2 = transform_matrix_ * local_point_sample_2;
-      Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3;
-      Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4;
+      Vec3f global_point_sample_1 = transform_matrix_ * local_point_sample_1 + motion_blur_ * ray.time_;
+      Vec3f global_point_sample_2 = transform_matrix_ * local_point_sample_2 + motion_blur_ * ray.time_;
+      Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3 + motion_blur_ * ray.time_;
+      Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4 + motion_blur_ * ray.time_;
 
       Vec3f first_axis_normal =
           normalize(global_point_sample_1 - global_point_sample_2);
@@ -68,7 +68,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       Vec3f approximated_normal =
           normalize(cross(first_axis_normal, second_axis_normal));
 
-      Vec3f global_point = transform_matrix_ * local_point;
+      Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
       Vec3f diff = global_point - ray.origin_;
       t_hit = norm(diff);
       Vec3f normalized_diff = normalize(diff);

@@ -161,9 +161,9 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
     Vec3f local_point =
         transformed_ray.origin_ + mesh_hit * transformed_ray.direction_;
     Vec3f local_point_destination = local_point + temp_intersection_normal;
-    Vec3f global_point = transform_matrix_ * local_point;
+    Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
     Vec3f global_point_destination =
-        transform_matrix_ * local_point_destination;
+        transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
     Vec3f normalized_diff = normalize(diff);
