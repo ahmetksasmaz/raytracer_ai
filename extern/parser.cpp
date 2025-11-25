@@ -692,7 +692,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   if (json_data.contains("MaxRecursionDepth")) {
     max_recursion_depth = std::stoi(json_data["MaxRecursionDepth"].get<std::string>());
   } else {
-    max_recursion_depth = 0;
+    max_recursion_depth = 1;
   }
 
 #ifdef PARSER_DEBUG

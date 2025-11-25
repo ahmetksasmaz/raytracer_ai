@@ -41,7 +41,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
                              index.second * camera->image_width_ + index.first,
                              ray_index);
           const Vec3f pixel_value = ray_tracing_algorithm_(
-              rays[ray_index], nullptr, max_recursion_depth_,
+              rays[ray_index], nullptr, max_recursion_depth_-1,
               max_recursion_depth_);
           camera->UpdateSampledPixelValue({index.first, index.second},
                                           pixel_value, ray_index,
@@ -55,21 +55,21 @@ void Scene::ThreadQueueSchedulingAlgorithm(
     });
   }
 
-  // std::thread status_thread([&]() {
-  //   while (true) {
-  //     std::this_thread::sleep_for(std::chrono::seconds(1));
-  //     std::lock_guard<std::mutex> lock(queue_mutex);
-  //     FP_PRECISION progress =
-  //         1.0f - static_cast<FP_PRECISION>(queue.size()) /
-  //                    (camera->image_width_ * camera->image_height_);
-  //     std::cout << "Progress: " << progress * 100 << "%" << std::endl;
-  //     if (queue.empty()) {
-  //       break;
-  //     }
-  //   }
-  // });
+  std::thread status_thread([&]() {
+    while (true) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::lock_guard<std::mutex> lock(queue_mutex);
+      FP_PRECISION progress =
+          1.0f - static_cast<FP_PRECISION>(queue.size()) /
+                     (camera->image_width_ * camera->image_height_);
+      std::cout << "Progress: " << progress * 100 << "%" << std::endl;
+      if (queue.empty()) {
+        break;
+      }
+    }
+  });
 
-  // status_thread.join();
+  status_thread.join();
 
   for (auto& thread : threads) {
     thread.join();
