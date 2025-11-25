@@ -279,6 +279,9 @@ inline Mat4x4f parse_transformation(std::string transformation_text,
                                     std::vector<RawRotation>& rotations,
                                     std::vector<RawComposite>& composites) {
   Mat4x4f result = IDENTITY_MATRIX;
+  // Remove beginning and ending whitespaces
+  transformation_text.erase(0, transformation_text.find_first_not_of(" \n\r\t"));
+  transformation_text.erase(transformation_text.find_last_not_of(" \n\r\t") + 1);
   std::stringstream ss(transformation_text);
   std::string transformation;
   while (getline(ss, transformation, ' ')) {

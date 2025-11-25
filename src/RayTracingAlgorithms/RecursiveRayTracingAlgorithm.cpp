@@ -7,6 +7,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
     int remaining_recursion, int max_recursion)
 {
+  remaining_recursion--;
   Vec3f pixel_value = {0, 0, 0};
   FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
   Vec3f hit_normal;
@@ -346,7 +347,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Ray reflection_ray = {ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
         Vec3f reflection_color = RecursiveRayTracingAlgorithm(
-            reflection_ray, inside_object_ptr, remaining_recursion - 1,
+            reflection_ray, inside_object_ptr, remaining_recursion,
             max_recursion);
         pixel_value += hadamard(reflection_color, mirror_material_ptr->mirror_);
       }
@@ -359,7 +360,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Ray reflection_ray = {ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
         Vec3f reflection_color = RecursiveRayTracingAlgorithm(
-            reflection_ray, inside_object_ptr, remaining_recursion - 1,
+            reflection_ray, inside_object_ptr, remaining_recursion,
             max_recursion);
 
         FP_PRECISION n2 = conductor_material_ptr->refraction_index_;
@@ -388,7 +389,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Ray reflection_ray = {ray.pixel_, intersection_point,
                               reflection_direction, ray.diff_, ray.time_};
         reflection_color = RecursiveRayTracingAlgorithm(
-            reflection_ray, inside_object_ptr, remaining_recursion - 1,
+            reflection_ray, inside_object_ptr, remaining_recursion,
             max_recursion);
 
         FP_PRECISION n1 = inside_object_ptr
@@ -423,7 +424,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           // later
           Vec3f refraction_color = RecursiveRayTracingAlgorithm(
               refraction_ray, inside_object_ptr ? nullptr : hit_object_casted,
-              remaining_recursion - 1, max_recursion);
+              remaining_recursion, max_recursion);
           pixel_value += reflection_color * fresnel_reflection_ratio;
           pixel_value += refraction_color * fresnel_transmission_ratio;
         }
@@ -450,7 +451,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   }
   else
   {
-    if (remaining_recursion == max_recursion)
+    if (remaining_recursion == max_recursion-1)
     {
       pixel_value.x = background_color_.x;
       pixel_value.y = background_color_.y;
