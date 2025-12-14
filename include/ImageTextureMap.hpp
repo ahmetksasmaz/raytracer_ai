@@ -8,7 +8,7 @@ using namespace parser;
 
 class ImageTextureMap : public BaseTextureMap {
  public:
-  ImageTextureMap(RawTextureMapDecalMode decal_mode, const FP_PRECISION bump_factor, std::shared_ptr<BaseImage> image, RawTextureMapInterpolationMode interpolation_mode) : BaseTextureMap(decal_mode, bump_factor), interpolation_mode_(interpolation_mode) {}
+  ImageTextureMap(RawTextureMapDecalMode decal_mode, const FP_PRECISION bump_factor, std::shared_ptr<BaseImage> image, RawTextureMapInterpolationMode interpolation_mode) : BaseTextureMap(decal_mode, bump_factor), interpolation_mode_(interpolation_mode), image_(image) {}
   virtual ~ImageTextureMap() = default;
   virtual Vec3f GetColorAt(Vec2f tex_coords, Vec3f space_coords) const override{
     FP_PRECISION u = tex_coords.x - floor(tex_coords.x);
@@ -21,7 +21,7 @@ class ImageTextureMap : public BaseTextureMap {
       int xi = static_cast<int>(round(x));
       int yi = static_cast<int>(round(y));
       Vec3f color_uc = (*image_)(xi, yi);
-      return Vec3f{color_uc.x / 255.0f, color_uc.y / 255.0f, color_uc.z / 255.0f};
+      return Vec3f{color_uc.x, color_uc.y, color_uc.z};
     }
     else if (interpolation_mode_ == RawTextureMapInterpolationMode::kBilinear){
       int x0 = static_cast<int>(floor(x));
@@ -41,7 +41,7 @@ class ImageTextureMap : public BaseTextureMap {
       Vec3f c1 = (1 - sx) * c01 + sx * c11;
       Vec3f c = (1 - sy) * c0 + sy * c1;
 
-      return c / 255.0f;
+      return c;
     }}
 private:
   const RawTextureMapInterpolationMode interpolation_mode_;

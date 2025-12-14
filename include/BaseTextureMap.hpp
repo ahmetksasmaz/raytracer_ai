@@ -8,6 +8,14 @@ class BaseTextureMap {
  public:
   BaseTextureMap(RawTextureMapDecalMode decal_mode, const FP_PRECISION bump_factor) : decal_mode_(decal_mode), bump_factor_(bump_factor) {}
   virtual ~BaseTextureMap() = default;
+  FP_PRECISION GetAmbientCoefficient() const {
+    switch (decal_mode_) {
+      case kReplaceAll:
+        return 1.0;
+      default:
+        return 0.0;
+    }
+  }
   FP_PRECISION GetDiffuseCoefficient() const {
     switch (decal_mode_) {
       case kReplaceKd:

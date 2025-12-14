@@ -939,14 +939,32 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   if (json_data.contains("Textures")) {
     auto tex = json_data["Textures"];
     if (tex.contains("Images")) {
-      for (const auto& img : tex["Images"]["Image"]) {
+      std::vector<nlohmann::json> json_images;
+      try {
+        auto img_path = tex["Images"]["Image"]["_data"].get<std::string>();
+        json_images.push_back(tex["Images"]["Image"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& img : tex["Images"]["Image"]) {
+          json_images.push_back(img);
+        }
+      }
+      for (const auto& img : json_images) {
         RawImage image;
-        image.path = img.get<std::string>();
+        image.path = img["_data"].get<std::string>();
         images.push_back(image);
       }
     }
     if (tex.contains("TextureMap")) {
-      for (const auto& tm : tex["TextureMap"]) {
+      std::vector<nlohmann::json> json_texture_maps;
+      try {
+        auto tm_id = tex["TextureMap"]["_type"].get<std::string>();
+        json_texture_maps.push_back(tex["TextureMap"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& tm : tex["TextureMap"]) {
+          json_texture_maps.push_back(tm);
+        }
+      }
+      for (const auto& tm : json_texture_maps) {
         RawTextureMap texture_map;
         if (tm.contains("_type")) {
           if (tm["_type"] == "image") {
