@@ -4,6 +4,7 @@
 
 #include "../extern/parser.h"
 #include "BaseMaterial.hpp"
+#include "BaseTextureMap.hpp"
 #include "BoundingVolumeHierarchy.hpp"
 #include "Ray.hpp"
 
@@ -12,9 +13,10 @@ using namespace parser;
 class BaseObject : public BoundingVolumeHierarchyElement,
                    public std::enable_shared_from_this<BaseObject> {
  public:
-  BaseObject(std::shared_ptr<BaseMaterial> material, const Vec3f motion_blur,
+  BaseObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures, const Vec3f motion_blur,
              const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip)
       : material_(material),
+        textures_(textures),
         motion_blur_(motion_blur),
         transform_matrix_(transform_matrix),
         scaling_flip_(scaling_flip) {
@@ -40,4 +42,5 @@ class BaseObject : public BoundingVolumeHierarchyElement,
   Mat4x4f inverse_transform_matrix_;
   Mat4x4f inverse_transpose_transform_matrix_;
   RawScalingFlip scaling_flip_;
+  std::vector<std::shared_ptr<BaseTextureMap>> textures_;
 };

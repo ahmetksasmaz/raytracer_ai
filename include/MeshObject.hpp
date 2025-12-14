@@ -6,16 +6,16 @@
 
 class MeshObject : public BaseObject {
  public:
-  MeshObject(std::shared_ptr<BaseMaterial> material,
+  MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
              const std::vector<RawFace>& raw_face_data,
-             const std::vector<Vec3f>& raw_vertex_data, const Vec3f motion_blur,
+             const std::vector<Vec3f>& raw_vertex_data, const std::vector<Vec2f>& raw_tex_coord_data, const Vec3f motion_blur,
              const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip);
-  MeshObject(std::shared_ptr<BaseMaterial> material,
+  MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
              const std::string& ply_filename, const Vec3f motion_blur,
              const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip);
 
   std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
-      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal,
+      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords,
       bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 

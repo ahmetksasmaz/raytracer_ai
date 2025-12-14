@@ -28,6 +28,9 @@
 #include "SphereObject.hpp"
 #include "TriangleObject.hpp"
 #include "PlaneObject.hpp"
+#include "CheckerboardTextureMap.hpp"
+#include "PerlinTextureMap.hpp"
+#include "ImageTextureMap.hpp"
 
 using namespace parser;
 

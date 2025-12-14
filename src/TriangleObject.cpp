@@ -1,7 +1,7 @@
 #include "TriangleObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool backface_culling,
     bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);

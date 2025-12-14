@@ -29,28 +29,33 @@ PlyProperty face_props[] = {
      offsetof(Face, verts), 1, PLY_UCHAR, PLY_UCHAR, offsetof(Face, nverts)},
 };
 
-MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
+MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
                        const std::vector<RawFace>& raw_face_data,
                        const std::vector<Vec3f>& raw_vertex_data,
+                       const std::vector<Vec2f>& raw_tex_coord_data,
                        const Vec3f motion_blur, const Mat4x4f& transform_matrix,
                        RawScalingFlip scaling_flip)
-    : BaseObject(material, motion_blur, transform_matrix, scaling_flip) {
+    : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip) {
   for (const auto& raw_face : raw_face_data) {
     triangle_objects_.push_back(
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<TriangleObject>(
-                material, raw_vertex_data[raw_face.v0_id - 1],
+                material, textures, raw_vertex_data[raw_face.v0_id - 1],
                 raw_vertex_data[raw_face.v1_id - 1],
-                raw_vertex_data[raw_face.v2_id - 1], Vec3f{0, 0, 0},
+                raw_vertex_data[raw_face.v2_id - 1],
+                raw_tex_coord_data[raw_face.v0_id - 1],
+                raw_tex_coord_data[raw_face.v1_id - 1],
+                raw_tex_coord_data[raw_face.v2_id - 1],
+                Vec3f{0, 0, 0},
                 IDENTITY_MATRIX, RawScalingFlip{false, false, false})));
   }
 };
 
-MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
+MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
                        const std::string& ply_filename, const Vec3f motion_blur,
                        const Mat4x4f& transform_matrix,
                        RawScalingFlip scaling_flip)
-    : BaseObject(material, motion_blur, transform_matrix, scaling_flip) {
+    : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip) {
   int nelems;
   char** elem_names;
   int file_type;
@@ -88,23 +93,26 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
           triangle_objects_.push_back(
               std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
                   std::make_shared<TriangleObject>(
-                      material, vertex_data_[face.verts[0]],
+                      material, textures, vertex_data_[face.verts[0]],
                       vertex_data_[face.verts[1]], vertex_data_[face.verts[2]],
+                      Vec2f{0, 0}, Vec2f{0,1}, Vec2f{1,0},
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
         } else if (face.nverts == 4) {
           triangle_objects_.push_back(
               std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
                   std::make_shared<TriangleObject>(
-                      material, vertex_data_[face.verts[0]],
+                      material, textures, vertex_data_[face.verts[0]],
                       vertex_data_[face.verts[1]], vertex_data_[face.verts[2]],
+                      Vec2f{0, 0}, Vec2f{0,1}, Vec2f{1,0},
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
           triangle_objects_.push_back(
               std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
                   std::make_shared<TriangleObject>(
-                      material, vertex_data_[face.verts[0]],
+                      material, textures, vertex_data_[face.verts[0]],
                       vertex_data_[face.verts[2]], vertex_data_[face.verts[3]],
+                      Vec2f{0, 0}, Vec2f{0,1}, Vec2f{1,0},
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
         }
@@ -116,7 +124,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material,
 }
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -134,7 +142,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
 
   FP_PRECISION mesh_hit = std::numeric_limits<FP_PRECISION>::max();
   if (left_) {
-    if (left_->Intersect(transformed_ray, mesh_hit, temp_intersection_normal,
+    if (left_->Intersect(transformed_ray, mesh_hit, temp_intersection_normal, tex_coords,
                          backface_culling, stop_at_any_hit)) {
       hit = true;
     }
@@ -142,7 +150,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
     for (size_t i = 0; i < triangle_objects_.size(); i++) {
       FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
       Vec3f normal;
-      if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal,
+      if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal, tex_coords,
                                            backface_culling, stop_at_any_hit)) {
         continue;
       }

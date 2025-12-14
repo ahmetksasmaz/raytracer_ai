@@ -369,8 +369,13 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
 
       child = element->FirstChildElement("NoiseConversion");
       if (child) {
-        stream << child->GetText() << std::endl;
-        stream >> texture_map.noise_conversion;
+        std::string noise_conversion = child->GetText();
+        if (noise_conversion == "abs_val") {
+          texture_map.noise_conversion = RawTextureMapNoiseConversionType::kAbsVal;
+        } else if (noise_conversion == "linear") {
+          texture_map.noise_conversion = RawTextureMapNoiseConversionType::kLinear;
+        }
+        
       }
 
       child = element->FirstChildElement("NoiseScale");
@@ -482,6 +487,18 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   }
   stream.clear();
 
+  // Get TextCoordData
+  element = root->FirstChildElement("TextCoordData");
+  elem_text = element->GetText();
+  std::replace(elem_text.begin(), elem_text.end(), '\t', ' ');
+  stream << elem_text << std::endl;
+  Vec2f texcoord;
+  while (!(stream >> texcoord.x).eof()) {
+    stream >> texcoord.y;
+    tex_coord_data.push_back(texcoord);
+  }
+  stream.clear();
+
 #ifdef PARSER_DEBUG
   std::cout << "\t\tVertex data parsed." << std::endl;
 #endif
@@ -500,6 +517,11 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     child = element->FirstChildElement("Transformations");
     if (child) {
       mesh.transformations = std::string{child->GetText()};
+    }
+
+    child = element->FirstChildElement("Textures");
+    if (child) {
+      mesh.textures = std::string{child->GetText()};
     }
 
     child = element->FirstChildElement("Faces");
@@ -553,6 +575,10 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     if (child) {
       mesh_instance.transformations = std::string{child->GetText()};
     }
+    child = element->FirstChildElement("Textures");
+    if (child) {
+      mesh_instance.textures = std::string{child->GetText()};
+    }
 
     child = element->FirstChildElement("MotionBlur");
     if (child) {
@@ -583,6 +609,11 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     child = element->FirstChildElement("Transformations");
     if (child) {
       triangle.transformations = std::string{child->GetText()};
+    }
+
+    child = element->FirstChildElement("Textures");
+    if (child) {
+      triangle.textures = std::string{child->GetText()};
     }
 
     child = element->FirstChildElement("Indices");
@@ -618,6 +649,11 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     child = element->FirstChildElement("Transformations");
     if (child) {
       sphere.transformations = std::string{child->GetText()};
+    }
+
+    child = element->FirstChildElement("Textures");
+    if (child) {
+      sphere.textures = std::string{child->GetText()};
     }
 
     child = element->FirstChildElement("Center");
@@ -956,10 +992,17 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
             texture_map.interpolation_mode = RawTextureMapInterpolationMode::kTrilinear;
           }
         }
+        if (tm.contains("NoiseConversion")) {
+          std::string noise_conversion = tm["NoiseConversion"].get<std::string>();
+          if (noise_conversion == "absval") {
+            texture_map.noise_conversion = RawTextureMapNoiseConversionType::kAbsVal;
+          } else if (noise_conversion == "linear") {
+            texture_map.noise_conversion = RawTextureMapNoiseConversionType::kLinear;
+          }
+        }
         
         texture_map.normalizer = tm.contains("Normalizer") ? std::stof(tm["Normalizer"].get<std::string>()) : 1.0f;
         texture_map.bump_factor = tm.contains("BumpFactor") ? std::stof(tm["BumpFactor"].get<std::string>()) : 1.0f;
-        texture_map.noise_conversion = tm.contains("NoiseConversion") ? std::stof(tm["NoiseConversion"].get<std::string>()) : 1.0f;
         texture_map.noise_scale = tm.contains("NoiseScale") ? std::stof(tm["NoiseScale"].get<std::string>()) : 1.0f;
         texture_map.num_octaves = tm.contains("NumOctaves") ? std::stoi(tm["NumOctaves"].get<std::string>()) : 1;
         if (tm.contains("Scale")) {
@@ -1107,6 +1150,19 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   #ifdef PARSER_DEBUG
   std::cout << "Vertex data parsed." << std::endl;
 #endif
+  // Parse TexCoordData
+  if (json_data.contains("TexCoordData")) {
+    auto tex_coord_datas = json_data["TexCoordData"]["_data"].get<std::string>();
+    std::stringstream ss(tex_coord_datas);
+    while (ss.peek() != EOF) {
+      Vec2f tex_coord;
+      ss >> tex_coord.x >> tex_coord.y;
+      tex_coord_data.push_back(tex_coord);
+    }
+  }
+  #ifdef PARSER_DEBUG
+  std::cout << "Tex coord data parsed." << std::endl;
+#endif
   // Parse Meshes
   if (json_data.contains("Objects")) {
     std::vector<nlohmann::json> json_meshes(0);
@@ -1169,6 +1225,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       mesh.object_id = std::stoi(obj["_id"].get<std::string>());
       mesh.material_id = std::stoi(obj["Material"].get<std::string>());
       mesh.transformations = obj.contains("Transformations") ? obj["Transformations"].get<std::string>() : "";
+      mesh.textures = obj.contains("Textures") ? obj["Textures"].get<std::string>() : "";
       if (obj.contains("Faces")) {
         if (obj["Faces"].contains("_plyFile")) {
           mesh.ply_filepath = obj["Faces"]["_plyFile"].get<std::string>();
@@ -1197,6 +1254,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       mesh_instance.reset_transform = mi.contains("_resetTransform") ? (mi["_resetTransform"].get<std::string>() == "true") : false;
       mesh_instance.material_id = mi.contains("Material") ? std::stoi(mi["Material"].get<std::string>()) : -1;
       mesh_instance.transformations = mi.contains("Transformations") ? mi["Transformations"].get<std::string>() : "";
+      mesh_instance.textures = mi.contains("Textures") ? mi["Textures"].get<std::string>() : "";
       if (mi.contains("MotionBlur")) {
         auto motion_blur = mi["MotionBlur"].get<std::string>();
         std::stringstream ss(motion_blur);
@@ -1210,6 +1268,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       triangle.object_id = std::stoi(t["_id"].get<std::string>());
       triangle.material_id = std::stoi(t["Material"].get<std::string>());
       triangle.transformations = t.contains("Transformations") ? t["Transformations"].get<std::string>() : "";
+      triangle.textures = t.contains("Textures") ? t["Textures"].get<std::string>() : "";
       auto indices = t["Indices"].get<std::string>();
       std::stringstream ss_indices(indices);
       ss_indices >> triangle.indices.v0_id >> triangle.indices.v1_id >> triangle.indices.v2_id;
@@ -1226,6 +1285,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       sphere.object_id = std::stoi(s["_id"].get<std::string>());
       sphere.material_id = std::stoi(s["Material"].get<std::string>());
       sphere.transformations = s.contains("Transformations") ? s["Transformations"].get<std::string>() : "";
+      sphere.textures = s.contains("Textures") ? s["Textures"].get<std::string>() : "";
       sphere.center_vertex_id = std::stoi(s["Center"].get<std::string>());
       sphere.radius = std::stof(s["Radius"].get<std::string>());
       if (s.contains("MotionBlur")) {
@@ -1241,6 +1301,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       plane.object_id = std::stoi(p["_id"].get<std::string>());
       plane.material_id = std::stoi(p["Material"].get<std::string>());
       plane.transformations = p.contains("Transformations") ? p["Transformations"].get<std::string>() : "";
+      plane.textures = p.contains("Textures") ? p["Textures"].get<std::string>() : "";
       plane.point_vertex_id = std::stoi(p["Point"].get<std::string>());
       auto norm = p["Normal"].get<std::string>();
       std::stringstream ss_norm(norm);

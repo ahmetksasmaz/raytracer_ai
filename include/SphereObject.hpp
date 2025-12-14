@@ -5,15 +5,15 @@
 
 class SphereObject : public BaseObject {
  public:
-  SphereObject(std::shared_ptr<BaseMaterial> material, const Vec3f& center,
-               const FP_PRECISION radius, const Vec3f motion_blur,
+  SphereObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
+               const Vec3f& center, const FP_PRECISION radius, const Vec3f motion_blur,
                const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip)
-      : BaseObject(material, motion_blur, transform_matrix, scaling_flip),
+      : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip),
         center_(center),
         radius_(radius) {};
 
   std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
-      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool,
+      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool,
       bool) const override;
 
   virtual ~SphereObject() = default;
