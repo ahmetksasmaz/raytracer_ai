@@ -79,12 +79,14 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 
     std::vector<std::shared_ptr<BaseTextureMap>> textures = hit_object_casted->textures_;
 
+    FP_PRECISION texture_ambient_coeff = 0.0f;
     FP_PRECISION texture_diffuse_coeff = 0.0f;
     FP_PRECISION texture_specular_coeff = 0.0f;
     Vec3f texture_value = {0, 0, 0};
 
     for (const auto &texture : textures)
     {
+      texture_ambient_coeff = texture->GetAmbientCoefficient();
       texture_diffuse_coeff = texture->GetDiffuseCoefficient();
       texture_specular_coeff = texture->GetSpecularCoefficient();
       texture_value =
@@ -100,7 +102,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           
           Vec3f ambient_value = hadamard(material_ptr->ambient_, ambient_light->intensity_);
           Vec3f texture_color = hadamard(texture_value, ambient_light->intensity_);
-          pixel_value += (1-texture_diffuse_coeff) * ambient_value + texture_diffuse_coeff * texture_color;
+          pixel_value += (1-texture_ambient_coeff) * ambient_value + texture_ambient_coeff * texture_color;
         }
       }
     }
