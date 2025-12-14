@@ -12,9 +12,9 @@ BaseImage::BaseImage(const std::string& path) : path_(path) {
       for (int i = 0; i < height_; i++) {
         data_[i].resize(width_);
         for (int j = 0; j < width_; j++) {
-          data_[i][j] = Vec3uc{image[3 * (i * width_ + j) + 0],
-                               image[3 * (i * width_ + j) + 1],
-                               image[3 * (i * width_ + j) + 2]};
+          data_[i][j] = Vec3f{image[3 * (i * width_ + j) + 0] / 255.0,
+                               image[3 * (i * width_ + j) + 1] / 255.0,
+                               image[3 * (i * width_ + j) + 2] / 255.0};
         }
       }
 

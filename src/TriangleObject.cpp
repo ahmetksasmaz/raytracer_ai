@@ -53,6 +53,12 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
     ray.direction_.y = normalized_diff.y;
     ray.direction_.z = normalized_diff.z;
     intersection_normal = normalize(global_point_destination - global_point);
+
+    // Calculate texture coordinates
+    FP_PRECISION w = 1 - u - v;
+    tex_coords.x = w * tex_v0_.x + u * tex_v1_.x + v * tex_v2_.x;
+    tex_coords.y = w * tex_v0_.y + u * tex_v1_.y + v * tex_v2_.y;
+
     return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
         std::const_pointer_cast<BaseObject>(this->shared_from_this()));
   } else {

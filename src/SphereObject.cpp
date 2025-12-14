@@ -76,6 +76,12 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       ray.direction_.y = normalized_diff.y;
       ray.direction_.z = normalized_diff.z;
       intersection_normal = approximated_normal;
+
+      // Compute texture coordinates
+      FP_PRECISION u = 0.5f + (atan2(local_normal.z, local_normal.x) / (2.0f * M_PI));
+      FP_PRECISION v = 0.5f - (asin(local_normal.y) / M_PI);
+      tex_coords = Vec2f{u, v};
+
       return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));
     }

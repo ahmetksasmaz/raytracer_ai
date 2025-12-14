@@ -8,13 +8,14 @@ class BaseImage {
   BaseImage(const std::string& path);
   virtual ~BaseImage() = default;
 
-  Vec3uc operator()(int x, int y) const {
+  Vec3f operator()(int x, int y) const {
     return data_[y % height_][x % width_];
   }
 
- protected:
   int width_;
   int height_;
-  std::vector<std::vector<Vec3uc>> data_;
+
+ protected:
+  std::vector<std::vector<Vec3f>> data_;
   const std::string path_;
 };
