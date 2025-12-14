@@ -4,17 +4,17 @@
 #include <iostream>
 #include <limits>
 
-MeshInstanceObject::MeshInstanceObject(std::shared_ptr<BaseMaterial> material,
+MeshInstanceObject::MeshInstanceObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
                                        std::shared_ptr<MeshObject> mesh_object,
                                        const Vec3f motion_blur,
                                        const Mat4x4f& transform_matrix,
                                        RawScalingFlip scaling_flip)
-    : BaseObject(material ? material : mesh_object->material_, motion_blur,
+    : BaseObject(material ? material : mesh_object->material_, textures, motion_blur,
                  transform_matrix, scaling_flip),
       mesh_object_(mesh_object) {};
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -33,7 +33,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
   FP_PRECISION mesh_hit = std::numeric_limits<FP_PRECISION>::max();
   if (mesh_object_->left_) {
     if (mesh_object_->left_->Intersect(transformed_ray, mesh_hit,
-                                       temp_intersection_normal,
+                                       temp_intersection_normal,  tex_coords,
                                        backface_culling, stop_at_any_hit)) {
       hit = true;
     }
@@ -42,7 +42,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
       FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
       Vec3f normal;
       if (!mesh_object_->triangle_objects_[i]->Intersect(
-              transformed_ray, temp_hit, normal, backface_culling,
+              transformed_ray, temp_hit, normal, tex_coords, backface_culling,
               stop_at_any_hit)) {
         continue;
       }

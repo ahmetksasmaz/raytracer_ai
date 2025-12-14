@@ -34,6 +34,8 @@ enum RawTextureMapDecalMode {
 
 enum RawTextureMapInterpolationMode { kNearest, kBilinear, kTrilinear };
 
+enum RawTextureMapNoiseConversionType { kAbsVal, kLinear };
+
 struct Vec2f {
   FP_PRECISION x, y;
 };
@@ -168,6 +170,7 @@ struct RawFace {
 struct RawMesh {
   int object_id;
   int material_id;
+  std::string textures;
   std::vector<RawFace> faces;
   std::string ply_filepath = "";
   std::string transformations = "";
@@ -177,6 +180,7 @@ struct RawMesh {
 struct RawMeshInstance {
   int object_id;
   int material_id;
+  std::string textures;
   int base_object_id;
   bool reset_transform;
   std::string transformations = "";
@@ -186,6 +190,7 @@ struct RawMeshInstance {
 struct RawTriangle {
   int object_id;
   int material_id;
+  std::string textures;
   RawFace indices;
   std::string transformations = "";
   Vec3f motion_blur = {0, 0, 0};
@@ -194,6 +199,7 @@ struct RawTriangle {
 struct RawSphere {
   int object_id;
   int material_id;
+  std::string textures;
   int center_vertex_id;
   FP_PRECISION radius;
   std::string transformations = "";
@@ -203,6 +209,7 @@ struct RawSphere {
 struct RawPlane {
   int object_id;
   int material_id;
+  std::string textures;
   int point_vertex_id;
   Vec3f normal;
   std::string transformations = "";
@@ -234,13 +241,13 @@ struct RawImage {
 };
 
 struct RawTextureMap {
-  std::string type;
+  RawTextureMapType type;
   int image_id;
   RawTextureMapDecalMode decal_mode;
   RawTextureMapInterpolationMode interpolation_mode;
   FP_PRECISION normalizer;
   FP_PRECISION bump_factor;
-  bool noise_conversion;
+  RawTextureMapNoiseConversionType noise_conversion;
   FP_PRECISION noise_scale;
   int num_octaves;
   FP_PRECISION scale;
@@ -289,6 +296,7 @@ struct RawScene {
     point_lights.clear();
     materials.clear();
     vertex_data.clear();
+    tex_coord_data.clear();
     meshes.clear();
     triangles.clear();
     spheres.clear();
@@ -308,6 +316,7 @@ struct RawScene {
   std::vector<RawAreaLight> area_lights;
   std::vector<RawMaterial> materials;
   std::vector<Vec3f> vertex_data;
+  std::vector<Vec2f> tex_coord_data;
   std::vector<RawMesh> meshes;
   std::vector<RawMeshInstance> mesh_instances;
   std::vector<RawTriangle> triangles;

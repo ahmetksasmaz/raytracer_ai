@@ -1,7 +1,7 @@
 #include "SphereObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool, bool) const {
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool, bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
   Vec3f transformed_ray_destination =

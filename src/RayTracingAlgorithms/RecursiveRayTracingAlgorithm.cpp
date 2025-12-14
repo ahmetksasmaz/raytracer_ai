@@ -10,6 +10,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   remaining_recursion--;
   Vec3f pixel_value = {0, 0, 0};
   FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
+  Vec2f hit_tex_coords;
   Vec3f hit_normal;
   std::shared_ptr<BoundingVolumeHierarchyElement> hit_object_ptr = nullptr;
 
@@ -17,7 +18,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   {
     if (configuration_.acceleration_.bvh_high_level_)
     {
-      hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal);
+      hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal, hit_tex_coords);
     }
     else
     {
@@ -27,7 +28,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f normal;
         std::shared_ptr<BaseObject> hit_object_casted =
             std::dynamic_pointer_cast<BaseObject>(object);
-        if (object->Intersect(ray, temp_hit, normal))
+        if (object->Intersect(ray, temp_hit, normal, hit_tex_coords))
         {
           if (t_hit > temp_hit)
           {
@@ -61,7 +62,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   else
   {
     hit_object_ptr = inside_object_ptr;
-    inside_object_ptr->Intersect(ray, t_hit, hit_normal, false);
+    inside_object_ptr->Intersect(ray, t_hit, hit_normal, hit_tex_coords, false);
     if (dot(ray.direction_, hit_normal) > 0)
     {
       hit_normal = -hit_normal;
@@ -102,10 +103,11 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             norm2(point_light->position_ - intersection_point);
         bool is_in_shadow = false;
         FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
+        Vec2f shadow_tex_coords;
         Vec3f shadow_normal;
         if (configuration_.acceleration_.bvh_high_level_)
         {
-          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal,
+          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords,
                                           false);
           if (ret && (shadow_hit < sqrt(distance_to_light)))
           {
@@ -116,7 +118,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         {
           for (auto object : objects_)
           {
-            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal,
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords,
                                   false))
             {
               if (shadow_hit < sqrt(distance_to_light))
@@ -218,10 +220,11 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         bool is_in_shadow = false;
         FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
         Vec3f shadow_normal;
+        Vec2f shadow_tex_coords;
         if (configuration_.acceleration_.bvh_high_level_)
         {
           auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal,
-                                          false);
+                                          shadow_tex_coords, false);
           if (ret && (shadow_hit < sqrt(distance_to_light)))
           {
             is_in_shadow = true;
@@ -231,7 +234,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         {
           for (auto object : objects_)
           {
-            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal,
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords,
                                   false))
             {
               if (shadow_hit < sqrt(distance_to_light))

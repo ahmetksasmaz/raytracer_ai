@@ -2,6 +2,8 @@
 
 #include "Timer.hpp"
 
+// #define DEBUG
+
 Scene::Scene(const std::string &filename, const Configuration &configuration)
     : filename_(filename), configuration_(configuration) {
   switch (configuration_.strategies_.exporter_type_) {
@@ -256,6 +258,29 @@ void Scene::LoadScene() {
   std::cout << "\tLoading textures." << std::endl;
 #endif
 
+  for (const auto &raw_texture_map : raw_scene.texture_maps) {
+  if (raw_texture_map.type == RawTextureMapType::kCheckerboard)
+    {
+      texture_maps_.push_back(std::make_shared<CheckerboardTextureMap>(
+          raw_texture_map.decal_mode, raw_texture_map.bump_factor,
+          raw_texture_map.scale, raw_texture_map.offset,
+          raw_texture_map.black_color, raw_texture_map.white_color));
+    }
+    else if (raw_texture_map.type == RawTextureMapType::kPerlin)
+    {
+      texture_maps_.push_back(std::make_shared<PerlinTextureMap>(
+          raw_texture_map.decal_mode, raw_texture_map.bump_factor,
+          raw_texture_map.noise_conversion, raw_texture_map.noise_scale,
+          raw_texture_map.num_octaves));
+    }
+    else if (raw_texture_map.type == RawTextureMapType::kImage)
+    {
+      texture_maps_.push_back(std::make_shared<ImageTextureMap>(
+          raw_texture_map.decal_mode, raw_texture_map.bump_factor, std::shared_ptr<BaseImage>(images_[raw_texture_map.image_id - 1]),
+          raw_texture_map.interpolation_mode));
+    }
+  }
+
 #ifdef DEBUG
   std::cout << "\tLoading spheres." << std::endl;
 #endif
@@ -264,10 +289,17 @@ void Scene::LoadScene() {
     Mat4x4f transform_matrix = parse_transformation(
         raw_sphere.transformations, scaling_flip, raw_scene.translations,
         raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    std::vector<std::shared_ptr<BaseTextureMap>> textures;
+    std::stringstream ss(raw_sphere.textures);
+    std::string texture_id_str;
+    while (std::getline(ss, texture_id_str, ',')) {
+      int texture_id = std::stoi(texture_id_str);
+      textures.push_back(texture_maps_[texture_id - 1]);
+    }
     objects_.push_back(
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<SphereObject>(
-                materials_[raw_sphere.material_id - 1],
+                materials_[raw_sphere.material_id - 1], textures,
                 raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
                 raw_sphere.radius, raw_sphere.motion_blur, transform_matrix,
                 scaling_flip)));
@@ -280,9 +312,16 @@ void Scene::LoadScene() {
     Mat4x4f transform_matrix = parse_transformation(
         raw_plane.transformations, scaling_flip, raw_scene.translations,
         raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    std::vector<std::shared_ptr<BaseTextureMap>> textures;
+    std::stringstream ss(raw_plane.textures);
+    std::string texture_id_str;
+    while (std::getline(ss, texture_id_str, ',')) {
+      int texture_id = std::stoi(texture_id_str);
+      textures.push_back(texture_maps_[texture_id - 1]);
+    }
     plane_objects_.push_back(
             std::make_shared<PlaneObject>(
-                materials_[raw_plane.material_id - 1],
+                materials_[raw_plane.material_id - 1], textures,
                 raw_scene.vertex_data[raw_plane.point_vertex_id - 1],
                 raw_plane.normal, raw_plane.motion_blur, transform_matrix,
                 scaling_flip));
@@ -295,13 +334,23 @@ void Scene::LoadScene() {
     Mat4x4f transform_matrix = parse_transformation(
         raw_triangle.transformations, scaling_flip, raw_scene.translations,
         raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    std::vector<std::shared_ptr<BaseTextureMap>> textures;
+    std::stringstream ss(raw_triangle.textures);
+    std::string texture_id_str;
+    while (std::getline(ss, texture_id_str, ',')) {
+      int texture_id = std::stoi(texture_id_str);
+      textures.push_back(texture_maps_[texture_id - 1]);
+    }
     objects_.push_back(
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<TriangleObject>(
-                materials_[raw_triangle.material_id - 1],
+                materials_[raw_triangle.material_id - 1], textures,
                 raw_scene.vertex_data[raw_triangle.indices.v0_id - 1],
                 raw_scene.vertex_data[raw_triangle.indices.v1_id - 1],
                 raw_scene.vertex_data[raw_triangle.indices.v2_id - 1],
+                raw_scene.tex_coord_data[raw_triangle.indices.v0_id - 1],
+                raw_scene.tex_coord_data[raw_triangle.indices.v1_id - 1],
+                raw_scene.tex_coord_data[raw_triangle.indices.v2_id - 1],
                 raw_triangle.motion_blur, transform_matrix, scaling_flip)));
   }
 
@@ -315,18 +364,25 @@ void Scene::LoadScene() {
     Mat4x4f transform_matrix = parse_transformation(
         raw_mesh.transformations, scaling_flip, raw_scene.translations,
         raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    std::vector<std::shared_ptr<BaseTextureMap>> textures;
+    std::stringstream ss(raw_mesh.textures);
+    std::string texture_id_str;
+    while (std::getline(ss, texture_id_str, ',')) {
+      int texture_id = std::stoi(texture_id_str);
+      textures.push_back(texture_maps_[texture_id - 1]);
+    }
     if (raw_mesh.ply_filepath != "") {
       objects_.push_back(
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
-                  materials_[raw_mesh.material_id - 1], raw_mesh.ply_filepath,
+                  materials_[raw_mesh.material_id - 1], textures, raw_mesh.ply_filepath,
                   raw_mesh.motion_blur, transform_matrix, scaling_flip)));
     } else {
       objects_.push_back(
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
-                  materials_[raw_mesh.material_id - 1], raw_mesh.faces,
-                  raw_scene.vertex_data, raw_mesh.motion_blur, transform_matrix,
+                  materials_[raw_mesh.material_id - 1], textures, raw_mesh.faces,
+                  raw_scene.vertex_data, raw_scene.tex_coord_data, raw_mesh.motion_blur, transform_matrix,
                   scaling_flip)));
     }
   }
@@ -417,10 +473,18 @@ void Scene::LoadScene() {
 
     // std::cout << transform_matrix << std::endl;
 
+    std::vector<std::shared_ptr<BaseTextureMap>> textures;
+    std::stringstream ss(raw_mesh_instance.textures);
+    std::string texture_id_str;
+    while (std::getline(ss, texture_id_str, ',')) {
+      int texture_id = std::stoi(texture_id_str);
+      textures.push_back(texture_maps_[texture_id - 1]);
+    }
+
     objects_.push_back(
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<MeshInstanceObject>(
-                material, mesh_object, raw_mesh_instance.motion_blur,
+                material, textures, mesh_object, raw_mesh_instance.motion_blur,
                 transform_matrix, scaling_flip)));
   }
   // exit(1);
