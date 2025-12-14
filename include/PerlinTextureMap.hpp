@@ -17,13 +17,9 @@ noise_scale_(noise_scale), num_octaves_(num_octaves) {}
     for (int i = 0; i < num_octaves_; i++){
       FP_PRECISION frequency = pow(2.0, i);
       FP_PRECISION amplitude = pow(0.5, i);
-      s += amplitude * noise_scale_ * perlin_noise(frequency * space_coords);
+      s += amplitude *  perlin_noise(frequency * noise_scale_ * space_coords);
     }
-    return Vec3f{ 
-      (noise_conversion_ == kAbsVal) ? abs(s) : (s + 1.0) / 2.0,
-      (noise_conversion_ == kAbsVal) ? abs(s) : (s + 1.0) / 2.0,
-      (noise_conversion_ == kAbsVal) ? abs(s) : (s + 1.0) / 2.0
-    };
+    return Vec3f{s,s,s};
   }
 private:
   const RawTextureMapNoiseConversionType noise_conversion_;
@@ -49,44 +45,38 @@ private:
       Vec3f{0, -1, 1},
       Vec3f{0, -1, -1}
     };
+    int table[16] = {
+        15, 10, 5, 0, 14, 9, 4, 3, 13, 8, 7, 2, 12, 11, 6, 1
+    };
     auto fade = [](FP_PRECISION t) {
-      return t * t * t * (t * (t * 6 - 15) + 10);
+      return t * t * t * (t * (t * -6 + 15) - 10) + 1;
     };
 
     int xi = (int)floor(p.x);
     int yi = (int)floor(p.y);
     int zi = (int)floor(p.z);
 
-    FP_PRECISION xf = p.x - xi;
-    FP_PRECISION yf = p.y - yi;
-    FP_PRECISION zf = p.z - zi;
-
-    FP_PRECISION u = fade(xf);
-    FP_PRECISION v = fade(yf);
-    FP_PRECISION w = fade(zf);
-
-    FP_PRECISION cumulative = 0.0;
-
-    for(int i = 0; i < 2; i++){
-      for(int j = 0; j < 2; j++){
-        for(int k = 0; k < 2; k++){
+    FP_PRECISION n_prime = 0.0;
+    for (int dx = 0; dx <= 1; dx++) {
+      for (int dy = 0; dy <= 1; dy++) {
+        for (int dz = 0; dz <= 1; dz++) {
           int idx;
-          idx = (abs(zi + k) % 16);
-          idx = (abs(yi + j + idx) % 16);
-          idx = (abs(xi + i + idx) % 16);
+          idx = table[abs(zi + dz) % 16];
+          idx = table[abs(yi + dy + idx) % 16];
+          idx = table[abs(xi + dx + idx) % 16];
 
-          Vec3f gradient = gradients[idx];
-          FP_PRECISION dot_product = gradient.x * (xf - i) +
-                                    gradient.y * (yf - j) +
-                                    gradient.z * (zf - k);
-          cumulative += dot_product * 
-                        (i ? u : (1 - u)) *
-                        (j ? v : (1 - v)) *
-                        (k ? w : (1 - w));
+          Vec3f distance_vector = Vec3f{p.x - (xi + dx), p.y - (yi + dy), p.z - (zi + dz)};
+          n_prime += dot(gradients[idx], distance_vector) * fade(abs(distance_vector.x)) * fade(abs(distance_vector.y)) * fade(abs(distance_vector.z));
         }
       }
     }
+    
+    if(noise_conversion_ == RawTextureMapNoiseConversionType::kAbsVal) {
+      n_prime = abs(n_prime);
+    }else{
+      n_prime = (n_prime + 1.0) / 2.0;
+    }
 
-    return cumulative;
+    return n_prime;
   }
 };

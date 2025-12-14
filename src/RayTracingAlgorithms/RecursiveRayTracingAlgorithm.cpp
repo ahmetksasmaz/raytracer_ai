@@ -97,8 +97,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       {
         for (auto ambient_light : ambient_lights_)
         {
+          
           Vec3f ambient_value = hadamard(material_ptr->ambient_, ambient_light->intensity_);
-          pixel_value += (1-texture_diffuse_coeff) * ambient_value + texture_diffuse_coeff * texture_value;
+          Vec3f texture_color = hadamard(texture_value, ambient_light->intensity_);
+          pixel_value += (1-texture_diffuse_coeff) * ambient_value + texture_diffuse_coeff * texture_color;
         }
       }
     }
@@ -167,7 +169,9 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                 hadamard(material_ptr->diffuse_,
                          point_light->intensity_ / distance_to_light) *
                 std::max(0.0, dot(hit_normal, light_direction));
-            pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_value;
+            Vec3f texture_diffuse = hadamard(texture_value, point_light->intensity_ / distance_to_light) *
+                std::max(0.0, dot(hit_normal, light_direction));
+            pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
           }
 
           if (configuration_.shading_.specular_)
@@ -181,7 +185,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                            point_light->intensity_ / distance_to_light) *
                   pow(std::max(0.0, dot(hit_normal, half_vector)),
                       material_ptr->phong_exponent_);
-              pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_value;
+              Vec3f texture_specular = hadamard(texture_value, point_light->intensity_ / distance_to_light) *
+                  pow(std::max(0.0, dot(hit_normal, half_vector)),
+                      material_ptr->phong_exponent_);
+              pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
             }
           }
         }
@@ -287,8 +294,9 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                 hadamard(material_ptr->diffuse_,
                          area_light->radiance_ * irradiance_coeff) *
                 std::max(0.0, dot(hit_normal, light_direction));
-
-            pixel_value += (1 - texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_value;
+            Vec3f texture_diffuse = hadamard(texture_value, area_light->radiance_ * irradiance_coeff) *
+                std::max(0.0, dot(hit_normal, light_direction));
+            pixel_value += (1 - texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
           }
 
           if (configuration_.shading_.specular_)
@@ -302,7 +310,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                            area_light->radiance_ * irradiance_coeff) *
                   pow(std::max(0.0, dot(hit_normal, half_vector)),
                       material_ptr->phong_exponent_);
-              pixel_value += (1 - texture_specular_coeff) * specular_term + texture_specular_coeff * texture_value;
+              Vec3f texture_specular = hadamard(texture_value, area_light->radiance_ * irradiance_coeff) *
+                  pow(std::max(0.0, dot(hit_normal, half_vector)),
+                      material_ptr->phong_exponent_);
+              pixel_value += (1 - texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
             }
           }
         }
