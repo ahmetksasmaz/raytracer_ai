@@ -1,15 +1,17 @@
 #include "TriangleObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
-  Vec3f transformed_ray_destination =
-      inverse_transform_matrix_ *
-      (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
+  // Vec3f transformed_ray_destination =
+  //     inverse_transform_matrix_ *
+  //     (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
+  // Vec3f transformed_ray_direction =
+  //     normalize(transformed_ray_destination - transformed_ray_origin);
   Vec3f transformed_ray_direction =
-      normalize(transformed_ray_destination - transformed_ray_origin);
+      normalize(inverse_transform_matrix_ ^ ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
@@ -42,22 +44,36 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
   if (t > 1e-5) {
     Vec3f local_point =
         transformed_ray.origin_ + t * transformed_ray.direction_;
-    Vec3f local_point_destination = local_point + normal_;
+    // Vec3f local_point_destination = local_point + normal_;
     Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
-    Vec3f global_point_destination =
-        transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
+    // Vec3f global_point_destination =
+    //     transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
     Vec3f normalized_diff = normalize(diff);
     ray.direction_.x = normalized_diff.x;
     ray.direction_.y = normalized_diff.y;
     ray.direction_.z = normalized_diff.z;
-    intersection_normal = normalize(global_point_destination - global_point);
+    intersection_normal = normalize(transform_matrix_ ^ normal_);
 
     // Calculate texture coordinates
     FP_PRECISION w = 1 - u - v;
-    tex_coords.x = w * tex_v0_.x + u * tex_v1_.x + v * tex_v2_.x;
-    tex_coords.y = w * tex_v0_.y + u * tex_v1_.y + v * tex_v2_.y;
+    FP_PRECISION tex_u =
+        tex_v0_.x * w + tex_v1_.x * u + tex_v2_.x * v;
+    FP_PRECISION tex_v =
+        tex_v0_.y * w + tex_v1_.y * u + tex_v2_.y * v;
+    tex_coords = Vec2f{tex_u, tex_v};
+
+    // Calculate tangent and bitangent vectors
+    Vec3f delta_pos1 = edge1;
+    Vec3f delta_pos2 = edge2;
+    Vec2f delta_uv1 = Vec2f{tex_v1_.x - tex_v0_.x, tex_v1_.y - tex_v0_.y};
+    Vec2f delta_uv2 = Vec2f{tex_v2_.x - tex_v0_.x, tex_v2_.y - tex_v0_.y};
+    FP_PRECISION r = 1.0f / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+    tangent_vector = normalize((delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r);
+    bitangent_vector = normalize((delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r);
+    tangent_vector = normalize(transform_matrix_ ^ tangent_vector);
+    bitangent_vector = normalize(transform_matrix_ ^ bitangent_vector);
 
     return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
         std::const_pointer_cast<BaseObject>(this->shared_from_this()));

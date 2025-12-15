@@ -13,7 +13,7 @@ class SphereObject : public BaseObject {
         radius_(radius) {};
 
   std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
-      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool,
+      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool,
       bool) const override;
 
   virtual ~SphereObject() = default;

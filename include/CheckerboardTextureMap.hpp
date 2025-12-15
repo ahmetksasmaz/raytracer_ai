@@ -26,6 +26,12 @@ black_color_(black_color), white_color_(white_color) {}
       return white_color_;
     }
   }
+
+  virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec3f &gradient_u, Vec3f &gradient_v) const override{
+    // Gradient is zero almost everywhere except at the edges, where it's undefined.
+    gradient_u = Vec3f{0.0, 0.0, 0.0};
+    gradient_v = Vec3f{0.0, 0.0, 0.0};
+  }
 private:
   const FP_PRECISION scale_;
   const FP_PRECISION offset_;

@@ -8,7 +8,8 @@ std::vector<Vec2i> BoundingVolumeHierarchyElement::trace_pixels_;
 
 std::shared_ptr<BoundingVolumeHierarchyElement>
 BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
-                                          Vec3f& intersection_normal, Vec2f& tex_coords,
+                                          Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector,
+                                          Vec3f& bitangent_vector,
                                           bool backface_culling,
                                           bool stop_at_any_hit) const {
   if (trace_ && std::find(trace_pixels_.begin(), trace_pixels_.end(),
@@ -79,16 +80,18 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
   FP_PRECISION left_t_hit, right_t_hit;
   Vec3f left_intersection_normal, right_intersection_normal;
   Vec2f left_tex_coords, right_tex_coords;
+  Vec3f left_tangent_vector, right_tangent_vector;
+  Vec3f left_bitangent_vector, right_bitangent_vector;
   std::shared_ptr<BoundingVolumeHierarchyElement> left_intersection = nullptr,
                                                   right_intersection = nullptr;
   if (left_) {
     left_intersection =
-        left_->Intersect(ray, left_t_hit, left_intersection_normal, left_tex_coords,
+        left_->Intersect(ray, left_t_hit, left_intersection_normal, left_tex_coords, left_tangent_vector, left_bitangent_vector,
                          backface_culling, stop_at_any_hit);
   }
   if (right_) {
     right_intersection =
-        right_->Intersect(ray, right_t_hit, right_intersection_normal, right_tex_coords,
+        right_->Intersect(ray, right_t_hit, right_intersection_normal, right_tex_coords, right_tangent_vector, right_bitangent_vector,
                           backface_culling, stop_at_any_hit);
   }
 
@@ -97,22 +100,30 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
       t_hit = left_t_hit;
       intersection_normal = left_intersection_normal;
       tex_coords = left_tex_coords;
+      tangent_vector = left_tangent_vector;
+      bitangent_vector = left_bitangent_vector;
       return left_intersection;
     } else {
       t_hit = right_t_hit;
       intersection_normal = right_intersection_normal;
       tex_coords = right_tex_coords;
+      tangent_vector = right_tangent_vector;
+      bitangent_vector = right_bitangent_vector;
       return right_intersection;
     }
   } else if (left_intersection) {
     t_hit = left_t_hit;
     intersection_normal = left_intersection_normal;
     tex_coords = left_tex_coords;
+    tangent_vector = left_tangent_vector;
+    bitangent_vector = left_bitangent_vector;
     return left_intersection;
   } else if (right_intersection) {
     t_hit = right_t_hit;
     intersection_normal = right_intersection_normal;
     tex_coords = right_tex_coords;
+    tangent_vector = right_tangent_vector;
+    bitangent_vector = right_bitangent_vector;
     return right_intersection;
   } else {
     return nullptr;

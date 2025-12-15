@@ -21,6 +21,25 @@ noise_scale_(noise_scale), num_octaves_(num_octaves) {}
     }
     return Vec3f{s,s,s};
   }
+  virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec3f &gradient_u, Vec3f &gradient_v) const override{
+    FP_PRECISION delta = 1e-3;
+    Vec3f point_x1 = Vec3f{space_coords.x + delta, space_coords.y, space_coords.z};
+    Vec3f point_x0 = Vec3f{space_coords.x - delta, space_coords.y, space_coords.z};
+    Vec3f point_y1 = Vec3f{space_coords.x, space_coords.y + delta, space_coords.z};
+    Vec3f point_y0 = Vec3f{space_coords.x, space_coords.y - delta, space_coords.z};
+    Vec3f color_x1 = GetColorAt(tex_coords, point_x1);
+    Vec3f color_x0 = GetColorAt(tex_coords, point_x0);
+    Vec3f color_y1 = GetColorAt(tex_coords, point_y1);
+    Vec3f color_y0 = GetColorAt(tex_coords, point_y0);
+    FP_PRECISION grad_u_x = (color_x1.x - color_x0.x) * (1.0 / (2.0 * delta));
+    FP_PRECISION grad_u_y = (color_x1.y - color_x0.y) * (1.0 / (2.0 * delta));
+    FP_PRECISION grad_u_z = (color_x1.z - color_x0.z) * (1.0 / (2.0 * delta));
+    FP_PRECISION grad_v_x = (color_y1.x - color_y0.x) * (1.0 / (2.0 * delta));
+    FP_PRECISION grad_v_y = (color_y1.y - color_y0.y) * (1.0 / (2.0 * delta));
+    FP_PRECISION grad_v_z = (color_y1.z - color_y0.z) * (1.0 / (2.0 * delta));
+    gradient_u = Vec3f{grad_u_x, grad_u_y, grad_u_z};
+    gradient_v = Vec3f{grad_v_x, grad_v_y, grad_v_z};
+  }
 private:
   const RawTextureMapNoiseConversionType noise_conversion_;
   const FP_PRECISION noise_scale_;

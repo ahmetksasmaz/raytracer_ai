@@ -12,13 +12,15 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
   Vec2f hit_tex_coords;
   Vec3f hit_normal;
+  Vec3f hit_tangent_vector;
+  Vec3f hit_bitangent_vector;
   std::shared_ptr<BoundingVolumeHierarchyElement> hit_object_ptr = nullptr;
 
   if (inside_object_ptr == nullptr)
   {
     if (configuration_.acceleration_.bvh_high_level_)
     {
-      hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal, hit_tex_coords);
+      hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_tangent_vector, hit_bitangent_vector);
     }
     else
     {
@@ -28,7 +30,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f normal;
         std::shared_ptr<BaseObject> hit_object_casted =
             std::dynamic_pointer_cast<BaseObject>(object);
-        if (object->Intersect(ray, temp_hit, normal, hit_tex_coords))
+        if (object->Intersect(ray, temp_hit, normal, hit_tex_coords, hit_tangent_vector, hit_bitangent_vector))
         {
           if (t_hit > temp_hit)
           {
@@ -62,7 +64,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   else
   {
     hit_object_ptr = inside_object_ptr;
-    inside_object_ptr->Intersect(ray, t_hit, hit_normal, hit_tex_coords, false);
+    inside_object_ptr->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_tangent_vector, hit_bitangent_vector, false);
     if (dot(ray.direction_, hit_normal) > 0)
     {
       hit_normal = -hit_normal;
@@ -82,16 +84,64 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     FP_PRECISION texture_ambient_coeff = 0.0f;
     FP_PRECISION texture_diffuse_coeff = 0.0f;
     FP_PRECISION texture_specular_coeff = 0.0f;
-    Vec3f texture_value = {0, 0, 0};
+    FP_PRECISION texture_normal_coeff = 0.0f;
+    FP_PRECISION texture_bump_coeff = 0.0f;
+    Vec3f texture_ambient_value = {0, 0, 0};
+    Vec3f texture_diffuse_value = {0, 0, 0};
+    Vec3f texture_specular_value = {0, 0, 0};
+    Vec3f texture_normal_value = {0, 0, 0};
+    Vec3f texture_bump_value_u = {0, 0, 0}, texture_bump_value_v = {0, 0, 0};
 
     for (const auto &texture : textures)
     {
-      texture_ambient_coeff = texture->GetAmbientCoefficient();
-      texture_diffuse_coeff = texture->GetDiffuseCoefficient();
-      texture_specular_coeff = texture->GetSpecularCoefficient();
-      texture_value =
-          texture->GetColorAt(hit_tex_coords, ray.origin_ + ray.direction_ * t_hit);
+      Vec3f texture_value = texture->GetColorAt(hit_tex_coords, ray.origin_ + ray.direction_ * t_hit);
+      FP_PRECISION current_texture_ambient_coeff = texture->GetAmbientCoefficient();
+      if(current_texture_ambient_coeff > 0.0f) {
+        texture_ambient_coeff = current_texture_ambient_coeff;
+        texture_ambient_value = texture_value;
+      }
+      FP_PRECISION current_texture_diffuse_coeff = texture->GetDiffuseCoefficient();
+      if(current_texture_diffuse_coeff > 0.0f) {
+        texture_diffuse_coeff = current_texture_diffuse_coeff;
+        texture_diffuse_value = texture_value;
+      }
+      FP_PRECISION current_texture_specular_coeff = texture->GetSpecularCoefficient();
+      if(current_texture_specular_coeff > 0.0f) {
+        texture_specular_coeff = current_texture_specular_coeff;
+        texture_specular_value = texture_value;
+      }
+      FP_PRECISION current_texture_normal_coeff = texture->GetNormalCoefficient();
+      if(current_texture_normal_coeff > 0.0f) {
+        texture_normal_coeff = current_texture_normal_coeff;
+        texture_normal_value = normalize(texture_value * 2.0 - Vec3f{1.0f, 1.0f, 1.0f});
+      }
+      FP_PRECISION current_texture_bump_coeff = texture->GetBumpCoefficient();
+      if(current_texture_bump_coeff > 0.0f) {
+        texture_bump_coeff = current_texture_bump_coeff;
+        texture->GetGradientAt(hit_tex_coords, ray.origin_ + ray.direction_ * t_hit, texture_bump_value_u, texture_bump_value_v);
+      }
     }
+
+    if(texture_normal_coeff > 0.0) {
+      Mat4x4f tbn_matrix;
+      tbn_matrix.m[0][0] = hit_tangent_vector.x;
+      tbn_matrix.m[1][0] = hit_tangent_vector.y;;
+      tbn_matrix.m[2][0] = hit_tangent_vector.z;
+      tbn_matrix.m[0][1] = hit_bitangent_vector.x;
+      tbn_matrix.m[1][1] = hit_bitangent_vector.y;;
+      tbn_matrix.m[2][1] = hit_bitangent_vector.z;
+      tbn_matrix.m[0][2] = hit_normal.x;
+      tbn_matrix.m[1][2] = hit_normal.y;
+      tbn_matrix.m[2][2] = hit_normal.z;
+      Vec3f modified_normal = tbn_matrix ^ texture_normal_value;
+      hit_normal = normalize(modified_normal);
+    }
+    else if (texture_bump_coeff > 0.0)
+    {
+      // Calculate surface gradient
+      hit_normal = normalize(hit_normal - hadamard(texture_bump_coeff * texture_bump_value_u, hit_tangent_vector) - hadamard(texture_bump_coeff * texture_bump_value_v, hit_bitangent_vector));
+    }
+    
 
     if (!inside_object_ptr)
     {
@@ -101,7 +151,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         {
           
           Vec3f ambient_value = hadamard(material_ptr->ambient_, ambient_light->intensity_);
-          Vec3f texture_color = hadamard(texture_value, ambient_light->intensity_);
+          Vec3f texture_color = hadamard(texture_ambient_value, ambient_light->intensity_);
           pixel_value += (1-texture_ambient_coeff) * ambient_value + texture_ambient_coeff * texture_color;
         }
       }
@@ -123,9 +173,11 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
         Vec2f shadow_tex_coords;
         Vec3f shadow_normal;
+        Vec3f shadow_tangent_vector;
+        Vec3f shadow_bitangent_vector;
         if (configuration_.acceleration_.bvh_high_level_)
         {
-          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords,
+          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_tangent_vector, shadow_bitangent_vector,
                                           false);
           if (ret && (shadow_hit < sqrt(distance_to_light)))
           {
@@ -136,7 +188,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         {
           for (auto object : objects_)
           {
-            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords,
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_tangent_vector, shadow_bitangent_vector,
                                   false))
             {
               if (shadow_hit < sqrt(distance_to_light))
@@ -171,7 +223,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                 hadamard(material_ptr->diffuse_,
                          point_light->intensity_ / distance_to_light) *
                 std::max(0.0, dot(hit_normal, light_direction));
-            Vec3f texture_diffuse = hadamard(texture_value, point_light->intensity_ / distance_to_light) *
+            Vec3f texture_diffuse = hadamard(texture_diffuse_value, point_light->intensity_ / distance_to_light) *
                 std::max(0.0, dot(hit_normal, light_direction));
             pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
           }
@@ -187,7 +239,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                            point_light->intensity_ / distance_to_light) *
                   pow(std::max(0.0, dot(hit_normal, half_vector)),
                       material_ptr->phong_exponent_);
-              Vec3f texture_specular = hadamard(texture_value, point_light->intensity_ / distance_to_light) *
+              Vec3f texture_specular = hadamard(texture_specular_value, point_light->intensity_ / distance_to_light) *
                   pow(std::max(0.0, dot(hit_normal, half_vector)),
                       material_ptr->phong_exponent_);
               pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
@@ -244,10 +296,12 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
         Vec3f shadow_normal;
         Vec2f shadow_tex_coords;
+        Vec3f shadow_tangent_vector;
+        Vec3f shadow_bitangent_vector;
         if (configuration_.acceleration_.bvh_high_level_)
         {
           auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal,
-                                          shadow_tex_coords, false);
+                                          shadow_tex_coords, shadow_tangent_vector, shadow_bitangent_vector, false);
           if (ret && (shadow_hit < sqrt(distance_to_light)))
           {
             is_in_shadow = true;
@@ -257,7 +311,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         {
           for (auto object : objects_)
           {
-            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords,
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_tangent_vector, shadow_bitangent_vector,
                                   false))
             {
               if (shadow_hit < sqrt(distance_to_light))
@@ -296,7 +350,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                 hadamard(material_ptr->diffuse_,
                          area_light->radiance_ * irradiance_coeff) *
                 std::max(0.0, dot(hit_normal, light_direction));
-            Vec3f texture_diffuse = hadamard(texture_value, area_light->radiance_ * irradiance_coeff) *
+            Vec3f texture_diffuse = hadamard(texture_diffuse_value, area_light->radiance_ * irradiance_coeff) *
                 std::max(0.0, dot(hit_normal, light_direction));
             pixel_value += (1 - texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
           }
@@ -312,7 +366,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                            area_light->radiance_ * irradiance_coeff) *
                   pow(std::max(0.0, dot(hit_normal, half_vector)),
                       material_ptr->phong_exponent_);
-              Vec3f texture_specular = hadamard(texture_value, area_light->radiance_ * irradiance_coeff) *
+              Vec3f texture_specular = hadamard(texture_specular_value, area_light->radiance_ * irradiance_coeff) *
                   pow(std::max(0.0, dot(hit_normal, half_vector)),
                       material_ptr->phong_exponent_);
               pixel_value += (1 - texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
