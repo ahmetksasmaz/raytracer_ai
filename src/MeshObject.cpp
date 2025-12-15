@@ -124,7 +124,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
 }
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -132,17 +132,19 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
 
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
-  Vec3f transformed_ray_destination =
-      inverse_transform_matrix_ *
-      (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
+  // Vec3f transformed_ray_destination =
+  //     inverse_transform_matrix_ *
+  //     (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
+  // Vec3f transformed_ray_direction =
+  //     normalize(transformed_ray_destination - transformed_ray_origin);
   Vec3f transformed_ray_direction =
-      normalize(transformed_ray_destination - transformed_ray_origin);
+      normalize(inverse_transform_matrix_ ^ ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
   FP_PRECISION mesh_hit = std::numeric_limits<FP_PRECISION>::max();
   if (left_) {
-    if (left_->Intersect(transformed_ray, mesh_hit, temp_intersection_normal, tex_coords,
+    if (left_->Intersect(transformed_ray, mesh_hit, temp_intersection_normal, tex_coords, tangent_vector, bitangent_vector,
                          backface_culling, stop_at_any_hit)) {
       hit = true;
     }
@@ -150,7 +152,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
     for (size_t i = 0; i < triangle_objects_.size(); i++) {
       FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
       Vec3f normal;
-      if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal, tex_coords,
+      if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal, tex_coords, tangent_vector, bitangent_vector,
                                            backface_culling, stop_at_any_hit)) {
         continue;
       }
@@ -168,10 +170,10 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
   if (hit) {
     Vec3f local_point =
         transformed_ray.origin_ + mesh_hit * transformed_ray.direction_;
-    Vec3f local_point_destination = local_point + temp_intersection_normal;
+    // Vec3f local_point_destination = local_point + temp_intersection_normal;
     Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
-    Vec3f global_point_destination =
-        transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
+    // Vec3f global_point_destination =
+    //     transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
     Vec3f normalized_diff = normalize(diff);
@@ -179,7 +181,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
     ray.direction_.y = normalized_diff.y;
     ray.direction_.z = normalized_diff.z;
 
-    intersection_normal = normalize(global_point_destination - global_point);
+    intersection_normal = normalize(transform_matrix_ ^ temp_intersection_normal);
   }
 
   return hit ? std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(

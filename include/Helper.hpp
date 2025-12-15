@@ -132,6 +132,23 @@ inline Mat4x4f operator*(Mat4x4f a, FP_PRECISION b) {
   return result;
 }
 
+inline Mat2x2f operator*(Mat2x2f a, FP_PRECISION b) {
+  Mat2x2f result;
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 2; j++) {
+      result.m[i][j] = a.m[i][j] * b;
+    }
+  }
+  return result;
+}
+
+inline Vec2f operator*(Mat2x2f a, Vec2f b) {
+  Vec2f result;
+  result.x = a.m[0][0] * b.x + a.m[0][1] * b.y;
+  result.y = a.m[1][0] * b.x + a.m[1][1] * b.y;
+  return result;
+}
+
 inline Mat4x4f operator!(Mat4x4f a) {
   Mat4x4f result;
   for (int i = 0; i < 4; i++) {
@@ -218,10 +235,31 @@ inline Mat4x4f operator~(Mat4x4f a) {
   return result;
 }
 
+inline Mat2x2f operator~(Mat2x2f a) {
+  Mat2x2f result;
+  result.m[0][0] = a.m[1][1];
+  result.m[0][1] = -a.m[0][1];
+  result.m[1][0] = -a.m[1][0];
+  result.m[1][1] = a.m[0][0];
+
+  FP_PRECISION det = a.m[0][0] * a.m[1][1] - a.m[0][1] * a.m[1][0];
+  det = 1.0 / det;
+
+  result = result * det;
+
+  return result;
+}
+
 inline Vec3f operator*(Mat4x4f a, Vec3f b) {
   return Vec3f{a.m[0][0] * b.x + a.m[0][1] * b.y + a.m[0][2] * b.z + a.m[0][3],
                a.m[1][0] * b.x + a.m[1][1] * b.y + a.m[1][2] * b.z + a.m[1][3],
                a.m[2][0] * b.x + a.m[2][1] * b.y + a.m[2][2] * b.z + a.m[2][3]};
+}
+
+inline Vec3f operator^(Mat4x4f a, Vec3f b) {
+  return Vec3f{a.m[0][0] * b.x + a.m[0][1] * b.y + a.m[0][2] * b.z,
+               a.m[1][0] * b.x + a.m[1][1] * b.y + a.m[1][2] * b.z,
+               a.m[2][0] * b.x + a.m[2][1] * b.y + a.m[2][2] * b.z};
 }
 
 inline Mat4x4f translation_matrix(RawTranslation t) {

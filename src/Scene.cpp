@@ -292,7 +292,7 @@ void Scene::LoadScene() {
     std::vector<std::shared_ptr<BaseTextureMap>> textures;
     std::stringstream ss(raw_sphere.textures);
     std::string texture_id_str;
-    while (std::getline(ss, texture_id_str, ',')) {
+    while (std::getline(ss, texture_id_str, ' ')) {
       int texture_id = std::stoi(texture_id_str);
       textures.push_back(texture_maps_[texture_id - 1]);
     }
@@ -315,7 +315,7 @@ void Scene::LoadScene() {
     std::vector<std::shared_ptr<BaseTextureMap>> textures;
     std::stringstream ss(raw_plane.textures);
     std::string texture_id_str;
-    while (std::getline(ss, texture_id_str, ',')) {
+    while (std::getline(ss, texture_id_str, ' ')) {
       int texture_id = std::stoi(texture_id_str);
       textures.push_back(texture_maps_[texture_id - 1]);
     }
@@ -337,7 +337,7 @@ void Scene::LoadScene() {
     std::vector<std::shared_ptr<BaseTextureMap>> textures;
     std::stringstream ss(raw_triangle.textures);
     std::string texture_id_str;
-    while (std::getline(ss, texture_id_str, ',')) {
+    while (std::getline(ss, texture_id_str, ' ')) {
       int texture_id = std::stoi(texture_id_str);
       textures.push_back(texture_maps_[texture_id - 1]);
     }
@@ -367,7 +367,7 @@ void Scene::LoadScene() {
     std::vector<std::shared_ptr<BaseTextureMap>> textures;
     std::stringstream ss(raw_mesh.textures);
     std::string texture_id_str;
-    while (std::getline(ss, texture_id_str, ',')) {
+    while (std::getline(ss, texture_id_str, ' ')) {
       int texture_id = std::stoi(texture_id_str);
       textures.push_back(texture_maps_[texture_id - 1]);
     }
@@ -476,7 +476,7 @@ void Scene::LoadScene() {
     std::vector<std::shared_ptr<BaseTextureMap>> textures;
     std::stringstream ss(raw_mesh_instance.textures);
     std::string texture_id_str;
-    while (std::getline(ss, texture_id_str, ',')) {
+    while (std::getline(ss, texture_id_str, ' ')) {
       int texture_id = std::stoi(texture_id_str);
       textures.push_back(texture_maps_[texture_id - 1]);
     }

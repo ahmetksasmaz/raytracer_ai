@@ -1,14 +1,11 @@
 #include "SphereObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, bool, bool) const {
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool, bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
-  Vec3f transformed_ray_destination =
-      inverse_transform_matrix_ *
-      (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
-  Vec3f transformed_ray_direction =
-      normalize(transformed_ray_destination - transformed_ray_origin);
+    Vec3f transformed_ray_direction =
+      normalize(inverse_transform_matrix_ ^ ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
@@ -29,44 +26,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       Vec3f local_point =
           transformed_ray.origin_ + t * transformed_ray.direction_;
       Vec3f local_normal = normalize(local_point - center_);
-
-      FP_PRECISION x = local_normal.x;
-      FP_PRECISION y = local_normal.y;
-      FP_PRECISION z = local_normal.z;
-      FP_PRECISION r = sqrt(x * x + y * y + z * z);
-      FP_PRECISION t = atan2(y, x);
-      FP_PRECISION p = acos(z / r);
-
-      Vec3f local_normal_sample_1 =
-          Vec3f{FP_PRECISION(sin(p + 0.05) * cos(t)), FP_PRECISION(sin(p + 0.05) * sin(t)),
-                FP_PRECISION(cos(p + 0.05))};
-      Vec3f local_normal_sample_2 =
-          Vec3f{FP_PRECISION(sin(p - 0.05) * cos(t)), FP_PRECISION(sin(p - 0.05) * sin(t)),
-                FP_PRECISION(cos(p - 0.05))};
-      Vec3f local_normal_sample_3 =
-          Vec3f{FP_PRECISION(sin(p) * cos(t + 0.05)), FP_PRECISION(sin(p) * sin(t + 0.05)),
-                FP_PRECISION(cos(p))};
-      Vec3f local_normal_sample_4 =
-          Vec3f{FP_PRECISION(sin(p) * cos(t - 0.05)), FP_PRECISION(sin(p) * sin(t - 0.05)),
-                FP_PRECISION(cos(p))};
-
-      Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
-      Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;
-      Vec3f local_point_sample_3 = center_ + radius_ * local_normal_sample_3;
-      Vec3f local_point_sample_4 = center_ + radius_ * local_normal_sample_4;
-
-      Vec3f global_point_sample_1 = transform_matrix_ * local_point_sample_1 + motion_blur_ * ray.time_;
-      Vec3f global_point_sample_2 = transform_matrix_ * local_point_sample_2 + motion_blur_ * ray.time_;
-      Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3 + motion_blur_ * ray.time_;
-      Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4 + motion_blur_ * ray.time_;
-
-      Vec3f first_axis_normal =
-          normalize(global_point_sample_1 - global_point_sample_2);
-      Vec3f second_axis_normal =
-          normalize(global_point_sample_3 - global_point_sample_4);
-
-      Vec3f approximated_normal =
-          normalize(cross(first_axis_normal, second_axis_normal));
+      Vec3f approximated_normal = normalize(transform_matrix_ ^ local_normal);
 
       Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
       Vec3f diff = global_point - ray.origin_;
@@ -77,10 +37,32 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       ray.direction_.z = normalized_diff.z;
       intersection_normal = approximated_normal;
 
+      FP_PRECISION x = intersection_normal.x;
+      FP_PRECISION y = intersection_normal.y;
+      FP_PRECISION z = intersection_normal.z;
+      FP_PRECISION r = sqrt(x * x + y * y + z * z);
+      FP_PRECISION p = atan2(z, x);
+      FP_PRECISION t = acos(y / r);
+
       // Compute texture coordinates
-      FP_PRECISION u = 0.5f + (atan2(local_normal.z, local_normal.x) / (2.0f * M_PI));
-      FP_PRECISION v = 0.5f - (asin(local_normal.y) / M_PI);
+      FP_PRECISION u = (-p + M_PI) / (2.0 * M_PI);
+      FP_PRECISION v = (t / M_PI);
       tex_coords = Vec2f{u, v};
+
+      // Calculate TBN matrix
+      Vec3f P_val = {sin(t)*cos(p), cos(t), sin(t)*sin(p)};
+        Vec3f tangent;
+        tangent.x = (2 * M_PI * P_val.z);
+        tangent.y = 0;
+        tangent.z = (-2 * M_PI * P_val.x);
+        tangent = normalize(tangent);
+        Vec3f bitangent;
+        bitangent.x = (M_PI * P_val.y * cos(p));
+        bitangent.y = (-M_PI * sin(t));
+        bitangent.z = (M_PI * P_val.y * sin(p));
+        bitangent = normalize(bitangent);
+        tangent_vector = normalize(transform_matrix_ ^ tangent);
+        bitangent_vector = normalize(transform_matrix_ ^ bitangent);
 
       return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));

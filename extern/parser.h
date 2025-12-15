@@ -273,6 +273,7 @@ struct Mat4x4f {
     }
   }
 
+
   FP_PRECISION m[4][4];
 
   FP_PRECISION operator[](size_t index) { return m[index / 4][index % 4]; }
@@ -288,6 +289,27 @@ struct Mat4x4f {
 
     return os;
   }
+};
+
+struct Mat2x2f {
+  Mat2x2f() {}
+  Mat2x2f(std::vector<std::vector<FP_PRECISION>> a) {
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 2; j++) {
+        m[i][j] = a[i][j];
+      }
+    }
+  }
+  Mat2x2f(RawComposite c) {
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 2; j++) {
+        m[i][j] = c.m[i][j];
+      }
+    }
+  }
+  FP_PRECISION m[2][2];
+
+  FP_PRECISION operator[](size_t index) { return m[index / 2][index % 2]; }
 };
 
 struct RawScene {

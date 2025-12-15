@@ -36,6 +36,22 @@ class BaseTextureMap {
         return 0.0;
     }
   }
+  FP_PRECISION GetNormalCoefficient() const {
+    switch (decal_mode_) {
+      case kReplaceNormal:
+        return 1.0;
+      default:
+        return 0.0;
+    }
+  }
+  FP_PRECISION GetBumpCoefficient() const {
+    switch (decal_mode_) {
+      case kBumpNormal:
+        return bump_factor_;
+      default:
+        return 0.0;
+    }
+  }
   FP_PRECISION GetBackgroundCoefficient() const {
     switch (decal_mode_) {
       case kReplaceBackground:
@@ -46,6 +62,7 @@ class BaseTextureMap {
   }
 
   virtual Vec3f GetColorAt(Vec2f tex_coords, Vec3f space_coords) const = 0;
+  virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec3f &gradient_u, Vec3f &gradient_v) const = 0;
 
  protected:
   RawTextureMapDecalMode decal_mode_;
