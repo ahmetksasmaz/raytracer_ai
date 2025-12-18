@@ -14,7 +14,7 @@ MeshInstanceObject::MeshInstanceObject(std::shared_ptr<BaseMaterial> material, s
       mesh_object_(mesh_object) {};
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -35,7 +35,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
   FP_PRECISION mesh_hit = std::numeric_limits<FP_PRECISION>::max();
   if (mesh_object_->left_) {
     if (mesh_object_->left_->Intersect(transformed_ray, mesh_hit,
-                                       temp_intersection_normal,  tex_coords, tangent_vector, bitangent_vector,
+                                       temp_intersection_normal,  tex_coords, hit_u_vector, hit_v_vector, tangent_vector, bitangent_vector,
                                        backface_culling, stop_at_any_hit)) {
       hit = true;
     }
@@ -44,7 +44,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
       FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
       Vec3f normal;
       if (!mesh_object_->triangle_objects_[i]->Intersect(
-              transformed_ray, temp_hit, normal, tex_coords, tangent_vector, bitangent_vector, backface_culling,
+              transformed_ray, temp_hit, normal, tex_coords, hit_u_vector, hit_v_vector, tangent_vector, bitangent_vector, backface_culling,
               stop_at_any_hit)) {
         continue;
       }

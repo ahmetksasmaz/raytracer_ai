@@ -1,7 +1,7 @@
 #include "SphereObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool, bool) const {
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool, bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
     Vec3f transformed_ray_direction =
@@ -48,6 +48,8 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       FP_PRECISION u = (-p + M_PI) / (2.0 * M_PI);
       FP_PRECISION v = (t / M_PI);
       tex_coords = Vec2f{u, v};
+      hit_u_vector = Vec2f{1.0f, 0.0f};
+      hit_v_vector = Vec2f{0.0f, 1.0f};
 
       // Calculate TBN matrix
       Vec3f P_val = {sin(t)*cos(p), cos(t), sin(t)*sin(p)};
@@ -63,7 +65,6 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
         bitangent = normalize(bitangent);
         tangent_vector = normalize(transform_matrix_ ^ tangent);
         bitangent_vector = normalize(transform_matrix_ ^ bitangent);
-
       return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));
     }

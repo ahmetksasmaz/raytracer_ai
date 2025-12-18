@@ -142,7 +142,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
 }
 
 std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -162,7 +162,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
 
   FP_PRECISION mesh_hit = std::numeric_limits<FP_PRECISION>::max();
   if (left_) {
-    if (left_->Intersect(transformed_ray, mesh_hit, temp_intersection_normal, tex_coords, tangent_vector, bitangent_vector,
+    if (left_->Intersect(transformed_ray, mesh_hit, temp_intersection_normal, tex_coords, hit_u_vector, hit_v_vector, tangent_vector, bitangent_vector,
                          backface_culling, stop_at_any_hit)) {
       hit = true;
     }
@@ -170,7 +170,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
     for (size_t i = 0; i < triangle_objects_.size(); i++) {
       FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
       Vec3f normal;
-      if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal, tex_coords, tangent_vector, bitangent_vector,
+      if (!triangle_objects_[i]->Intersect(transformed_ray, temp_hit, normal, tex_coords, hit_u_vector, hit_v_vector, tangent_vector, bitangent_vector,
                                            backface_culling, stop_at_any_hit)) {
         continue;
       }
