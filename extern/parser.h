@@ -172,6 +172,8 @@ struct RawMesh {
   int material_id;
   std::string textures;
   std::vector<RawFace> faces;
+  long long vertex_offset = 0;
+  long long tex_coord_offset = 0;
   std::string ply_filepath = "";
   std::string transformations = "";
   Vec3f motion_blur = {0, 0, 0};

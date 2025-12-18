@@ -376,13 +376,14 @@ void Scene::LoadScene() {
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
                   materials_[raw_mesh.material_id - 1], textures, raw_mesh.ply_filepath,
+                  raw_mesh.vertex_offset, raw_mesh.tex_coord_offset,
                   raw_mesh.motion_blur, transform_matrix, scaling_flip)));
     } else {
       objects_.push_back(
           std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
                   materials_[raw_mesh.material_id - 1], textures, raw_mesh.faces,
-                  raw_scene.vertex_data, raw_scene.tex_coord_data, raw_mesh.motion_blur, transform_matrix,
+                  raw_scene.vertex_data, raw_scene.tex_coord_data, raw_mesh.vertex_offset, raw_mesh.tex_coord_offset, raw_mesh.motion_blur, transform_matrix,
                   scaling_flip)));
     }
   }
