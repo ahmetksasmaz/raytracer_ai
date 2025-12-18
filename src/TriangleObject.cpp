@@ -1,7 +1,7 @@
 #include "TriangleObject.hpp"
 
 std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
@@ -63,6 +63,10 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
     FP_PRECISION tex_v =
         tex_v0_.y * w + tex_v1_.y * u + tex_v2_.y * v;
     tex_coords = Vec2f{tex_u, tex_v};
+
+    // Calculate hit u and v gradient vectors
+    hit_u_vector = normalize(Vec2f{tex_v1_.x - tex_v0_.x, tex_v1_.y - tex_v0_.y});
+    hit_v_vector = normalize(Vec2f{tex_v2_.x - tex_v0_.x, tex_v2_.y - tex_v0_.y});
 
     // Calculate tangent and bitangent vectors
     Vec3f delta_pos1 = edge1;

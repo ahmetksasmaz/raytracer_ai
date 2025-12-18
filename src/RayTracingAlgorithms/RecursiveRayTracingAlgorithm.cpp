@@ -14,13 +14,15 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   Vec3f hit_normal;
   Vec3f hit_tangent_vector;
   Vec3f hit_bitangent_vector;
+  Vec2f hit_u_vector;;
+  Vec2f hit_v_vector;
   std::shared_ptr<BoundingVolumeHierarchyElement> hit_object_ptr = nullptr;
 
   if (inside_object_ptr == nullptr)
   {
     if (configuration_.acceleration_.bvh_high_level_)
     {
-      hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_tangent_vector, hit_bitangent_vector);
+      hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector);
     }
     else
     {
@@ -30,7 +32,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f normal;
         std::shared_ptr<BaseObject> hit_object_casted =
             std::dynamic_pointer_cast<BaseObject>(object);
-        if (object->Intersect(ray, temp_hit, normal, hit_tex_coords, hit_tangent_vector, hit_bitangent_vector))
+        if (object->Intersect(ray, temp_hit, normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector))
         {
           if (t_hit > temp_hit)
           {
@@ -64,7 +66,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   else
   {
     hit_object_ptr = inside_object_ptr;
-    inside_object_ptr->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_tangent_vector, hit_bitangent_vector, false);
+    inside_object_ptr->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, false);
     if (dot(ray.direction_, hit_normal) > 0)
     {
       hit_normal = -hit_normal;
@@ -118,7 +120,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       FP_PRECISION current_texture_bump_coeff = texture->GetBumpCoefficient();
       if(current_texture_bump_coeff > 0.0f) {
         texture_bump_coeff = current_texture_bump_coeff;
-        texture->GetGradientAt(hit_tex_coords, ray.origin_ + ray.direction_ * t_hit, texture_bump_value_u, texture_bump_value_v);
+        texture->GetGradientAt(hit_tex_coords, ray.origin_ + ray.direction_ * t_hit,  hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, texture_bump_value_u, texture_bump_value_v);
       }
     }
 
@@ -138,8 +140,12 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     }
     else if (texture_bump_coeff > 0.0)
     {
-      // Calculate surface gradient
-      hit_normal = normalize(hit_normal - hadamard(texture_bump_coeff * texture_bump_value_u, hit_tangent_vector) - hadamard(texture_bump_coeff * texture_bump_value_v, hit_bitangent_vector));
+      FP_PRECISION grad_u_scalar = (texture_bump_value_u.x + texture_bump_value_u.y + texture_bump_value_u.z) / 3.0;
+      FP_PRECISION grad_v_scalar = (texture_bump_value_v.x + texture_bump_value_v.y + texture_bump_value_v.z) / 3.0;
+
+      hit_normal = normalize(hit_normal -
+                             texture_bump_coeff * grad_u_scalar * hit_tangent_vector -
+                             texture_bump_coeff * grad_v_scalar * hit_bitangent_vector);
     }
     
 
@@ -175,9 +181,11 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f shadow_normal;
         Vec3f shadow_tangent_vector;
         Vec3f shadow_bitangent_vector;
+        Vec2f shadow_u_vector;
+        Vec2f shadow_v_vector;
         if (configuration_.acceleration_.bvh_high_level_)
         {
-          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_tangent_vector, shadow_bitangent_vector,
+          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
                                           false);
           if (ret && (shadow_hit < sqrt(distance_to_light)))
           {
@@ -188,7 +196,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         {
           for (auto object : objects_)
           {
-            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_tangent_vector, shadow_bitangent_vector,
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
                                   false))
             {
               if (shadow_hit < sqrt(distance_to_light))
@@ -298,10 +306,12 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec2f shadow_tex_coords;
         Vec3f shadow_tangent_vector;
         Vec3f shadow_bitangent_vector;
+        Vec2f shadow_u_vector;
+        Vec2f shadow_v_vector;
         if (configuration_.acceleration_.bvh_high_level_)
         {
           auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal,
-                                          shadow_tex_coords, shadow_tangent_vector, shadow_bitangent_vector, false);
+                                          shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector, false);
           if (ret && (shadow_hit < sqrt(distance_to_light)))
           {
             is_in_shadow = true;
@@ -311,7 +321,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         {
           for (auto object : objects_)
           {
-            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_tangent_vector, shadow_bitangent_vector,
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
                                   false))
             {
               if (shadow_hit < sqrt(distance_to_light))

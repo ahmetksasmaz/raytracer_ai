@@ -246,7 +246,7 @@ struct RawTextureMap {
   RawTextureMapType type;
   int image_id;
   RawTextureMapDecalMode decal_mode;
-  RawTextureMapInterpolationMode interpolation_mode;
+  RawTextureMapInterpolationMode interpolation_mode = RawTextureMapInterpolationMode::kNearest;
   FP_PRECISION normalizer;
   FP_PRECISION bump_factor;
   RawTextureMapNoiseConversionType noise_conversion;

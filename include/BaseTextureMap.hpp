@@ -62,7 +62,7 @@ class BaseTextureMap {
   }
 
   virtual Vec3f GetColorAt(Vec2f tex_coords, Vec3f space_coords) const = 0;
-  virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec3f &gradient_u, Vec3f &gradient_v) const = 0;
+  virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec2f hit_u_vector, Vec2f hit_v_vector, Vec3f hit_tangent_vector, Vec3f hit_bitangent_vector, Vec3f &gradient_u, Vec3f &gradient_v) const = 0;
 
  protected:
   RawTextureMapDecalMode decal_mode_;

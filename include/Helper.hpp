@@ -29,6 +29,11 @@ inline Vec3f normalize(Vec3f a) {
   return Vec3f{a.x / norm, a.y / norm, a.z / norm};
 }
 
+inline Vec2f normalize(Vec2f a) {
+  FP_PRECISION norm = sqrt(a.x * a.x + a.y * a.y);
+  return Vec2f{a.x / norm, a.y / norm};
+}
+
 inline FP_PRECISION norm2(Vec3f a) { return a.x * a.x + a.y * a.y + a.z * a.z; }
 
 inline FP_PRECISION norm(Vec3f a) { return sqrt(norm2(a)); }
@@ -41,8 +46,16 @@ inline Vec3f hadamard(Vec3f a, Vec3f b) {
   return Vec3f{a.x * b.x, a.y * b.y, a.z * b.z};
 }
 
+inline Vec2f operator*(Vec2f a, FP_PRECISION b) {
+  return Vec2f{a.x * b, a.y * b};
+}
+
 inline Vec3f operator*(Vec3f a, FP_PRECISION b) {
   return Vec3f{a.x * b, a.y * b, a.z * b};
+}
+
+inline Vec2f operator*(FP_PRECISION a, Vec2f b) {
+  return Vec2f{a * b.x, a * b.y};
 }
 
 inline Vec3f operator*(FP_PRECISION a, Vec3f b) {
@@ -62,6 +75,8 @@ inline Vec3f operator+(Vec3f a, Vec3f b) {
 inline Vec2f operator+(Vec2f a, Vec2f b) { return Vec2f{a.x + b.x, a.y + b.y}; }
 
 inline Vec3f operator-(Vec3f a) { return Vec3f{-a.x, -a.y, -a.z}; }
+
+inline Vec2f operator-(Vec2f a) { return Vec2f{-a.x, -a.y}; }
 
 inline Vec2f operator-(Vec2f a, Vec2f b) { return Vec2f{a.x - b.x, a.y - b.y}; }
 

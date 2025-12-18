@@ -21,12 +21,12 @@ noise_scale_(noise_scale), num_octaves_(num_octaves) {}
     }
     return Vec3f{s,s,s};
   }
-  virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec3f &gradient_u, Vec3f &gradient_v) const override{
+  virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec2f hit_u_vector, Vec2f hit_v_vector, Vec3f hit_tangent_vector, Vec3f hit_bitangent_vector, Vec3f &gradient_u, Vec3f &gradient_v) const override{
     FP_PRECISION delta = 1e-3;
-    Vec3f point_x1 = Vec3f{space_coords.x + delta, space_coords.y, space_coords.z};
-    Vec3f point_x0 = Vec3f{space_coords.x - delta, space_coords.y, space_coords.z};
-    Vec3f point_y1 = Vec3f{space_coords.x, space_coords.y + delta, space_coords.z};
-    Vec3f point_y0 = Vec3f{space_coords.x, space_coords.y - delta, space_coords.z};
+    Vec3f point_x1 =space_coords + delta * hit_tangent_vector;
+    Vec3f point_x0 = space_coords - delta * hit_tangent_vector;
+    Vec3f point_y1 = space_coords + delta * hit_bitangent_vector;
+    Vec3f point_y0 = space_coords - delta * hit_bitangent_vector;
     Vec3f color_x1 = GetColorAt(tex_coords, point_x1);
     Vec3f color_x0 = GetColorAt(tex_coords, point_x0);
     Vec3f color_y1 = GetColorAt(tex_coords, point_y1);

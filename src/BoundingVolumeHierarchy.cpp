@@ -8,7 +8,7 @@ std::vector<Vec2i> BoundingVolumeHierarchyElement::trace_pixels_;
 
 std::shared_ptr<BoundingVolumeHierarchyElement>
 BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
-                                          Vec3f& intersection_normal, Vec2f& tex_coords, Vec3f& tangent_vector,
+                                          Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector,
                                           Vec3f& bitangent_vector,
                                           bool backface_culling,
                                           bool stop_at_any_hit) const {
@@ -82,16 +82,18 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
   Vec2f left_tex_coords, right_tex_coords;
   Vec3f left_tangent_vector, right_tangent_vector;
   Vec3f left_bitangent_vector, right_bitangent_vector;
+  Vec2f left_u_vector, right_u_vector;
+  Vec2f left_v_vector, right_v_vector;
   std::shared_ptr<BoundingVolumeHierarchyElement> left_intersection = nullptr,
                                                   right_intersection = nullptr;
   if (left_) {
     left_intersection =
-        left_->Intersect(ray, left_t_hit, left_intersection_normal, left_tex_coords, left_tangent_vector, left_bitangent_vector,
+        left_->Intersect(ray, left_t_hit, left_intersection_normal, left_tex_coords, left_u_vector, left_v_vector, left_tangent_vector, left_bitangent_vector, 
                          backface_culling, stop_at_any_hit);
   }
   if (right_) {
     right_intersection =
-        right_->Intersect(ray, right_t_hit, right_intersection_normal, right_tex_coords, right_tangent_vector, right_bitangent_vector,
+        right_->Intersect(ray, right_t_hit, right_intersection_normal, right_tex_coords, right_u_vector, right_v_vector, right_tangent_vector, right_bitangent_vector,
                           backface_culling, stop_at_any_hit);
   }
 
@@ -102,6 +104,8 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
       tex_coords = left_tex_coords;
       tangent_vector = left_tangent_vector;
       bitangent_vector = left_bitangent_vector;
+      hit_u_vector = left_u_vector;
+      hit_v_vector = left_v_vector;
       return left_intersection;
     } else {
       t_hit = right_t_hit;
@@ -109,6 +113,8 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
       tex_coords = right_tex_coords;
       tangent_vector = right_tangent_vector;
       bitangent_vector = right_bitangent_vector;
+      hit_u_vector = right_u_vector;
+      hit_v_vector = right_v_vector;
       return right_intersection;
     }
   } else if (left_intersection) {
@@ -117,6 +123,8 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
     tex_coords = left_tex_coords;
     tangent_vector = left_tangent_vector;
     bitangent_vector = left_bitangent_vector;
+    hit_u_vector = left_u_vector;
+    hit_v_vector = left_v_vector;
     return left_intersection;
   } else if (right_intersection) {
     t_hit = right_t_hit;
@@ -124,6 +132,8 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
     tex_coords = right_tex_coords;
     tangent_vector = right_tangent_vector;
     bitangent_vector = right_bitangent_vector;
+    hit_u_vector = right_u_vector;
+    hit_v_vector = right_v_vector;
     return right_intersection;
   } else {
     return nullptr;
