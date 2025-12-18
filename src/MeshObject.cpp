@@ -5,7 +5,7 @@
 #include <limits>
 
 typedef struct Vertex {
-  float x, y, z; /* the usual 3-space position of a vertex */
+  FP_PRECISION x, y, z; /* the usual 3-space position of a vertex */
 } Vertex;
 
 typedef struct Face {
@@ -23,6 +23,19 @@ PlyProperty vert_props[] = {
      0},
 };
 
+typedef struct VertexWithUV {
+  FP_PRECISION x, y, z;
+  FP_PRECISION u, v;
+} VertexWithUV;
+
+PlyProperty vert_props_uv[] = {
+    {const_cast<char*>("x"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, x), 0, 0, 0, 0},
+    {const_cast<char*>("y"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, y), 0, 0, 0, 0},
+    {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, z), 0, 0, 0, 0},
+    {const_cast<char*>("u"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, u), 0, 0, 0, 0},
+    {const_cast<char*>("v"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, v), 0, 0, 0, 0},
+};
+
 PlyProperty face_props[] = {
     /* list of property information for a vertex */
     {const_cast<char*>("vertex_indices"), PLY_INT, PLY_INT,
@@ -33,6 +46,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                        const std::vector<RawFace>& raw_face_data,
                        const std::vector<Vec3f>& raw_vertex_data,
                        const std::vector<Vec2f>& raw_tex_coord_data,
+                        const long long vertex_offset, const long long tex_coord_offset,
                        const Vec3f motion_blur, const Mat4x4f& transform_matrix,
                        RawScalingFlip scaling_flip)
     : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip) {
@@ -40,19 +54,19 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
     triangle_objects_.push_back(
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<TriangleObject>(
-                material, textures, raw_vertex_data[raw_face.v0_id - 1],
-                raw_vertex_data[raw_face.v1_id - 1],
-                raw_vertex_data[raw_face.v2_id - 1],
-                raw_tex_coord_data[raw_face.v0_id - 1],
-                raw_tex_coord_data[raw_face.v1_id - 1],
-                raw_tex_coord_data[raw_face.v2_id - 1],
+                material, textures, raw_vertex_data[raw_face.v0_id - 1 + vertex_offset],
+                raw_vertex_data[raw_face.v1_id - 1 + vertex_offset],
+                raw_vertex_data[raw_face.v2_id - 1 + vertex_offset],
+                raw_tex_coord_data[raw_face.v0_id - 1 + tex_coord_offset],
+                raw_tex_coord_data[raw_face.v1_id - 1 + tex_coord_offset],
+                raw_tex_coord_data[raw_face.v2_id - 1 + tex_coord_offset],
                 Vec3f{0, 0, 0},
                 IDENTITY_MATRIX, RawScalingFlip{false, false, false})));
   }
 };
 
 MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
-                       const std::string& ply_filename, const Vec3f motion_blur,
+                       const std::string& ply_filename, const long long vertex_offset, const long long tex_coord_offset, const Vec3f motion_blur,
                        const Mat4x4f& transform_matrix,
                        RawScalingFlip scaling_flip)
     : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip) {
@@ -69,18 +83,22 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
   }
 
   std::vector<Vec3f> vertex_data_;
+  std::vector<Vec2f> tex_coord_data_;
 
   for (int i = 0; i < nelems; i++) {
     PlyElement* elem = ply_file->elems[i];
     if (strcmp(elem->name, "vertex") == 0) {
-      ply_get_property(ply_file, elem->name, &vert_props[0]);
-      ply_get_property(ply_file, elem->name, &vert_props[1]);
-      ply_get_property(ply_file, elem->name, &vert_props[2]);
+      ply_get_property(ply_file, elem->name, &vert_props_uv[0]);
+      ply_get_property(ply_file, elem->name, &vert_props_uv[1]);
+      ply_get_property(ply_file, elem->name, &vert_props_uv[2]);
+      ply_get_property(ply_file, elem->name, &vert_props_uv[3]);
+      ply_get_property(ply_file, elem->name, &vert_props_uv[4]);
       for (size_t j = 0; j < elem->num; j++) {
-        Vertex vertex;
+        VertexWithUV vertex;
         ply_get_element(ply_file, (void*)&vertex);
 
         vertex_data_.push_back({vertex.x, vertex.y, vertex.z});
+        tex_coord_data_.push_back({vertex.u, vertex.v});
       }
     } else if (strcmp(elem->name, "face") == 0) {
       ply_get_property(ply_file, elem->name, &face_props[0]);
@@ -93,26 +111,26 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
           triangle_objects_.push_back(
               std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
                   std::make_shared<TriangleObject>(
-                      material, textures, vertex_data_[face.verts[0]],
-                      vertex_data_[face.verts[1]], vertex_data_[face.verts[2]],
-                      Vec2f{0, 0}, Vec2f{0,1}, Vec2f{1,0},
+                      material, textures, vertex_data_[face.verts[0] + vertex_offset],
+                      vertex_data_[face.verts[1] + vertex_offset], vertex_data_[face.verts[2] + vertex_offset],
+                      tex_coord_data_[face.verts[0] + tex_coord_offset], tex_coord_data_[face.verts[1] + tex_coord_offset], tex_coord_data_[face.verts[2] + tex_coord_offset],
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
         } else if (face.nverts == 4) {
           triangle_objects_.push_back(
               std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
                   std::make_shared<TriangleObject>(
-                      material, textures, vertex_data_[face.verts[0]],
-                      vertex_data_[face.verts[1]], vertex_data_[face.verts[2]],
-                      Vec2f{0, 0}, Vec2f{0,1}, Vec2f{1,0},
+                      material, textures, vertex_data_[face.verts[0] + vertex_offset],
+                      vertex_data_[face.verts[1] + vertex_offset], vertex_data_[face.verts[2] + vertex_offset],
+                      tex_coord_data_[face.verts[0] + tex_coord_offset], tex_coord_data_[face.verts[1] + tex_coord_offset], tex_coord_data_[face.verts[2] + tex_coord_offset],
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
           triangle_objects_.push_back(
               std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
                   std::make_shared<TriangleObject>(
-                      material, textures, vertex_data_[face.verts[0]],
-                      vertex_data_[face.verts[2]], vertex_data_[face.verts[3]],
-                      Vec2f{0, 0}, Vec2f{0,1}, Vec2f{1,0},
+                      material, textures, vertex_data_[face.verts[0] + vertex_offset],
+                      vertex_data_[face.verts[2] + vertex_offset], vertex_data_[face.verts[3] + vertex_offset],
+                      tex_coord_data_[face.verts[0] + tex_coord_offset], tex_coord_data_[face.verts[2] + tex_coord_offset], tex_coord_data_[face.verts[3] + tex_coord_offset],
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
         }

@@ -1256,6 +1256,16 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
             mesh.faces.push_back(face);
           }
         }
+        if(obj["Faces"].contains("_vertexOffset")) {
+          mesh.vertex_offset = std::stoll(obj["Faces"]["_vertexOffset"].get<std::string>());
+        } else {
+          mesh.vertex_offset = 0;
+        }
+        if(obj["Faces"].contains("_textureOffset")) {
+          mesh.tex_coord_offset = std::stoll(obj["Faces"]["_textureOffset"].get<std::string>());
+        } else {
+          mesh.tex_coord_offset = 0;
+        }
       }
       if (obj.contains("MotionBlur")) {
         auto motion_blur = obj["MotionBlur"].get<std::string>();
