@@ -12,7 +12,7 @@ const FP_PRECISION noise_scale,
 const int num_octaves) : BaseTextureMap(decal_mode, bump_factor), noise_conversion_(noise_conversion),
 noise_scale_(noise_scale), num_octaves_(num_octaves) {}
   virtual ~PerlinTextureMap() = default;
-  virtual Vec3f GetColorAt(Vec2f tex_coords, Vec3f space_coords) const override{
+  virtual Vec3f GetColorAt(Vec2f tex_coords, Vec3f space_coords, Vec2f, Vec2f) const override{
     FP_PRECISION s = 0.0;
     for (int i = 0; i < num_octaves_; i++){
       FP_PRECISION frequency = pow(2.0, i);
@@ -22,15 +22,15 @@ noise_scale_(noise_scale), num_octaves_(num_octaves) {}
     return Vec3f{s,s,s};
   }
   virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec2f hit_u_vector, Vec2f hit_v_vector, Vec3f hit_tangent_vector, Vec3f hit_bitangent_vector, Vec3f &gradient_u, Vec3f &gradient_v) const override{
-    FP_PRECISION delta = 1e-3;
-    Vec3f point_x1 =space_coords + delta * hit_tangent_vector;
-    Vec3f point_x0 = space_coords - delta * hit_tangent_vector;
-    Vec3f point_y1 = space_coords + delta * hit_bitangent_vector;
-    Vec3f point_y0 = space_coords - delta * hit_bitangent_vector;
-    Vec3f color_x1 = GetColorAt(tex_coords, point_x1);
-    Vec3f color_x0 = GetColorAt(tex_coords, point_x0);
-    Vec3f color_y1 = GetColorAt(tex_coords, point_y1);
-    Vec3f color_y0 = GetColorAt(tex_coords, point_y0);
+    FP_PRECISION delta = 1e-4;
+    Vec3f point_x1 = space_coords + delta * normalize(hit_tangent_vector);
+    Vec3f point_x0 = space_coords - delta * normalize(hit_tangent_vector);
+    Vec3f point_y1 = space_coords + delta * normalize(hit_bitangent_vector);
+    Vec3f point_y0 = space_coords - delta * normalize(hit_bitangent_vector);
+    Vec3f color_x1 = GetColorAt(tex_coords, point_x1, Vec2f{}, Vec2f{});
+    Vec3f color_x0 = GetColorAt(tex_coords, point_x0, Vec2f{}, Vec2f{});
+    Vec3f color_y1 = GetColorAt(tex_coords, point_y1, Vec2f{}, Vec2f{});
+    Vec3f color_y0 = GetColorAt(tex_coords, point_y0, Vec2f{}, Vec2f{});
     FP_PRECISION grad_u_x = (color_x1.x - color_x0.x) * (1.0 / (2.0 * delta));
     FP_PRECISION grad_u_y = (color_x1.y - color_x0.y) * (1.0 / (2.0 * delta));
     FP_PRECISION grad_u_z = (color_x1.z - color_x0.z) * (1.0 / (2.0 * delta));

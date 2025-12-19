@@ -15,7 +15,7 @@ class MeshObject : public BaseObject {
              const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip);
 
   std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
-      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
+      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords,  Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
       bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 

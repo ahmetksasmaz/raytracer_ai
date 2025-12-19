@@ -58,6 +58,7 @@ class BaseCamera {
   const Vec3f u_;
   const Vec3f v_;
   const Vec3f q_;
+  const Vec3f up_;
 
   const unsigned int num_samples_;
   const FP_PRECISION focus_distance_;

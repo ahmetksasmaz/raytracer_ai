@@ -13,7 +13,7 @@ const Vec3f black_color,
 const Vec3f white_color) : BaseTextureMap(decal_mode, bump_factor), scale_(scale), offset_(offset),
 black_color_(black_color), white_color_(white_color) {}
   virtual ~CheckerboardTextureMap() = default;
-  virtual Vec3f GetColorAt(Vec2f tex_coords, Vec3f space_coords) const override{
+  virtual Vec3f GetColorAt(Vec2f tex_coords, Vec3f space_coords, Vec2f, Vec2f) const override{
     bool x = ((int) floor((space_coords.x + offset_) * scale_)) % 2;
     bool y = ((int) floor((space_coords.y + offset_) * scale_)) % 2;
     bool z = ((int) floor((space_coords.z + offset_) * scale_)) % 2;

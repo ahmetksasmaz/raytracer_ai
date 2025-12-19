@@ -13,6 +13,7 @@ BaseCamera::BaseCamera(
       image_width_(image_width),
       image_height_(image_height),
       image_name_(image_name),
+      up_(up),
       num_samples_(num_samples),
       mem_num_samples_(num_samples ? num_samples : 1),
       focus_distance_(focus_distance),
@@ -101,7 +102,13 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
     FP_PRECISION su = (pixel_coordinate.x + 0.5) * (r_ - l_) / image_width_;
     FP_PRECISION sv = (pixel_coordinate.y + 0.5) * (t_ - b_) / image_height_;
     Vec3f d = normalize((q_ + (u_ * su)) - (v_ * sv) - position_);
-    return {Ray(pixel_coordinate, position_, d)};
+
+    FP_PRECISION sui = (pixel_coordinate.x + 1 + 0.5) * (r_ - l_) / image_width_;
+    FP_PRECISION svj = (pixel_coordinate.y + 1 + 0.5) * (t_ - b_) / image_height_;
+    Vec3f di = normalize((q_ + (u_ * sui)) - (v_ * sv) - position_);
+    Vec3f dj = normalize((q_ + (u_ * su)) - (v_ * svj) - position_);
+
+    return {Ray(pixel_coordinate, position_, d, {0.5, 0.5}, 0.0, up_, di, dj)};
   }
 
   std::vector<Ray> rays;
@@ -187,6 +194,14 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
       FP_PRECISION sv =
           (pixel_coordinate.y + pixel_sample.y) * (t_ - b_) / image_height_;
       Vec3f d = normalize((q_ + (u_ * su)) - (v_ * sv) - position_);
+
+      FP_PRECISION sui =
+          (pixel_coordinate.x + 1 + pixel_sample.x) * (r_ - l_) / image_width_;
+      FP_PRECISION svj =
+          (pixel_coordinate.y + 1 + pixel_sample.y) * (t_ - b_) / image_height_;
+      Vec3f di = normalize((q_ + (u_ * sui)) - (v_ * sv) - position_);
+      Vec3f dj = normalize((q_ + (u_ * su)) - (v_ * svj) - position_);
+
       FP_PRECISION t = focus_distance_ / dot(d, normalize(cross(v_, u_)));
       Vec3f focus_point = position_ + (d * t);
 
@@ -204,9 +219,11 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
         FP_PRECISION y = s * sin(theta);
         aperture_position = position_ + (u_ * x) + (v_ * y);
       }
+
+
       Ray ray(pixel_coordinate, aperture_position,
               normalize(focus_point - aperture_position),
-              {pixel_sample.x, pixel_sample.y}, time_samples[i]);
+              {pixel_sample.x, pixel_sample.y}, time_samples[i], up_, di, dj);
 
       rays.push_back(ray);
     }
@@ -217,8 +234,16 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
       FP_PRECISION sv =
           (pixel_coordinate.y + samples[i].y) * (t_ - b_) / image_height_;
       Vec3f d = normalize((q_ + (u_ * su)) - (v_ * sv) - position_);
+
+      FP_PRECISION sui =
+          (pixel_coordinate.x + 1 + samples[i].x) * (r_ - l_) / image_width_;
+      FP_PRECISION svj =
+          (pixel_coordinate.y + 1 + samples[i].y) * (t_ - b_) / image_height_;
+      Vec3f di = normalize((q_ + (u_ * sui)) - (v_ * sv) - position_);
+      Vec3f dj = normalize((q_ + (u_ * su)) - (v_ * svj) - position_);
+
       rays.push_back(Ray(pixel_coordinate, position_, d,
-                         {samples[i].x, samples[i].y}, time_samples[i]));
+                         {samples[i].x, samples[i].y}, time_samples[i], up_, di, dj));
     }
   }
   return rays;

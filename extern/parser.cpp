@@ -1019,7 +1019,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
           }
         }
         
-        texture_map.normalizer = tm.contains("Normalizer") ? std::stof(tm["Normalizer"].get<std::string>()) : 1.0f;
+        texture_map.normalizer = tm.contains("Normalizer") ? std::stof(tm["Normalizer"].get<std::string>()) : 255.0f;
         texture_map.bump_factor = tm.contains("BumpFactor") ? std::stof(tm["BumpFactor"].get<std::string>()) : 1.0f;
         texture_map.noise_scale = tm.contains("NoiseScale") ? std::stof(tm["NoiseScale"].get<std::string>()) : 1.0f;
         texture_map.num_octaves = tm.contains("NumOctaves") ? std::stoi(tm["NumOctaves"].get<std::string>()) : 1;
