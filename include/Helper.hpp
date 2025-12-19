@@ -36,6 +36,8 @@ inline Vec2f normalize(Vec2f a) {
 
 inline FP_PRECISION norm2(Vec3f a) { return a.x * a.x + a.y * a.y + a.z * a.z; }
 
+inline FP_PRECISION norm2(Vec2f a) { return a.x * a.x + a.y * a.y; }
+
 inline FP_PRECISION norm(Vec3f a) { return sqrt(norm2(a)); }
 
 inline FP_PRECISION norm(Vec2f a) { return sqrt(a.x * a.x + a.y * a.y); }

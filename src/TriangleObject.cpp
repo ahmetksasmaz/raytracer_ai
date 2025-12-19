@@ -65,19 +65,31 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
     tex_coords = Vec2f{tex_u, tex_v};
 
     // Calculate hit u and v gradient vectors
-    hit_u_vector = normalize(Vec2f{tex_v1_.x - tex_v0_.x, tex_v1_.y - tex_v0_.y});
-    hit_v_vector = normalize(Vec2f{tex_v2_.x - tex_v0_.x, tex_v2_.y - tex_v0_.y});
-
+    hit_u_vector = Vec2f{tex_v1_.x - tex_v0_.x, tex_v1_.y - tex_v0_.y};
+    hit_v_vector = Vec2f{tex_v2_.x - tex_v0_.x, tex_v2_.y - tex_v0_.y};
     // Calculate tangent and bitangent vectors
-    Vec3f delta_pos1 = edge1;
-    Vec3f delta_pos2 = edge2;
-    Vec2f delta_uv1 = Vec2f{tex_v1_.x - tex_v0_.x, tex_v1_.y - tex_v0_.y};
-    Vec2f delta_uv2 = Vec2f{tex_v2_.x - tex_v0_.x, tex_v2_.y - tex_v0_.y};
-    FP_PRECISION r = 1.0f / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
-    tangent_vector = normalize((delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r);
-    bitangent_vector = normalize((delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r);
-    tangent_vector = normalize(transform_matrix_ ^ tangent_vector);
-    bitangent_vector = normalize(transform_matrix_ ^ bitangent_vector);
+    Mat2x2f uv_matrix = Mat2x2f{{{hit_u_vector.x, hit_u_vector.y},
+                                     {hit_v_vector.x, hit_v_vector.y}}};
+    FP_PRECISION det_uv = uv_matrix.m[0][0] * uv_matrix.m[1][1] - uv_matrix.m[0][1] * uv_matrix.m[1][0];
+    Mat2x2f inv_uv_matrix;
+    inv_uv_matrix.m[0][0] = uv_matrix.m[1][1] / det_uv;
+    inv_uv_matrix.m[0][1] = -uv_matrix.m[0][1] / det_uv;
+    inv_uv_matrix.m[1][0] = -uv_matrix.m[1][0] / det_uv;
+    inv_uv_matrix.m[1][1] = uv_matrix.m[0][0] / det_uv;
+    tangent_vector = Vec3f{
+        inv_uv_matrix.m[0][0] * edge1.x + inv_uv_matrix.m[0][1] * edge2.x,
+        inv_uv_matrix.m[0][0] * edge1.y + inv_uv_matrix.m[0][1] * edge2.y,
+        inv_uv_matrix.m[0][0] * edge1.z + inv_uv_matrix.m[0][1] * edge2.z};
+    bitangent_vector = Vec3f{
+        inv_uv_matrix.m[1][0] * edge1.x + inv_uv_matrix.m[1][1] * edge2.x,
+        inv_uv_matrix.m[1][0] * edge1.y + inv_uv_matrix.m[1][1] * edge2.y,
+        inv_uv_matrix.m[1][0] * edge1.z + inv_uv_matrix.m[1][1] * edge2.z};
+    
+    // if(dot(cross(tangent_vector, bitangent_vector), normal_) < 0) {
+    //   tangent_vector = tangent_vector * -1.0;
+    // }
+    tangent_vector = transform_matrix_ ^ tangent_vector;
+    bitangent_vector = transform_matrix_ ^ bitangent_vector;
 
     return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
         std::const_pointer_cast<BaseObject>(this->shared_from_this()));

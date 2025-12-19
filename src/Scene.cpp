@@ -277,7 +277,7 @@ void Scene::LoadScene() {
     {
       texture_maps_.push_back(std::make_shared<ImageTextureMap>(
           raw_texture_map.decal_mode, raw_texture_map.bump_factor, std::shared_ptr<BaseImage>(images_[raw_texture_map.image_id - 1]),
-          raw_texture_map.interpolation_mode));
+          raw_texture_map.interpolation_mode, raw_texture_map.normalizer));
     }
   }
 

@@ -37,9 +37,9 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       ray.direction_.z = normalized_diff.z;
       intersection_normal = approximated_normal;
 
-      FP_PRECISION x = intersection_normal.x;
-      FP_PRECISION y = intersection_normal.y;
-      FP_PRECISION z = intersection_normal.z;
+      FP_PRECISION x = local_point.x - center_.x;
+      FP_PRECISION y = local_point.y - center_.y;
+      FP_PRECISION z = local_point.z - center_.z;
       FP_PRECISION r = sqrt(x * x + y * y + z * z);
       FP_PRECISION p = atan2(z, x);
       FP_PRECISION t = acos(y / r);
@@ -52,19 +52,17 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       hit_v_vector = Vec2f{0.0f, 1.0f};
 
       // Calculate TBN matrix
-      Vec3f P_val = {sin(t)*cos(p), cos(t), sin(t)*sin(p)};
+      Vec3f P_val = {r*sin(t)*cos(p), r*cos(t), r*sin(t)*sin(p)};
         Vec3f tangent;
         tangent.x = (2 * M_PI * P_val.z);
         tangent.y = 0;
         tangent.z = (-2 * M_PI * P_val.x);
-        tangent = normalize(tangent);
         Vec3f bitangent;
         bitangent.x = (M_PI * P_val.y * cos(p));
-        bitangent.y = (-M_PI * sin(t));
+        bitangent.y = (-M_PI * r * sin(t));
         bitangent.z = (M_PI * P_val.y * sin(p));
-        bitangent = normalize(bitangent);
-        tangent_vector = normalize(transform_matrix_ ^ tangent);
-        bitangent_vector = normalize(transform_matrix_ ^ bitangent);
+        tangent_vector = transform_matrix_ ^ tangent;
+        bitangent_vector = transform_matrix_ ^ bitangent;
       return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));
     }

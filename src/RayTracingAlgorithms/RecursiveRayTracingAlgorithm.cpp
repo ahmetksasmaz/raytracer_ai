@@ -14,7 +14,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   Vec3f hit_normal;
   Vec3f hit_tangent_vector;
   Vec3f hit_bitangent_vector;
-  Vec2f hit_u_vector;;
+  Vec2f hit_u_vector;
   Vec2f hit_v_vector;
   std::shared_ptr<BoundingVolumeHierarchyElement> hit_object_ptr = nullptr;
 
@@ -83,25 +83,102 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
 
     std::vector<std::shared_ptr<BaseTextureMap>> textures = hit_object_casted->textures_;
 
-    FP_PRECISION texture_ambient_coeff = 0.0f;
     FP_PRECISION texture_diffuse_coeff = 0.0f;
     FP_PRECISION texture_specular_coeff = 0.0f;
     FP_PRECISION texture_normal_coeff = 0.0f;
     FP_PRECISION texture_bump_coeff = 0.0f;
-    Vec3f texture_ambient_value = {0, 0, 0};
     Vec3f texture_diffuse_value = {0, 0, 0};
     Vec3f texture_specular_value = {0, 0, 0};
     Vec3f texture_normal_value = {0, 0, 0};
+    Vec3f texture_replace_all_value = {0, 0, 0};
     Vec3f texture_bump_value_u = {0, 0, 0}, texture_bump_value_v = {0, 0, 0};
+
+    Mat4x4f tbn_matrix;
+    Vec3f normalized_tangent = normalize(hit_tangent_vector);
+    Vec3f normalized_bitangent = normalize(hit_bitangent_vector);
+    tbn_matrix.m[0][0] = normalized_tangent.x;
+    tbn_matrix.m[1][0] = normalized_tangent.y;;
+    tbn_matrix.m[2][0] = normalized_tangent.z;
+    tbn_matrix.m[0][1] = normalized_bitangent.x;
+    tbn_matrix.m[1][1] = normalized_bitangent.y;;
+    tbn_matrix.m[2][1] = normalized_bitangent.z;
+    tbn_matrix.m[0][2] = hit_normal.x;
+    tbn_matrix.m[1][2] = hit_normal.y;
+    tbn_matrix.m[2][2] = hit_normal.z;
 
     for (const auto &texture : textures)
     {
-      Vec3f texture_value = texture->GetColorAt(hit_tex_coords, ray.origin_ + ray.direction_ * t_hit);
-      FP_PRECISION current_texture_ambient_coeff = texture->GetAmbientCoefficient();
-      if(current_texture_ambient_coeff > 0.0f) {
-        texture_ambient_coeff = current_texture_ambient_coeff;
-        texture_ambient_value = texture_value;
+
+      // Find plane at hit point and hit normal
+      // Ray plane intersection with direction_i_delta and direction_j_delta
+      // Find texture value at other hit points
+
+      Vec3f hit_point = ray.origin_ + ray.direction_ * t_hit;
+      // Plane equation: N.(P - P0) = 0
+      // P0 = hit_point
+      // N = hit_normal
+      // P = ray.origin_ + t * di_direction
+      // t = N.(P0 - ray.origin_) / N.di_direction
+      FP_PRECISION t_hit_di = dot(hit_normal, hit_point - ray.origin_) / dot(hit_normal, ray.direction_i_);
+      FP_PRECISION t_hit_dj = dot(hit_normal, hit_point - ray.origin_) / dot(hit_normal, ray.direction_j_);
+      
+      // Compute texture coordinates at these new hit points
+      Vec3f hit_point_di = ray.origin_ + ray.direction_i_ * t_hit_di;
+      Vec3f hit_point_dj = ray.origin_ + ray.direction_j_ * t_hit_dj;
+      Vec3f pijdi = hit_point_di - hit_point;
+      Vec3f pijdj = hit_point_dj - hit_point;
+      Vec3f pxyzdu = hit_tangent_vector;
+      Vec3f pxyzdv = hit_bitangent_vector;
+      Mat2x2f small_matrix;
+      Vec2f pijdi_small;
+      Vec2f pijdj_small;
+      Vec2f pxyzdu_small;
+      Vec2f pxyzdv_small;
+      Vec2f result_di;
+      Vec2f result_dj;
+      if(hit_normal.x >= hit_normal.y && hit_normal.x >= hit_normal.z) {
+        // x is the largest
+        pijdi_small = Vec2f{pijdi.y, pijdi.z};
+        pijdj_small = Vec2f{pijdj.y, pijdj.z};
+        pxyzdu_small = Vec2f{pxyzdu.y, pxyzdu.z};
+        pxyzdv_small = Vec2f{pxyzdv.y, pxyzdv.z};
       }
+      else if(hit_normal.y >= hit_normal.x && hit_normal.y >= hit_normal.z) {
+        // y is the largest
+        pijdi_small = Vec2f{pijdi.x, pijdi.z};
+        pijdj_small = Vec2f{pijdj.x, pijdj.z};
+        pxyzdu_small = Vec2f{pxyzdu.x, pxyzdu.z};
+        pxyzdv_small = Vec2f{pxyzdv.x, pxyzdv.z};
+      }
+      else {
+        // z is the largest
+        pijdi_small = Vec2f{pijdi.x, pijdi.y};
+        pijdj_small = Vec2f{pijdj.x, pijdj.y};
+        pxyzdu_small = Vec2f{pxyzdu.x, pxyzdu.y};
+        pxyzdv_small = Vec2f{pxyzdv.x, pxyzdv.y};
+      }
+      small_matrix = Mat2x2f{{{pxyzdu_small.x, pxyzdv_small.x},
+                              {pxyzdu_small.y, pxyzdv_small.y}}};
+      FP_PRECISION det = small_matrix.m[0][0] * small_matrix.m[1][1] - small_matrix.m[0][1] * small_matrix.m[1][0];
+      if (std::abs(det) < 1e-10) {
+        continue;
+      }
+      Mat2x2f inv_small_matrix;
+      inv_small_matrix.m[0][0] = small_matrix.m[1][1] / det;
+      inv_small_matrix.m[0][1] = -small_matrix.m[0][1] / det;
+      inv_small_matrix.m[1][0] = -small_matrix.m[1][0] / det;
+      inv_small_matrix.m[1][1] = small_matrix.m[0][0] / det;
+      result_di = Vec2f{inv_small_matrix.m[0][0] * pijdi_small.x + inv_small_matrix.m[0][1] * pijdi_small.y,
+                        inv_small_matrix.m[1][0] * pijdi_small.x + inv_small_matrix.m[1][1] * pijdi_small.y};
+      result_dj = Vec2f{inv_small_matrix.m[0][0] * pijdj_small.x + inv_small_matrix.m[0][1] * pijdj_small.y,
+                              inv_small_matrix.m[1][0] * pijdj_small.x + inv_small_matrix.m[1][1] * pijdj_small.y};
+
+      Vec3f texture_value = texture->GetColorAt(hit_tex_coords, hit_point, result_di, result_dj);
+
+      if(texture->GetReplaceAllFlag()) {
+        return texture_value;
+      }
+
       FP_PRECISION current_texture_diffuse_coeff = texture->GetDiffuseCoefficient();
       if(current_texture_diffuse_coeff > 0.0f) {
         texture_diffuse_coeff = current_texture_diffuse_coeff;
@@ -125,16 +202,6 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     }
 
     if(texture_normal_coeff > 0.0) {
-      Mat4x4f tbn_matrix;
-      tbn_matrix.m[0][0] = hit_tangent_vector.x;
-      tbn_matrix.m[1][0] = hit_tangent_vector.y;;
-      tbn_matrix.m[2][0] = hit_tangent_vector.z;
-      tbn_matrix.m[0][1] = hit_bitangent_vector.x;
-      tbn_matrix.m[1][1] = hit_bitangent_vector.y;;
-      tbn_matrix.m[2][1] = hit_bitangent_vector.z;
-      tbn_matrix.m[0][2] = hit_normal.x;
-      tbn_matrix.m[1][2] = hit_normal.y;
-      tbn_matrix.m[2][2] = hit_normal.z;
       Vec3f modified_normal = tbn_matrix ^ texture_normal_value;
       hit_normal = normalize(modified_normal);
     }
@@ -144,8 +211,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       FP_PRECISION grad_v_scalar = (texture_bump_value_v.x + texture_bump_value_v.y + texture_bump_value_v.z) / 3.0;
 
       hit_normal = normalize(hit_normal -
-                             texture_bump_coeff * grad_u_scalar * hit_tangent_vector -
-                             texture_bump_coeff * grad_v_scalar * hit_bitangent_vector);
+                             texture_bump_coeff * grad_u_scalar * normalize(hit_tangent_vector) -
+                             texture_bump_coeff * grad_v_scalar * normalize(hit_bitangent_vector));
     }
     
 
@@ -157,8 +224,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         {
           
           Vec3f ambient_value = hadamard(material_ptr->ambient_, ambient_light->intensity_);
-          Vec3f texture_color = hadamard(texture_ambient_value, ambient_light->intensity_);
-          pixel_value += (1-texture_ambient_coeff) * ambient_value + texture_ambient_coeff * texture_color;
+          pixel_value += ambient_value;
+
         }
       }
     }
