@@ -57,9 +57,9 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                 material, textures, raw_vertex_data[raw_face.v0_id - 1 + vertex_offset],
                 raw_vertex_data[raw_face.v1_id - 1 + vertex_offset],
                 raw_vertex_data[raw_face.v2_id - 1 + vertex_offset],
-                raw_tex_coord_data[raw_face.v0_id - 1 + tex_coord_offset],
-                raw_tex_coord_data[raw_face.v1_id - 1 + tex_coord_offset],
-                raw_tex_coord_data[raw_face.v2_id - 1 + tex_coord_offset],
+                textures_.size() > 0 ? raw_tex_coord_data[raw_face.v0_id - 1 + tex_coord_offset] : Vec2f{0,0},
+                textures_.size() > 0 ? raw_tex_coord_data[raw_face.v1_id - 1 + tex_coord_offset] : Vec2f{0,0},
+                textures_.size() > 0 ? raw_tex_coord_data[raw_face.v2_id - 1 + tex_coord_offset] : Vec2f{0,0},
                 Vec3f{0, 0, 0},
                 IDENTITY_MATRIX, RawScalingFlip{false, false, false})));
   }
@@ -113,7 +113,9 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                   std::make_shared<TriangleObject>(
                       material, textures, vertex_data_[face.verts[0] + vertex_offset],
                       vertex_data_[face.verts[1] + vertex_offset], vertex_data_[face.verts[2] + vertex_offset],
-                      tex_coord_data_[face.verts[0] + tex_coord_offset], tex_coord_data_[face.verts[1] + tex_coord_offset], tex_coord_data_[face.verts[2] + tex_coord_offset],
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[0] + tex_coord_offset] : Vec2f{0,0},
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[1] + tex_coord_offset] : Vec2f{0,0},
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[2] + tex_coord_offset] : Vec2f{0,0},
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
         } else if (face.nverts == 4) {
@@ -122,7 +124,9 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                   std::make_shared<TriangleObject>(
                       material, textures, vertex_data_[face.verts[0] + vertex_offset],
                       vertex_data_[face.verts[1] + vertex_offset], vertex_data_[face.verts[2] + vertex_offset],
-                      tex_coord_data_[face.verts[0] + tex_coord_offset], tex_coord_data_[face.verts[1] + tex_coord_offset], tex_coord_data_[face.verts[2] + tex_coord_offset],
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[0] + tex_coord_offset] : Vec2f{0,0},
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[1] + tex_coord_offset] : Vec2f{0,0},
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[2] + tex_coord_offset] : Vec2f{0,0},
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
           triangle_objects_.push_back(
@@ -130,7 +134,9 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                   std::make_shared<TriangleObject>(
                       material, textures, vertex_data_[face.verts[0] + vertex_offset],
                       vertex_data_[face.verts[2] + vertex_offset], vertex_data_[face.verts[3] + vertex_offset],
-                      tex_coord_data_[face.verts[0] + tex_coord_offset], tex_coord_data_[face.verts[2] + tex_coord_offset], tex_coord_data_[face.verts[3] + tex_coord_offset],
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[0] + tex_coord_offset] : Vec2f{0,0},
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[2] + tex_coord_offset] : Vec2f{0,0},
+                      textures_.size() > 0 ? tex_coord_data_[face.verts[3] + tex_coord_offset] : Vec2f{0,0},
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false})));
         }

@@ -48,6 +48,7 @@ class Scene {
   const Configuration configuration_;
 
   Vec3i background_color_;
+  std::shared_ptr<BaseTextureMap> background_texture_map_ = nullptr;
   FP_PRECISION shadow_ray_epsilon_;
   int max_recursion_depth_;
 

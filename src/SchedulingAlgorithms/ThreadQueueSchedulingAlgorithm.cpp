@@ -41,7 +41,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
                              index.second * camera->image_width_ + index.first,
                              ray_index);
           const Vec3f pixel_value = ray_tracing_algorithm_(
-              rays[ray_index], nullptr, max_recursion_depth_-1,
+              rays[ray_index], nullptr, max_recursion_depth_,
               max_recursion_depth_);
           camera->UpdateSampledPixelValue({index.first, index.second},
                                           pixel_value, ray_index,

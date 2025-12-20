@@ -275,10 +275,20 @@ void Scene::LoadScene() {
     }
     else if (raw_texture_map.type == RawTextureMapType::kImage)
     {
-      texture_maps_.push_back(std::make_shared<ImageTextureMap>(
+      if(raw_texture_map.decal_mode == RawTextureMapDecalMode::kReplaceBackground)
+      {
+        texture_maps_.push_back(std::make_shared<ImageTextureMap>(
+        raw_texture_map.decal_mode, raw_texture_map.bump_factor, std::shared_ptr<BaseImage>(images_[raw_texture_map.image_id - 1]),
+        raw_texture_map.interpolation_mode, 1.0));
+        background_texture_map_ = texture_maps_.back();
+      }
+      else{
+          texture_maps_.push_back(std::make_shared<ImageTextureMap>(
           raw_texture_map.decal_mode, raw_texture_map.bump_factor, std::shared_ptr<BaseImage>(images_[raw_texture_map.image_id - 1]),
           raw_texture_map.interpolation_mode, raw_texture_map.normalizer));
+      }
     }
+    
   }
 
 #ifdef DEBUG
@@ -348,9 +358,9 @@ void Scene::LoadScene() {
                 raw_scene.vertex_data[raw_triangle.indices.v0_id - 1],
                 raw_scene.vertex_data[raw_triangle.indices.v1_id - 1],
                 raw_scene.vertex_data[raw_triangle.indices.v2_id - 1],
-                raw_scene.tex_coord_data[raw_triangle.indices.v0_id - 1],
-                raw_scene.tex_coord_data[raw_triangle.indices.v1_id - 1],
-                raw_scene.tex_coord_data[raw_triangle.indices.v2_id - 1],
+                textures.size() > 0 ? raw_scene.tex_coord_data[raw_triangle.indices.v0_id - 1] : Vec2f{0,0},
+                textures.size() > 0 ? raw_scene.tex_coord_data[raw_triangle.indices.v1_id - 1] : Vec2f{0,0},
+                textures.size() > 0 ? raw_scene.tex_coord_data[raw_triangle.indices.v2_id - 1] : Vec2f{0,0},
                 raw_triangle.motion_blur, transform_matrix, scaling_flip)));
   }
 
