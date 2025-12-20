@@ -22,6 +22,7 @@ class BaseObject : public BoundingVolumeHierarchyElement,
         scaling_flip_(scaling_flip) {
     inverse_transform_matrix_ = ~transform_matrix_;
     inverse_transpose_transform_matrix_ = !inverse_transform_matrix_;
+    transpose_transform_matrix_ = !transform_matrix_;
   }
 
   virtual void InitializeSelf(const Vec3f& min_point,
@@ -39,6 +40,7 @@ class BaseObject : public BoundingVolumeHierarchyElement,
 
   Vec3f motion_blur_;
   Mat4x4f transform_matrix_;
+  Mat4x4f transpose_transform_matrix_;
   Mat4x4f inverse_transform_matrix_;
   Mat4x4f inverse_transpose_transform_matrix_;
   RawScalingFlip scaling_flip_;

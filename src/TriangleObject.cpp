@@ -44,17 +44,17 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
   if (t > 1e-5) {
     Vec3f local_point =
         transformed_ray.origin_ + t * transformed_ray.direction_;
-    // Vec3f local_point_destination = local_point + normal_;
+    Vec3f local_point_destination = local_point + normal_;
     Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
-    // Vec3f global_point_destination =
-    //     transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
+    Vec3f global_point_destination =
+        transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
     Vec3f normalized_diff = normalize(diff);
     ray.direction_.x = normalized_diff.x;
     ray.direction_.y = normalized_diff.y;
     ray.direction_.z = normalized_diff.z;
-    intersection_normal = normalize(transform_matrix_ ^ normal_);
+    intersection_normal = normalize(global_point_destination - global_point);
 
     // Calculate texture coordinates
     FP_PRECISION w = 1 - u - v;

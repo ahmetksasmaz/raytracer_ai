@@ -615,9 +615,19 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   {
     if (remaining_recursion == max_recursion-1)
     {
-      pixel_value.x = background_color_.x;
-      pixel_value.y = background_color_.y;
-      pixel_value.z = background_color_.z;
+      if(background_texture_map_)
+      {
+        FP_PRECISION u = 0.5 + (atan2(ray.direction_.z, ray.direction_.x) / (2 * M_PI));
+        FP_PRECISION v = 0.5 - (asin(ray.direction_.y) / M_PI);
+        Vec2f tex_coords = {u, v};
+        pixel_value = background_texture_map_->GetColorAt(tex_coords, {0,0,0});
+      }
+      else
+      {
+        pixel_value.x = background_color_.x;
+        pixel_value.y = background_color_.y;
+        pixel_value.z = background_color_.z;
+      }
     }
     else
     {

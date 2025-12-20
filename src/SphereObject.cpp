@@ -26,7 +26,34 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       Vec3f local_point =
           transformed_ray.origin_ + t * transformed_ray.direction_;
       Vec3f local_normal = normalize(local_point - center_);
-      Vec3f approximated_normal = normalize(transform_matrix_ ^ local_normal);
+      
+      
+      FP_PRECISION local_x = local_normal.x;
+      FP_PRECISION local_y = local_normal.y;
+      FP_PRECISION local_z = local_normal.z;
+      FP_PRECISION local_r = sqrt(local_x * local_x + local_y * local_y + local_z * local_z);
+      FP_PRECISION local_t = atan2(local_y, local_x);
+      FP_PRECISION local_p = acos(local_z / local_r);
+
+      Vec3f local_normal_sample_1 = Vec3f{sin(local_p+0.05) * cos(local_t), sin(local_p+0.05) * sin(local_t), cos(local_p+0.05)};
+      Vec3f local_normal_sample_2 = Vec3f{sin(local_p-0.05) * cos(local_t), sin(local_p-0.05) * sin(local_t), cos(local_p-0.05)};
+      Vec3f local_normal_sample_3 = Vec3f{sin(local_p) * cos(local_t+0.05), sin(local_p) * sin(local_t+0.05), cos(local_p)};
+      Vec3f local_normal_sample_4 = Vec3f{sin(local_p) * cos(local_t-0.05), sin(local_p) * sin(local_t-0.05), cos(local_p)};
+
+      Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
+      Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;
+      Vec3f local_point_sample_3 = center_ + radius_ * local_normal_sample_3;
+      Vec3f local_point_sample_4 = center_ + radius_ * local_normal_sample_4;
+
+      Vec3f global_point_sample_1 = transform_matrix_ * local_point_sample_1;
+      Vec3f global_point_sample_2 = transform_matrix_ * local_point_sample_2;
+      Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3;
+      Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4;
+
+      Vec3f first_axis_normal = normalize(global_point_sample_1 - global_point_sample_2);
+      Vec3f second_axis_normal = normalize(global_point_sample_3 - global_point_sample_4);
+
+      Vec3f approximated_normal = normalize(cross(first_axis_normal, second_axis_normal));
 
       Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
       Vec3f diff = global_point - ray.origin_;
