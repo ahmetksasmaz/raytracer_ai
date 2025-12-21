@@ -5,7 +5,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
     Vec3f transformed_ray_direction =
-      normalize(inverse_transform_matrix_ ^ ray.direction_);
+      normalize(inverse_transpose_transform_matrix_ * ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
@@ -28,32 +28,34 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       Vec3f local_normal = normalize(local_point - center_);
       
       
-      FP_PRECISION local_x = local_normal.x;
-      FP_PRECISION local_y = local_normal.y;
-      FP_PRECISION local_z = local_normal.z;
-      FP_PRECISION local_r = sqrt(local_x * local_x + local_y * local_y + local_z * local_z);
-      FP_PRECISION local_t = atan2(local_y, local_x);
-      FP_PRECISION local_p = acos(local_z / local_r);
+      // FP_PRECISION local_x = local_normal.x;
+      // FP_PRECISION local_y = local_normal.y;
+      // FP_PRECISION local_z = local_normal.z;
+      // FP_PRECISION local_r = sqrt(local_x * local_x + local_y * local_y + local_z * local_z);
+      // FP_PRECISION local_t = atan2(local_y, local_x);
+      // FP_PRECISION local_p = acos(local_z / local_r);
 
-      Vec3f local_normal_sample_1 = Vec3f{sin(local_p+0.05) * cos(local_t), sin(local_p+0.05) * sin(local_t), cos(local_p+0.05)};
-      Vec3f local_normal_sample_2 = Vec3f{sin(local_p-0.05) * cos(local_t), sin(local_p-0.05) * sin(local_t), cos(local_p-0.05)};
-      Vec3f local_normal_sample_3 = Vec3f{sin(local_p) * cos(local_t+0.05), sin(local_p) * sin(local_t+0.05), cos(local_p)};
-      Vec3f local_normal_sample_4 = Vec3f{sin(local_p) * cos(local_t-0.05), sin(local_p) * sin(local_t-0.05), cos(local_p)};
+      // Vec3f local_normal_sample_1 = Vec3f{sin(local_p+0.05) * cos(local_t), sin(local_p+0.05) * sin(local_t), cos(local_p+0.05)};
+      // Vec3f local_normal_sample_2 = Vec3f{sin(local_p-0.05) * cos(local_t), sin(local_p-0.05) * sin(local_t), cos(local_p-0.05)};
+      // Vec3f local_normal_sample_3 = Vec3f{sin(local_p) * cos(local_t+0.05), sin(local_p) * sin(local_t+0.05), cos(local_p)};
+      // Vec3f local_normal_sample_4 = Vec3f{sin(local_p) * cos(local_t-0.05), sin(local_p) * sin(local_t-0.05), cos(local_p)};
 
-      Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
-      Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;
-      Vec3f local_point_sample_3 = center_ + radius_ * local_normal_sample_3;
-      Vec3f local_point_sample_4 = center_ + radius_ * local_normal_sample_4;
+      // Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
+      // Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;
+      // Vec3f local_point_sample_3 = center_ + radius_ * local_normal_sample_3;
+      // Vec3f local_point_sample_4 = center_ + radius_ * local_normal_sample_4;
 
-      Vec3f global_point_sample_1 = transform_matrix_ * local_point_sample_1;
-      Vec3f global_point_sample_2 = transform_matrix_ * local_point_sample_2;
-      Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3;
-      Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4;
+      // Vec3f global_point_sample_1 = transform_matrix_ * local_point_sample_1;
+      // Vec3f global_point_sample_2 = transform_matrix_ * local_point_sample_2;
+      // Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3;
+      // Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4;
 
-      Vec3f first_axis_normal = normalize(global_point_sample_1 - global_point_sample_2);
-      Vec3f second_axis_normal = normalize(global_point_sample_3 - global_point_sample_4);
+      // Vec3f first_axis_normal = normalize(global_point_sample_1 - global_point_sample_2);
+      // Vec3f second_axis_normal = normalize(global_point_sample_3 - global_point_sample_4);
 
-      Vec3f approximated_normal = normalize(cross(first_axis_normal, second_axis_normal));
+      // Vec3f approximated_normal = normalize(cross(first_axis_normal, second_axis_normal));
+
+      Vec3f approximated_normal = normalize(inverse_transpose_transform_matrix_ * local_normal);
 
       Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
       Vec3f diff = global_point - ray.origin_;
@@ -75,9 +77,6 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       FP_PRECISION u = (-p + M_PI) / (2.0 * M_PI);
       FP_PRECISION v = (t / M_PI);
       tex_coords = Vec2f{u, v};
-      hit_u_vector = Vec2f{1.0f, 0.0f};
-      hit_v_vector = Vec2f{0.0f, 1.0f};
-
       // Calculate TBN matrix
       Vec3f P_val = {r*sin(t)*cos(p), r*cos(t), r*sin(t)*sin(p)};
         Vec3f tangent;
@@ -90,7 +89,17 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
         bitangent.z = (M_PI * P_val.y * sin(p));
         tangent_vector = transform_matrix_ ^ tangent;
         bitangent_vector = transform_matrix_ ^ bitangent;
-      return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+      
+        // hit_u_vector = Vec2f{-(atan2(sin(p)/(2*M_PI) - cos(p), cos(p)/(2*M_PI) + sin(p)) - p)/(2*M_PI), 0.0f};
+        // hit_v_vector = Vec2f{0.0f, (acos((cos(t)/M_PI -sin(t))/sqrt(1+(sin(2*t)/M_PI))) - t)/M_PI};
+
+        // hit_u_vector = Vec2f{1/(2*M_PI), 0.0f};
+        // hit_v_vector = Vec2f{0.0f, 1/(M_PI)};
+
+        hit_u_vector = Vec2f{1/(2*M_PI*sin(t)), 0.0f};
+        hit_v_vector = Vec2f{0.0f, 1/(M_PI)};
+
+        return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
           std::const_pointer_cast<BaseObject>(this->shared_from_this()));
     }
   }

@@ -99,25 +99,30 @@ class ImageTextureMap : public BaseTextureMap {
   }
 
     virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec2f hit_u_vector, Vec2f hit_v_vector, Vec3f hit_tangent_vector, Vec3f hit_bitangent_vector, Vec3f &gradient_u, Vec3f &gradient_v) const override{
-      FP_PRECISION delta_u = 1.0 / image_->width_;
-      FP_PRECISION delta_v = 1.0 / image_->height_;
+      // FP_PRECISION delta_u = 1.0 / image_->width_;
+      // FP_PRECISION delta_v = 1.0 / image_->height_;
       
-      Vec2f tex_coords_u1 = tex_coords + delta_u * Vec2f{1,0};// * normalize(hit_u_vector);
-      Vec2f tex_coords_u2 = tex_coords - delta_u * Vec2f{1,0};// * normalize(hit_u_vector);
+      Vec3f color = GetColorAt(tex_coords, space_coords);
+
+      Vec2f tex_coords_u1 = tex_coords + hit_u_vector / norm(hit_tangent_vector);
+      // Vec2f tex_coords_u2 = tex_coords - hit_u_vector;
+      // Vec2f tex_coords_u1 = tex_coords + hit_u_vector;
+      // Vec2f tex_coords_u2 = tex_coords - hit_u_vector;
       Vec3f color_u1 = GetColorAt(tex_coords_u1, space_coords);
-      Vec3f color_u2 = GetColorAt(tex_coords_u2, space_coords);
-      
-      Vec2f tex_coords_v1 = tex_coords + delta_v * Vec2f{0,1};// * normalize(hit_v_vector);
-      Vec2f tex_coords_v2 = tex_coords - delta_v * Vec2f{0,1};// * normalize(hit_v_vector);
+      // Vec3f color_u2 = GetColorAt(tex_coords_u2, space_coords);
+
+      Vec2f tex_coords_v1 = tex_coords + hit_v_vector / norm(hit_bitangent_vector);
+      // Vec2f tex_coords_v2 = tex_coords - hit_v_vector;
+      // Vec2f tex_coords_v1 = tex_coords + hit_v_vector;
+      // Vec2f tex_coords_v2 = tex_coords - hit_v_vector;
       Vec3f color_v1 = GetColorAt(tex_coords_v1, space_coords);
-      Vec3f color_v2 = GetColorAt(tex_coords_v2, space_coords);
+      // Vec3f color_v2 = GetColorAt(tex_coords_v2, space_coords);
       
-      Vec3f grad_vec_u = (color_u1 - color_u2) / (2*delta_u);
-      Vec3f grad_vec_v = (color_v1 - color_v2) / (2*delta_v);
-      FP_PRECISION grad_vec_u_gray = (grad_vec_u.x + grad_vec_u.y + grad_vec_u.z)/3.0;
-      FP_PRECISION grad_vec_v_gray = (grad_vec_v.x + grad_vec_v.y + grad_vec_v.z)/3.0;
-      gradient_u = Vec3f{grad_vec_u_gray, grad_vec_u_gray, grad_vec_u_gray};
-      gradient_v = Vec3f{grad_vec_v_gray, grad_vec_v_gray, grad_vec_v_gray};
+      // gradient_u = (color_u1 - color_u2) / (2*norm(hit_u_vector));
+      // gradient_v = (color_v1 - color_v2) / (2*norm(hit_v_vector));
+
+      gradient_u = (color_u1 - color) * norm(hit_tangent_vector) / norm(hit_u_vector);
+      gradient_v = (color_v1 - color) * norm(hit_bitangent_vector) / norm(hit_v_vector);
     }
 private:
   const RawTextureMapInterpolationMode interpolation_mode_;
