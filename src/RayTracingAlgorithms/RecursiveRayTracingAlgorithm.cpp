@@ -91,16 +91,16 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     Vec3f texture_specular_value = {0, 0, 0};
     Vec3f texture_normal_value = {0, 0, 0};
     Vec3f texture_replace_all_value = {0, 0, 0};
-    Vec3f texture_bump_value_u = {0, 0, 0}, texture_bump_value_v = {0, 0, 0};
+    Vec3f texture_bump_value_center = {0,0,0}, texture_bump_value_u = {0, 0, 0}, texture_bump_value_v = {0, 0, 0};
 
     Mat4x4f tbn_matrix;
     Vec3f normalized_tangent = normalize(hit_tangent_vector);
     Vec3f normalized_bitangent = normalize(hit_bitangent_vector);
     tbn_matrix.m[0][0] = normalized_tangent.x;
-    tbn_matrix.m[1][0] = normalized_tangent.y;;
+    tbn_matrix.m[1][0] = normalized_tangent.y;
     tbn_matrix.m[2][0] = normalized_tangent.z;
     tbn_matrix.m[0][1] = normalized_bitangent.x;
-    tbn_matrix.m[1][1] = normalized_bitangent.y;;
+    tbn_matrix.m[1][1] = normalized_bitangent.y;
     tbn_matrix.m[2][1] = normalized_bitangent.z;
     tbn_matrix.m[0][2] = hit_normal.x;
     tbn_matrix.m[1][2] = hit_normal.y;
@@ -197,9 +197,13 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       FP_PRECISION current_texture_bump_coeff = texture->GetBumpCoefficient();
       if(current_texture_bump_coeff > 0.0f) {
         texture_bump_coeff = current_texture_bump_coeff;
+        texture_bump_value_center = texture_value;
         texture->GetGradientAt(hit_tex_coords, ray.origin_ + ray.direction_ * t_hit,  hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, texture_bump_value_u, texture_bump_value_v);
       }
     }
+
+    Vec3f intersection_point =
+        ray.origin_ + ray.direction_ * t_hit;
 
     if(texture_normal_coeff > 0.0) {
       Vec3f modified_normal = tbn_matrix ^ texture_normal_value;
@@ -207,13 +211,20 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     }
     else if (texture_bump_coeff > 0.0)
     {
-      FP_PRECISION grad_u_scalar = (texture_bump_value_u.x + texture_bump_value_u.y + texture_bump_value_u.z) / 3.0;
-      FP_PRECISION grad_v_scalar = (texture_bump_value_v.x + texture_bump_value_v.y + texture_bump_value_v.z) / 3.0;
+      FP_PRECISION center_value = (texture_bump_value_center.x + texture_bump_value_center.y + texture_bump_value_center.z) / 3.0f;
+      intersection_point = intersection_point + hit_normal * center_value * texture_bump_coeff;
+      
+      FP_PRECISION u_value = (texture_bump_value_u.x + texture_bump_value_u.y + texture_bump_value_u.z) / 3.0f;
+      FP_PRECISION v_value = (texture_bump_value_v.x + texture_bump_value_v.y + texture_bump_value_v.z) / 3.0f;
+      Vec3f dqdu = hit_tangent_vector + (u_value * texture_bump_coeff * hit_normal);
+      Vec3f dqdv = hit_bitangent_vector + (v_value * texture_bump_coeff * hit_normal);
 
-      hit_normal = normalize(hit_normal -
-                             texture_bump_coeff * grad_u_scalar * normalize(hit_tangent_vector) -
-                             texture_bump_coeff * grad_v_scalar * normalize(hit_bitangent_vector));
+      Vec3f perturbed_normal = normalize(cross(dqdv, dqdu));
+      hit_normal = perturbed_normal;
+      // hit_normal = normalize(hit_normal + (u_value * texture_bump_coeff * hit_tangent_vector) + (v_value * texture_bump_coeff * hit_bitangent_vector));
     }
+
+    intersection_point = intersection_point + hit_normal * shadow_ray_epsilon_;
     
 
     if (!inside_object_ptr)
@@ -230,8 +241,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       }
     }
 
-    Vec3f intersection_point =
-        ray.origin_ + ray.direction_ * t_hit + hit_normal * shadow_ray_epsilon_;
+    
     if (!inside_object_ptr)
     {
       for (auto point_light : point_lights_)
