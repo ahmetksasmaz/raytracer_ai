@@ -5,7 +5,7 @@
 #include <limits>
 
 typedef struct Vertex {
-  FP_PRECISION x, y, z; /* the usual 3-space position of a vertex */
+  float x, y, z; /* the usual 3-space position of a vertex */
 } Vertex;
 
 typedef struct Face {
@@ -24,8 +24,8 @@ PlyProperty vert_props[] = {
 };
 
 typedef struct VertexWithUV {
-  FP_PRECISION x, y, z;
-  FP_PRECISION u, v;
+  float x, y, z;
+  float u, v;
 } VertexWithUV;
 
 PlyProperty vert_props_uv[] = {
@@ -39,6 +39,12 @@ PlyProperty vert_props_uv[] = {
 PlyProperty face_props[] = {
     /* list of property information for a vertex */
     {const_cast<char*>("vertex_indices"), PLY_INT, PLY_INT,
+     offsetof(Face, verts), 1, PLY_UCHAR, PLY_UCHAR, offsetof(Face, nverts)},
+};
+
+PlyProperty face_props2[] = {
+    /* list of property information for a vertex */
+    {const_cast<char*>("vertex_index"), PLY_INT, PLY_INT,
      offsetof(Face, verts), 1, PLY_UCHAR, PLY_UCHAR, offsetof(Face, nverts)},
 };
 
@@ -82,26 +88,49 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
     throw std::runtime_error("Error reading file " + ply_filename);
   }
 
-  std::vector<Vec3f> vertex_data_;
-  std::vector<Vec2f> tex_coord_data_;
+
+
+  std::vector<Vec3f> vertex_data_(0);
+  std::vector<Vec2f> tex_coord_data_(0);
 
   for (int i = 0; i < nelems; i++) {
     PlyElement* elem = ply_file->elems[i];
     if (strcmp(elem->name, "vertex") == 0) {
-      ply_get_property(ply_file, elem->name, &vert_props_uv[0]);
-      ply_get_property(ply_file, elem->name, &vert_props_uv[1]);
-      ply_get_property(ply_file, elem->name, &vert_props_uv[2]);
-      ply_get_property(ply_file, elem->name, &vert_props_uv[3]);
-      ply_get_property(ply_file, elem->name, &vert_props_uv[4]);
-      for (size_t j = 0; j < elem->num; j++) {
-        VertexWithUV vertex;
-        ply_get_element(ply_file, (void*)&vertex);
+      if(elem->nprops == 3)
+      {
+        ply_get_property(ply_file, elem->name, &vert_props[0]);
+        ply_get_property(ply_file, elem->name, &vert_props[1]);
+        ply_get_property(ply_file, elem->name, &vert_props[2]);
+        for (size_t j = 0; j < elem->num; j++) {
+          Vertex vertex;
+          ply_get_element(ply_file, (void*)&vertex);
 
-        vertex_data_.push_back({vertex.x, vertex.y, vertex.z});
-        tex_coord_data_.push_back({vertex.u, vertex.v});
+          vertex_data_.push_back({vertex.x, vertex.y, vertex.z});
+        }
+      }
+      else if(elem->nprops == 5)
+      {
+        ply_get_property(ply_file, elem->name, &vert_props_uv[0]);
+        ply_get_property(ply_file, elem->name, &vert_props_uv[1]);
+        ply_get_property(ply_file, elem->name, &vert_props_uv[2]);
+        ply_get_property(ply_file, elem->name, &vert_props_uv[3]);
+        ply_get_property(ply_file, elem->name, &vert_props_uv[4]);
+        for (size_t j = 0; j < elem->num; j++) {
+          VertexWithUV vertex;
+          ply_get_element(ply_file, (void*)&vertex);
+
+          vertex_data_.push_back({vertex.x, vertex.y, vertex.z});
+          tex_coord_data_.push_back({vertex.u, vertex.v});
+        }
       }
     } else if (strcmp(elem->name, "face") == 0) {
-      ply_get_property(ply_file, elem->name, &face_props[0]);
+      if(elem->props[0]->name && strcmp(elem->props[0]->name, "vertex_index") == 0)
+      {
+        ply_get_property(ply_file, elem->name, &face_props2[0]);
+      }
+      else{
+        ply_get_property(ply_file, elem->name, &face_props[0]);
+      }
 
       for (size_t j = 0; j < elem->num; j++) {
         Face face;

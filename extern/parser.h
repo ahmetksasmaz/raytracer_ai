@@ -195,6 +195,7 @@ struct RawMaterial {
   FP_PRECISION absorption_index;
   FP_PRECISION phong_exponent;
   FP_PRECISION roughness = 0.0;
+  bool degamma = false;
 };
 
 struct RawFace {
