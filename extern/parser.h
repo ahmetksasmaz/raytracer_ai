@@ -178,6 +178,7 @@ struct RawSpotLight {
 };
 
 struct RawSphericalDirectionalLight{
+  bool exists = false;
   RawEnvironmentMapType type;
   RawEnvironmentMapSampler sampler;
   int image_id;

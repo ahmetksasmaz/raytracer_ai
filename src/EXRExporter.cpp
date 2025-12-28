@@ -1,7 +1,6 @@
 #include "EXRExporter.hpp"
 #include <algorithm>
 
-#define TINYEXR_IMPLEMENTATION
 #include "../extern/tinyexr.h"
 
 void EXRExporter::Export(const std::string &filename, const int width, const int height, const float *float_data) const {

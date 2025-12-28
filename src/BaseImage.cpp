@@ -2,15 +2,17 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../extern/stb_image.h"
-#include "STBExtendedExporter.hpp"
+#include "STBExporter.hpp"
 
+#define TINYEXR_USE_MINIZ 0
+#define TINYEXR_USE_STB_ZLIB 1
 #define TINYEXR_IMPLEMENTATION
 #include "../extern/tinyexr.h"
 
 BaseImage::BaseImage(const std::string& path) : path_(path) {
 
     std::string extension = path.substr(path.find_last_of('.') + 1);
-    extension = std::to_lower(extension);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
     if(extension == "exr" || extension == "hdr"){
       float* out;
       const char* err = NULL;

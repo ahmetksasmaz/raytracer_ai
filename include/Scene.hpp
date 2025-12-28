@@ -110,6 +110,4 @@ class Scene {
   void ExtendedGaussianFilterAlgorithm(Vec5f *image_sampled_data,
                                        int image_width, int image_height,
                                        int sample, Vec3f *image_data);
-
-  void ClampToneMappingAlgorithm(Vec3f *, int, int, std::vector<unsigned char> &);
 };

@@ -66,14 +66,6 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
       break;
   }
 
-  switch (configuration_.strategies_.tone_mapping_algorithm_) {
-    case ToneMappingAlgorithm::kClamp:
-      tone_mapping_algorithm_ = std::bind(
-          &Scene::ClampToneMappingAlgorithm, this, std::placeholders::_1,
-          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-      break;
-  }
-
   LoadScene();
   if (timer.configuration_.timer_.preprocess_scene_)
     timer.AddTimeLog(Section::kPreprocessScene, Event::kStart);
@@ -157,10 +149,14 @@ void Scene::LoadScene() {
 
   {
     const auto &raw_spherical_light = raw_scene.spherical_directional_light;
-    spherical_directional_light_ =
+    if(raw_spherical_light.exists){
+      spherical_directional_light_ =
         std::make_shared<SphericalDirectionalLightSource>(
-            raw_spherical_light.type, raw_spherical_light.sampler,
-            images_[raw_spherical_light.image_id - 1]);
+          raw_spherical_light.type, images_[raw_spherical_light.image_id - 1], raw_spherical_light.sampler);
+    }
+    else{
+      spherical_directional_light_ = nullptr;
+    }
   }
   for (const auto &raw_camera : raw_scene.cameras) {
     RawScalingFlip scaling_flip{false, false, false};

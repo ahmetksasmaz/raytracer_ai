@@ -234,6 +234,82 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
         Vec3f ambient_value = hadamard(material_ptr->ambient_, ambient_light_->intensity_);
         pixel_value += ambient_value;
       }
+
+      if(spherical_directional_light_){
+        Vec3f direction;
+        Vec3f env_radiance = spherical_directional_light_->GetIntensity(hit_normal, direction);
+
+        Ray shadow_ray = {
+            ray.pixel_, intersection_point,
+            direction, ray.diff_,
+            ray.time_};
+        bool is_in_shadow = false;
+        FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
+        Vec2f shadow_tex_coords;
+        Vec3f shadow_normal;
+        Vec3f shadow_tangent_vector;
+        Vec3f shadow_bitangent_vector;
+        Vec2f shadow_u_vector;
+        Vec2f shadow_v_vector;
+        if (configuration_.acceleration_.bvh_high_level_)
+        {
+          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
+                                          false);
+          if (ret)
+          {
+            is_in_shadow = true;
+          }
+        }
+        else
+        {
+          for (auto object : objects_)
+          {
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
+                                  false))
+            {
+              is_in_shadow = true;
+              break;
+            }
+          }
+          for (const auto &plane : plane_objects_)
+          {
+            // Plane cast plane object
+            auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
+            if (plane_casted->IntersectPlane(shadow_ray, shadow_hit, shadow_normal))
+            {
+              is_in_shadow = true;
+              break;
+            }
+          }
+        }
+        if (!is_in_shadow)
+        {
+          if (configuration_.shading_.diffuse_)
+          {
+            Vec3f diffuse_term = hadamard(material_ptr->diffuse_, env_radiance) *
+              std::max(0.0, dot(hit_normal, -ray.direction_));
+            Vec3f texture_diffuse = hadamard(texture_diffuse_value, env_radiance) *
+                std::max(0.0, dot(hit_normal, -ray.direction_));
+            pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
+          }
+          if (configuration_.shading_.specular_){
+            if (material_ptr->phong_exponent_ >= 0.0f)
+            {
+              Vec3f half_vector = normalize(direction - ray.direction_);
+              Vec3f specular_term = {0, 0, 0};
+              specular_term =
+              hadamard(material_ptr->specular_,
+                env_radiance) *
+                pow(std::max(0.0, dot(hit_normal, half_vector)),
+                material_ptr->phong_exponent_);
+                Vec3f texture_specular = hadamard(texture_specular_value, env_radiance) *
+                pow(std::max(0.0, dot(hit_normal, half_vector)),
+                material_ptr->phong_exponent_);
+                pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
+              }
+            }
+          }
+      }
     }
 
     
@@ -453,6 +529,176 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                       material_ptr->phong_exponent_);
               pixel_value += (1 - texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
             }
+          }
+        }
+      }
+
+      for(auto& spot_light : spot_lights_)
+      {
+        Vec3f direction_from_light = normalize(intersection_point - spot_light->position_);
+        FP_PRECISION angle_cos = dot(direction_from_light, normalize(spot_light->direction_));
+        if(angle_cos < cos(spot_light->coverage_angle_ * M_PI / 180.0f))
+        {
+          continue;
+        }
+        Vec3f value;
+        if(angle_cos < cos(spot_light->falloff_angle_ * M_PI / 180.0f)){
+          FP_PRECISION coeff_s = (cos(spot_light->coverage_angle_ * M_PI / 180.0f) - cos(spot_light->falloff_angle_ * M_PI / 360.0f)) /
+                                (cos(spot_light->falloff_angle_ * M_PI / 360.0f) - cos(spot_light->coverage_angle_ * M_PI / 3600.0f));
+          coeff_s = coeff_s * coeff_s; // Power of 2
+          coeff_s = coeff_s * coeff_s; // Power of 4
+          value = spot_light->intensity_ * coeff_s / norm2(spot_light->position_ - intersection_point);
+        }
+        else{
+          value = spot_light->intensity_ / norm2(spot_light->position_ - intersection_point);
+        }
+
+        Ray shadow_ray = {
+            ray.pixel_, intersection_point,
+            -direction_from_light, ray.diff_,
+            ray.time_};
+        bool is_in_shadow = false;
+        FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
+        Vec2f shadow_tex_coords;
+        Vec3f shadow_normal;
+        Vec3f shadow_tangent_vector;
+        Vec3f shadow_bitangent_vector;
+        Vec2f shadow_u_vector;
+        Vec2f shadow_v_vector;
+        if (configuration_.acceleration_.bvh_high_level_)
+        {
+          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
+                                          false);
+          if (ret)
+          {
+            is_in_shadow = true;
+          }
+        }
+        else
+        {
+          for (auto object : objects_)
+          {
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
+                                  false))
+            {
+              is_in_shadow = true;
+              break;
+            }
+          }
+          for (const auto &plane : plane_objects_)
+          {
+            // Plane cast plane object
+            auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
+            if (plane_casted->IntersectPlane(shadow_ray, shadow_hit, shadow_normal))
+            {
+              is_in_shadow = true;
+              break;
+            }
+          }
+        }
+        if (!is_in_shadow)
+        {
+          if (configuration_.shading_.diffuse_)
+          {
+            Vec3f diffuse_term = hadamard(material_ptr->diffuse_, value) *
+              std::max(0.0, dot(hit_normal, -ray.direction_));
+            Vec3f texture_diffuse = hadamard(texture_diffuse_value, value) *
+                std::max(0.0, dot(hit_normal, -ray.direction_));
+            pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
+          }
+          if (configuration_.shading_.specular_){
+            if (material_ptr->phong_exponent_ >= 0.0f)
+            {
+              Vec3f half_vector = normalize(-direction_from_light - ray.direction_);
+              Vec3f specular_term = {0, 0, 0};
+              specular_term =
+              hadamard(material_ptr->specular_,
+                value) *
+                pow(std::max(0.0, dot(hit_normal, half_vector)),
+                material_ptr->phong_exponent_);
+                Vec3f texture_specular = hadamard(texture_specular_value, value) *
+                pow(std::max(0.0, dot(hit_normal, half_vector)),
+                material_ptr->phong_exponent_);
+                pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
+              }
+            }
+          }
+      }
+      for(auto& directional_light : directional_lights_)
+      {
+        Vec3f light_direction = -normalize(directional_light->direction_);
+
+        Ray shadow_ray = {
+            ray.pixel_, intersection_point,
+            light_direction, ray.diff_,
+            ray.time_};
+        bool is_in_shadow = false;
+        FP_PRECISION shadow_hit = std::numeric_limits<FP_PRECISION>::max();
+        Vec2f shadow_tex_coords;
+        Vec3f shadow_normal;
+        Vec3f shadow_tangent_vector;
+        Vec3f shadow_bitangent_vector;
+        Vec2f shadow_u_vector;
+        Vec2f shadow_v_vector;
+        if (configuration_.acceleration_.bvh_high_level_)
+        {
+          auto ret = bvh_root_->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
+                                          false);
+          if (ret)
+          {
+            is_in_shadow = true;
+          }
+        }
+        else
+        {
+          for (auto object : objects_)
+          {
+            if (object->Intersect(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords, shadow_u_vector, shadow_v_vector, shadow_tangent_vector, shadow_bitangent_vector,
+                                  false))
+            {
+              is_in_shadow = true;
+              break;
+            }
+          }
+          for (const auto &plane : plane_objects_)
+          {
+            // Plane cast plane object
+            auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
+            if (plane_casted->IntersectPlane(shadow_ray, shadow_hit, shadow_normal))
+            {
+              is_in_shadow = true;
+              break;
+            }
+          }
+        }
+        if (!is_in_shadow)
+        {
+          if (configuration_.shading_.diffuse_)
+          {
+            Vec3f diffuse_term = hadamard(material_ptr->diffuse_,
+                         directional_light->intensity_) *
+                std::max(0.0, dot(hit_normal, light_direction));
+            Vec3f texture_diffuse = hadamard(texture_diffuse_value,
+                         directional_light->intensity_) *
+                std::max(0.0, dot(hit_normal, light_direction));
+            pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
+          }
+          if (configuration_.shading_.specular_){
+            if (material_ptr->phong_exponent_ >= 0.0f)
+            {
+              Vec3f half_vector = normalize(light_direction - ray.direction_);
+              Vec3f specular_term = {0, 0, 0};
+              specular_term =
+              hadamard(material_ptr->specular_,
+                directional_light->intensity_) *
+                pow(std::max(0.0, dot(hit_normal, half_vector)),
+                material_ptr->phong_exponent_);
+                Vec3f texture_specular = hadamard(texture_specular_value,
+                directional_light->intensity_) *
+                pow(std::max(0.0, dot(hit_normal, half_vector)),
+                material_ptr->phong_exponent_);
+                pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
+              }
           }
         }
       }

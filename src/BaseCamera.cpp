@@ -1,6 +1,7 @@
 #include "BaseCamera.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 BaseCamera::BaseCamera(
