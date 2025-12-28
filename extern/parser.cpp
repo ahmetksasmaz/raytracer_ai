@@ -900,7 +900,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         auto light = json_data["Lights"]["SphericalDirectionalLight"];
         spherical_directional_light.image_id = std::stoi(light["ImageId"].get<std::string>());
         std::string type = light["_type"].get<std::string>();
-        std::string sampler = light["Sampler"].get<std::string>();
+        std::string sampler = light.contains("Sampler") ? light["Sampler"].get<std::string>() : "";
         if(type == "latlong"){
           spherical_directional_light.type = RawEnvironmentMapType::kLatLong;
         } else if (type == "probe"){
