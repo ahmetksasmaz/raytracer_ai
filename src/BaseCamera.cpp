@@ -295,9 +295,11 @@ void BaseCamera::ExportView() {
     
     delete[] image_data_float;
 
+    std::string base_filename = image_name_.substr(0, image_name_.find_last_of("."));
+
     for (auto& tonemapping : tone_mappings_){
       ldr_exporter_->Export(
-        tonemapping->GetFilename(), image_width_, image_height_, tonemapping->GetTonemappedImageDataReference().data());
+        base_filename + tonemapping->GetFilename(), image_width_, image_height_, tonemapping->GetTonemappedImageDataReference().data());
     }
   }
   else{

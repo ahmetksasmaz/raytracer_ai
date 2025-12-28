@@ -536,15 +536,17 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
       for(auto& spot_light : spot_lights_)
       {
         Vec3f direction_from_light = normalize(intersection_point - spot_light->position_);
-        FP_PRECISION angle_cos = dot(direction_from_light, normalize(spot_light->direction_));
-        if(angle_cos < cos(spot_light->coverage_angle_ * M_PI / 180.0f))
+        FP_PRECISION angle = acos(dot(direction_from_light, normalize(spot_light->direction_)));
+        FP_PRECISION coverage_radian = spot_light->coverage_angle_ * M_PI / 180.0f;
+        FP_PRECISION falloff_radian = spot_light->falloff_angle_ * M_PI / 180.0f;
+        if(angle > coverage_radian / 2.0f)
         {
           continue;
         }
         Vec3f value;
-        if(angle_cos < cos(spot_light->falloff_angle_ * M_PI / 180.0f)){
-          FP_PRECISION coeff_s = (cos(spot_light->coverage_angle_ * M_PI / 180.0f) - cos(spot_light->falloff_angle_ * M_PI / 360.0f)) /
-                                (cos(spot_light->falloff_angle_ * M_PI / 360.0f) - cos(spot_light->coverage_angle_ * M_PI / 3600.0f));
+        if(angle > falloff_radian / 2.0f){
+          FP_PRECISION coeff_s = (cos(angle) - cos(coverage_radian / 2.0f)) /
+                                (cos(falloff_radian / 2.0f) - cos(coverage_radian / 2.0f));
           coeff_s = coeff_s * coeff_s; // Power of 2
           coeff_s = coeff_s * coeff_s; // Power of 4
           value = spot_light->intensity_ * coeff_s / norm2(spot_light->position_ - intersection_point);
@@ -601,9 +603,9 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           if (configuration_.shading_.diffuse_)
           {
             Vec3f diffuse_term = hadamard(material_ptr->diffuse_, value) *
-              std::max(0.0, dot(hit_normal, -ray.direction_));
+              std::max(0.0, dot(hit_normal, -direction_from_light));
             Vec3f texture_diffuse = hadamard(texture_diffuse_value, value) *
-                std::max(0.0, dot(hit_normal, -ray.direction_));
+                std::max(0.0, dot(hit_normal, -direction_from_light));
             pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
           }
           if (configuration_.shading_.specular_){
@@ -676,10 +678,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           if (configuration_.shading_.diffuse_)
           {
             Vec3f diffuse_term = hadamard(material_ptr->diffuse_,
-                         directional_light->intensity_) *
+                         directional_light->radiance_) *
                 std::max(0.0, dot(hit_normal, light_direction));
             Vec3f texture_diffuse = hadamard(texture_diffuse_value,
-                         directional_light->intensity_) *
+                         directional_light->radiance_) *
                 std::max(0.0, dot(hit_normal, light_direction));
             pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
           }
@@ -690,11 +692,11 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
               Vec3f specular_term = {0, 0, 0};
               specular_term =
               hadamard(material_ptr->specular_,
-                directional_light->intensity_) *
+                directional_light->radiance_) *
                 pow(std::max(0.0, dot(hit_normal, half_vector)),
                 material_ptr->phong_exponent_);
                 Vec3f texture_specular = hadamard(texture_specular_value,
-                directional_light->intensity_) *
+                directional_light->radiance_) *
                 pow(std::max(0.0, dot(hit_normal, half_vector)),
                 material_ptr->phong_exponent_);
                 pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;

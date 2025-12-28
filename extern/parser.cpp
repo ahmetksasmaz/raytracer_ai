@@ -890,7 +890,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         ss_dir >> spot_light.direction.x >> spot_light.direction.y >> spot_light.direction.z;
         std::stringstream ss_rad(intensity);
         ss_rad >> spot_light.intensity.x >> spot_light.intensity.y >> spot_light.intensity.z;
-        spot_light.coverage_angle = (FP_PRECISION)(std::stof(light["Angle"].get<std::string>()));
+        spot_light.coverage_angle = (FP_PRECISION)(std::stof(light["CoverageAngle"].get<std::string>()));
         spot_light.falloff_angle = (FP_PRECISION)(std::stof(light["FalloffAngle"].get<std::string>()));
         spot_lights.push_back(spot_light);
       }
@@ -944,6 +944,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       } else {
         material.material_type = RawMaterialType::kDefault;
       }
+      material.degamma = material_obj.contains("_degamma") ? material_obj["_degamma"].get<std::string>() == "true" : false;
       
       auto amb = material_obj["AmbientReflectance"].get<std::string>();
       auto diff = material_obj["DiffuseReflectance"].get<std::string>();
@@ -955,6 +956,19 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       ss_diff >> material.diffuse.x >> material.diffuse.y >> material.diffuse.z;
       std::stringstream ss_spec(spec);
       ss_spec >> material.specular.x >> material.specular.y >> material.specular.z;
+
+      if(material.degamma){
+        material.ambient.x = std::pow(material.ambient.x, 2.2f);
+        material.ambient.y = std::pow(material.ambient.y, 2.2f);
+        material.ambient.z = std::pow(material.ambient.z, 2.2f);
+        material.diffuse.x = std::pow(material.diffuse.x, 2.2f);
+        material.diffuse.y = std::pow(material.diffuse.y, 2.2f);
+        material.diffuse.z = std::pow(material.diffuse.z, 2.2f);
+        material.specular.x = std::pow(material.specular.x, 2.2f);
+        material.specular.y = std::pow(material.specular.y, 2.2f);
+        material.specular.z = std::pow(material.specular.z, 2.2f);
+      }
+
       if (material_obj.contains("MirrorReflectance")) {
         auto mirror = material_obj["MirrorReflectance"].get<std::string>();
         std::stringstream ss_mirror(mirror);
