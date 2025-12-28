@@ -29,12 +29,10 @@
         "ray_tracing": "recursive",
         "scheduling": "thread_queue",
         "tone_mapping": "clamp",
-        "exporter": "stb",
         "__comment": "Select the strategy algorithms",
         "__comment2": "ray_tracing: default, recursive",
         "__comment3": "scheduling: non_thread, thread_queue",
         "__comment4": "tone_mapping: clamp",
-        "__comment5": "exporter: ppm, stb"
     },
     "acceleration": {
         "bvh_low_level": true,

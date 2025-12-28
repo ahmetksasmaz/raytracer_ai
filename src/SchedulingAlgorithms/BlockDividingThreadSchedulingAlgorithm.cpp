@@ -70,22 +70,6 @@ void Scene::BlockDivideThreadSchedulingAlgorithm(
     });
   }
 
-  // std::thread status_thread([&]() {
-  //   while (true) {
-  //     std::this_thread::sleep_for(std::chrono::seconds(1));
-  //     std::lock_guard<std::mutex> lock(queue_mutex);
-  //     FP_PRECISION progress =
-  //         1.0f - static_cast<FP_PRECISION>(queue.size()) /
-  //                    (camera->image_width_ * camera->image_height_);
-  //     std::cout << "Progress: " << progress * 100 << "%" << std::endl;
-  //     if (queue.empty()) {
-  //       break;
-  //     }
-  //   }
-  // });
-
-  // status_thread.join();
-
   for (auto& thread : threads) {
     thread.join();
   }

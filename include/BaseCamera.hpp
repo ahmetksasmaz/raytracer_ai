@@ -2,10 +2,12 @@
 #include <memory>
 
 #include "../extern/parser.h"
-#include "BaseExporter.hpp"
+#include "STBExporter.hpp"
+#include "EXRExporter.hpp"
 #include "Configuration.hpp"
 #include "Helper.hpp"
 #include "Ray.hpp"
+#include "BaseToneMapping.hpp"
 
 using namespace parser;
 
@@ -17,6 +19,7 @@ class BaseCamera {
       const FP_PRECISION fov_y, const FP_PRECISION near_distance, const int image_width,
       const int image_height, const std::string& image_name,
       const unsigned int num_samples = 0,
+      std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings = {},
       const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,
       const SamplingAlgorithm pixel_sampling = SamplingAlgorithm::kBest,
       const FP_PRECISION focus_distance = 0.0, const FP_PRECISION aperture_size = 0.0,
@@ -38,11 +41,9 @@ class BaseCamera {
 
   Vec5f* GetImageSampledDataReference() { return image_sampled_data_; };
   Vec3f* GetImageDataReference() { return image_data_; };
-  std::vector<unsigned char>& GetTonemappedImageDataReference() {
-    return tonemapped_image_data_;
-  };
 
-  virtual void ExportView(const std::shared_ptr<BaseExporter>& exporter) const;
+  void ApplyToneMappings();
+  void ExportView();
 
   const int image_width_;
   const int image_height_;
@@ -65,12 +66,15 @@ class BaseCamera {
   const FP_PRECISION aperture_size_;
 
   const ApertureType aperture_type_;
+  const std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings_;
 
   std::function<std::vector<Vec2f>(int)> pixel_sampling_algorithm_;
   std::function<std::vector<FP_PRECISION>(int)> time_sampling_algorithm_;
   std::function<std::vector<Vec2f>(int)> aperture_sampling_algorithm_;
 
+  const std::unique_ptr<STBExporter> ldr_exporter_;
+  const std::unique_ptr<EXRExporter> hdr_exporter_;
+
   Vec5f* image_sampled_data_;
   Vec3f* image_data_;
-  std::vector<unsigned char> tonemapped_image_data_;
 };

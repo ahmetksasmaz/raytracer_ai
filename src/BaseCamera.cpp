@@ -1,11 +1,14 @@
 #include "BaseCamera.hpp"
 
+#include <algorithm>
+#include <string>
+
 BaseCamera::BaseCamera(
     const bool look_at_camera, const Vec3f& position, const Vec3f& gaze,
     const Vec3f& gaze_point, const Vec3f& up, const Vec4f& near_plane,
     const FP_PRECISION fov_y, const FP_PRECISION near_distance, const int image_width,
     const int image_height, const std::string& image_name,
-    const unsigned int num_samples, const SamplingAlgorithm time_sampling,
+    const unsigned int num_samples, std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings, const SamplingAlgorithm time_sampling,
     const SamplingAlgorithm pixel_sampling, const FP_PRECISION focus_distance,
     const FP_PRECISION aperture_size, const SamplingAlgorithm aperture_sampling,
     const ApertureType aperture_type)
@@ -15,6 +18,7 @@ BaseCamera::BaseCamera(
       image_name_(image_name),
       up_(up),
       num_samples_(num_samples),
+      tone_mappings_(tone_mappings),
       mem_num_samples_(num_samples ? num_samples : 1),
       focus_distance_(focus_distance),
       aperture_size_(aperture_size),
@@ -37,11 +41,12 @@ BaseCamera::BaseCamera(
          (position_ +
           (normalize(look_at_camera ? gaze_point - position : gaze) *
            near_distance) +
-          (u_ * l_))) {
+          (u_ * l_))),
+          ldr_exporter_(std::make_unique<STBExporter>()),
+          hdr_exporter_(std::make_unique<EXRExporter>()) {
   image_data_ = new Vec3f[image_width_ * image_height_];
   image_sampled_data_ =
       new Vec5f[image_height_ * image_width_ * mem_num_samples_];
-  tonemapped_image_data_.resize(image_width_ * image_height_ * 3);
   switch (time_sampling) {
     case SamplingAlgorithm::kUniform:
       time_sampling_algorithm_ = uniform_1d;
@@ -265,8 +270,47 @@ void BaseCamera::UpdatePixelValue(const Vec2i& pixel_coordinate,
   image_data_[index] = pixel_value;
 }
 
-void BaseCamera::ExportView(
-    const std::shared_ptr<BaseExporter>& exporter) const {
-  exporter->Export(image_name_, tonemapped_image_data_.data(), image_width_,
-                   image_height_);
+void BaseCamera::ApplyToneMappings() {
+  for(auto& tonemapping : tone_mappings_){
+    tonemapping->ApplyToneMapping(image_data_);
+  }
+}
+
+void BaseCamera::ExportView() {
+  std::string extension = image_name_.substr(image_name_.find_last_of(".") + 1);
+  std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+  if(extension == "exr"){
+    float * image_data_float = new float[image_width_ * image_height_ * 3];
+
+    for(int i = 0; i < image_width_ * image_height_; i++){
+      image_data_float[i * 3 + 0] = static_cast<float>(image_data_[i].x);
+      image_data_float[i * 3 + 1] = static_cast<float>(image_data_[i].y);
+      image_data_float[i * 3 + 2] = static_cast<float>(image_data_[i].z);
+    }
+
+    hdr_exporter_->Export(
+        image_name_, image_width_, image_height_, image_data_float);
+    
+    delete[] image_data_float;
+
+    for (auto& tonemapping : tone_mappings_){
+      ldr_exporter_->Export(
+        tonemapping->GetFilename(), image_width_, image_height_, tonemapping->GetTonemappedImageDataReference().data());
+    }
+  }
+  else{
+    unsigned char * image_data_uchar = new unsigned char[image_width_ * image_height_ * 3];
+
+    for(int i = 0; i < image_width_ * image_height_; i++){
+      image_data_uchar[i * 3 + 0] = static_cast<unsigned char>(std::max(0.0, std::min(255.0, image_data_[i].x)));
+      image_data_uchar[i * 3 + 1] = static_cast<unsigned char>(std::max(0.0, std::min(255.0, image_data_[i].y)));
+      image_data_uchar[i * 3 + 2] = static_cast<unsigned char>(std::max(0.0, std::min(255.0, image_data_[i].z)));
+    }
+
+    ldr_exporter_->Export(
+        image_name_, image_width_, image_height_, image_data_uchar);
+    
+    delete[] image_data_uchar;
+  }
 }

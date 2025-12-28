@@ -79,7 +79,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                                            &elem_names, &file_type, &version);
 
   if (ply_file == NULL) {
-    std::cout << "Error reading file" << std::endl;
+    throw std::runtime_error("Error reading file " + ply_filename);
   }
 
   std::vector<Vec3f> vertex_data_;
