@@ -842,6 +842,80 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         area_lights.push_back(area_light);
       }
     }
+
+    if(json_data["Lights"].contains("DirectionalLight")){
+      // Type check
+      std::vector<nlohmann::json> json_directional_lights;
+      try {
+        auto light_id = json_data["Lights"]["DirectionalLight"]["_id"].get<std::string>();
+        json_directional_lights.push_back(json_data["Lights"]["DirectionalLight"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Lights"]["DirectionalLight"]) {
+          json_directional_lights.push_back(cam);
+        }
+      }
+      
+      for (const auto& light : json_directional_lights) {
+        RawDirectionalLight directional_light;
+        auto dir = light["Direction"].get<std::string>();
+        auto radiance = light["Radiance"].get<std::string>();
+        std::stringstream ss_dir(dir);
+        ss_dir >> directional_light.direction.x >> directional_light.direction.y >> directional_light.direction.z;
+        std::stringstream ss_rad(radiance);
+        ss_rad >> directional_light.radiance.x >> directional_light.radiance.y >> directional_light.radiance.z;
+        directional_lights.push_back(directional_light);
+      }
+    }
+
+    if(json_data["Lights"].contains("SpotLight")){
+      // Type check
+      std::vector<nlohmann::json> json_spot_lights;
+      try {
+        auto light_id = json_data["Lights"]["SpotLight"]["_id"].get<std::string>();
+        json_spot_lights.push_back(json_data["Lights"]["SpotLight"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Lights"]["SpotLight"]) {
+          json_spot_lights.push_back(cam);
+        }
+      }
+      
+      for (const auto& light : json_spot_lights) {
+        RawSpotLight spot_light;
+        auto pos = light["Position"].get<std::string>();
+        auto dir = light["Direction"].get<std::string>();
+        auto intensity = light["Intensity"].get<std::string>();
+        std::stringstream ss_pos(pos);
+        ss_pos >> spot_light.position.x >> spot_light.position.y >> spot_light.position.z;
+        std::stringstream ss_dir(dir);
+        ss_dir >> spot_light.direction.x >> spot_light.direction.y >> spot_light.direction.z;
+        std::stringstream ss_rad(intensity);
+        ss_rad >> spot_light.intensity.x >> spot_light.intensity.y >> spot_light.intensity.z;
+        spot_light.coverage_angle = (FP_PRECISION)(std::stof(light["Angle"].get<std::string>()));
+        spot_light.falloff_angle = (FP_PRECISION)(std::stof(light["FalloffAngle"].get<std::string>()));
+        spot_lights.push_back(spot_light);
+      }
+    }
+
+    if(json_data["Lights"].contains("SphericalDirectionalLight")){
+        auto light = json_data["Lights"]["SphericalDirectionalLight"];
+        spherical_directional_light.image_id = std::stoi(light["ImageId"].get<std::string>());
+        std::string type = light["_type"].get<std::string>();
+        std::string sampler = light["Sampler"].get<std::string>();
+        if(type == "latlong"){
+          spherical_directional_light.type = RawEnvironmentMapType::kLatLong;
+        } else if (type == "probe"){
+          spherical_directional_light.type = RawEnvironmentMapType::kProbe;
+        }
+        if(sampler == "uniform"){
+          spherical_directional_light.sampler = RawEnvironmentMapSampler::kUniform;
+        } else if (sampler == "cosine"){
+          spherical_directional_light.sampler = RawEnvironmentMapSampler::kCosine;
+        }else{
+          spherical_directional_light.sampler = RawEnvironmentMapSampler::kCosine;
+        }
+        spherical_directional_light.exists = true;
+    }
+
   }
   // Parse Materials
   if (json_data.contains("Materials")) {

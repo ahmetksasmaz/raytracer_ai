@@ -81,7 +81,6 @@ struct Configuration {
     RayTracingAlgorithm ray_tracing_algorithm_ = RayTracingAlgorithm::kBest;
     SchedulingAlgorithm scheduling_algorithm_ = SchedulingAlgorithm::kBest;
     ToneMappingAlgorithm tone_mapping_algorithm_ = ToneMappingAlgorithm::kBest;
-    ExporterType exporter_type_ = ExporterType::kBest;
   } strategies_;
 
   struct Acceleration {

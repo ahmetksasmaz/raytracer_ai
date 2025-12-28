@@ -501,3 +501,21 @@ inline FP_PRECISION gaussian_kernel_weight(Vec2f diff, FP_PRECISION sigma) {
 
   return weight;
 }
+
+inline void uniform_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP_PRECISION& pdf) {
+  FP_PRECISION u1 = (FP_PRECISION)rand() / RAND_MAX;
+  FP_PRECISION u2 = (FP_PRECISION)rand() / RAND_MAX;
+
+  theta = std::acos(1 - u1);
+  phi = 2 * M_PI * u2;
+  pdf = 1 / (2 * M_PI);
+}
+
+inline void cosine_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP_PRECISION& pdf) {
+  FP_PRECISION u1 = (FP_PRECISION)rand() / RAND_MAX;
+  FP_PRECISION u2 = (FP_PRECISION)rand() / RAND_MAX;
+
+  theta = std::asin(std::sqrt(1 - u1));
+  phi = 2 * M_PI * u2;
+  pdf = std::cos(theta) / M_PI;
+}
