@@ -11,7 +11,6 @@
 #include "AmbientLightSource.hpp"
 #include "AreaLightSource.hpp"
 #include "BaseCamera.hpp"
-#include "BaseExporter.hpp"
 #include "BaseImage.hpp"
 #include "BaseMaterial.hpp"
 #include "BaseObject.hpp"
@@ -22,8 +21,10 @@
 #include "MeshInstanceObject.hpp"
 #include "MeshObject.hpp"
 #include "MirrorMaterial.hpp"
-#include "PPMExporter.hpp"
 #include "PointLightSource.hpp"
+#include "DirectionalLightSource.hpp"
+#include "SpotLightSource.hpp"
+#include "SphericalDirectionalLightSource.hpp"
 #include "STBExporter.hpp"
 #include "SphereObject.hpp"
 #include "TriangleObject.hpp"
@@ -31,6 +32,9 @@
 #include "CheckerboardTextureMap.hpp"
 #include "PerlinTextureMap.hpp"
 #include "ImageTextureMap.hpp"
+#include "PhotographicToneMapping.hpp"
+#include "FilmicToneMapping.hpp"
+#include "ACESToneMapping.hpp"
 
 using namespace parser;
 
@@ -55,7 +59,10 @@ class Scene {
   std::vector<std::shared_ptr<BaseCamera>> cameras_;
   std::vector<std::shared_ptr<PointLightSource>> point_lights_;
   std::vector<std::shared_ptr<AreaLightSource>> area_lights_;
-  std::vector<std::shared_ptr<AmbientLightSource>> ambient_lights_;
+  std::shared_ptr<AmbientLightSource> ambient_light_;
+  std::vector<std::shared_ptr<DirectionalLightSource>> directional_lights_;
+  std::vector<std::shared_ptr<SpotLightSource>> spot_lights_;
+  std::shared_ptr<SphericalDirectionalLightSource> spherical_directional_light_;
   std::vector<std::shared_ptr<BaseMaterial>> materials_;
   std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> objects_;
   std::vector<std::shared_ptr<PlaneObject>> plane_objects_;
@@ -74,8 +81,6 @@ class Scene {
       tone_mapping_algorithm_;
 
   std::function<std::vector<Vec2f>(int)> area_light_sampling_algorithm_;
-
-  std::shared_ptr<BaseExporter> exporter_;
 
   Vec3f DefaultRayTracingAlgorithm(
       Ray &ray,
@@ -106,6 +111,5 @@ class Scene {
                                        int image_width, int image_height,
                                        int sample, Vec3f *image_data);
 
-  void ClampToneMappingAlgorithm(Vec3f *, int, int,
-                                 std::vector<unsigned char> &);
+  void ClampToneMappingAlgorithm(Vec3f *, int, int, std::vector<unsigned char> &);
 };

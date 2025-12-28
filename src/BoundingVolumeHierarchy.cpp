@@ -12,15 +12,6 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
                                           Vec3f& bitangent_vector,
                                           bool backface_culling,
                                           bool stop_at_any_hit) const {
-  if (trace_ && std::find(trace_pixels_.begin(), trace_pixels_.end(),
-                          ray.pixel_) != trace_pixels_.end()) {
-    std::cout << "Checking node id: " << id_ << std::endl;
-    std::cout << "Min point: " << min_point_ << std::endl;
-    std::cout << "Max point: " << max_point_ << std::endl;
-    std::cout << "Ray pixel: " << ray.pixel_ << std::endl;
-    std::cout << "Ray origin: " << ray.origin_ << std::endl;
-    std::cout << "Ray direction: " << ray.direction_ << std::endl;
-  }
   // Calculate the intersection of the ray with the bounding box
   FP_PRECISION t_min = (min_point_.x - ray.origin_.x) / ray.direction_.x;
   FP_PRECISION t_max = (max_point_.x - ray.origin_.x) / ray.direction_.x;
@@ -70,11 +61,6 @@ BoundingVolumeHierarchyElement::Intersect(Ray& ray, FP_PRECISION& t_hit,
   // Check if the intersection is within the valid range
   if (t_max < 0) {
     return nullptr;
-  }
-
-  if (trace_ && std::find(trace_pixels_.begin(), trace_pixels_.end(),
-                          ray.pixel_) != trace_pixels_.end()) {
-    std::cout << "Intersects with node id: " << id_ << std::endl;
   }
 
   FP_PRECISION left_t_hit, right_t_hit;
@@ -183,22 +169,4 @@ BoundingVolumeHierarchyElement::Construct(
   }
 
   return node;
-}
-
-void BoundingVolumeHierarchyElement::PrintBVH(
-    const std::shared_ptr<BoundingVolumeHierarchyElement>& root) {
-  if (root) {
-    std::cout << "Node id: " << root->id_ << std::endl;
-    std::cout << "Min point: " << root->min_point_ << std::endl;
-    std::cout << "Max point: " << root->max_point_ << std::endl;
-    if (root->left_) {
-      std::cout << "Left child id: " << root->left_->id_ << std::endl;
-    }
-    if (root->right_) {
-      std::cout << "Right child id: " << root->right_->id_ << std::endl;
-    }
-    std::cout << std::endl;
-    PrintBVH(root->left_);
-    PrintBVH(root->right_);
-  }
 }

@@ -36,6 +36,12 @@ enum RawTextureMapInterpolationMode { kNearest, kBilinear, kTrilinear };
 
 enum RawTextureMapNoiseConversionType { kAbsVal, kLinear };
 
+enum RawToneMappingAlgorithm { kPhotographic, kFilmic, kACES };
+
+enum RawEnvironmentMapType { kProbe, kLatLong };
+
+enum RawEnvironmentMapSampler { kUniform, kCosine };
+
 struct Vec2f {
   FP_PRECISION x, y;
 };
@@ -117,6 +123,15 @@ struct Vec5f {
   FP_PRECISION x, y, z, w, t;
 };
 
+struct RawToneMapping {
+  RawToneMappingAlgorithm algorithm;
+  FP_PRECISION key = 0.18;
+  FP_PRECISION burn = 0.0;
+  FP_PRECISION saturation = 1.0;
+  FP_PRECISION gamma = 1.0;
+  std::string extension = "";
+};
+
 struct RawCamera {
   bool look_at_camera = false;
   Vec3f position;
@@ -132,6 +147,7 @@ struct RawCamera {
   int image_width, image_height;
   std::string image_name;
   std::string transformations = "";
+  std::vector<RawToneMapping> tone_mappings = {};
 };
 
 struct RawPointLight {
@@ -146,6 +162,25 @@ struct RawAreaLight {
   Vec3f normal;
   FP_PRECISION size;
   std::string transformations = "";
+};
+
+struct RawDirectionalLight {
+  Vec3f direction;
+  Vec3f radiance;
+};
+
+struct RawSpotLight {
+  Vec3f position;
+  Vec3f direction;
+  Vec3f intensity;
+  FP_PRECISION coverage_angle;
+  FP_PRECISION falloff_angle;
+};
+
+struct RawSphericalDirectionalLight{
+  RawEnvironmentMapType type;
+  RawEnvironmentMapSampler sampler;
+  int image_id;
 };
 
 struct RawMaterial {
@@ -338,6 +373,9 @@ struct RawScene {
   Vec3f ambient_light;
   std::vector<RawPointLight> point_lights;
   std::vector<RawAreaLight> area_lights;
+  std::vector<RawDirectionalLight> directional_lights;
+  std::vector<RawSpotLight> spot_lights;
+  RawSphericalDirectionalLight spherical_directional_light;
   std::vector<RawMaterial> materials;
   std::vector<Vec3f> vertex_data;
   std::vector<Vec2f> tex_coord_data;

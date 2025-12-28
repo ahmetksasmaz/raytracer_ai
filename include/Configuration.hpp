@@ -51,8 +51,6 @@ enum class ApertureType {
 
 enum class ToneMappingAlgorithm { kClamp = 0, kBest = 0, kMax = 0 };
 
-enum class ExporterType { kPPM = 0, kSTB = 1, kBest = 1, kMax = 1 };
-
 struct Configuration {
   struct Sampling {
     SamplingAlgorithm time_sampling_ = SamplingAlgorithm::kJittered;
@@ -251,16 +249,6 @@ struct Configuration {
       strategies_.tone_mapping_algorithm_ = ToneMappingAlgorithm::kClamp;
     } else {
       strategies_.tone_mapping_algorithm_ = ToneMappingAlgorithm::kBest;
-    }
-
-    std::string exporter_type;
-    data.at("strategies").at("exporter").get_to(exporter_type);
-    if (exporter_type == "ppm") {
-      strategies_.exporter_type_ = ExporterType::kPPM;
-    } else if (exporter_type == "stb") {
-      strategies_.exporter_type_ = ExporterType::kSTB;
-    } else {
-      strategies_.exporter_type_ = ExporterType::kBest;
     }
 
     data.at("acceleration")

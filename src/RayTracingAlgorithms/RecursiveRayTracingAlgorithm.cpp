@@ -231,13 +231,8 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     {
       if (configuration_.shading_.ambient_)
       {
-        for (auto ambient_light : ambient_lights_)
-        {
-          
-          Vec3f ambient_value = hadamard(material_ptr->ambient_, ambient_light->intensity_);
-          pixel_value += ambient_value;
-
-        }
+        Vec3f ambient_value = hadamard(material_ptr->ambient_, ambient_light_->intensity_);
+        pixel_value += ambient_value;
       }
     }
 

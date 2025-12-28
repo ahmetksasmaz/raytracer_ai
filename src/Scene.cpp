@@ -2,19 +2,8 @@
 
 #include "Timer.hpp"
 
-// #define DEBUG
-
 Scene::Scene(const std::string &filename, const Configuration &configuration)
     : filename_(filename), configuration_(configuration) {
-  switch (configuration_.strategies_.exporter_type_) {
-    case ExporterType::kPPM:
-      exporter_ = std::make_shared<PPMExporter>();
-      break;
-    case ExporterType::kSTB:
-      exporter_ = std::make_shared<STBExporter>();
-      break;
-  }
-
   switch (configuration_.strategies_.ray_tracing_algorithm_) {
     case RayTracingAlgorithm::kDefault:
       ray_tracing_algorithm_ = std::bind(
@@ -85,37 +74,23 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
       break;
   }
 
-#ifdef DEBUG
-  std::cout << "Loading scene." << std::endl;
-#endif
   LoadScene();
-#ifdef DEBUG
-  std::cout << "Loading done." << std::endl;
-  std::cout << "Preprocessing scene." << std::endl;
-#endif
   if (timer.configuration_.timer_.preprocess_scene_)
     timer.AddTimeLog(Section::kPreprocessScene, Event::kStart);
   PreprocessScene();
   if (timer.configuration_.timer_.preprocess_scene_)
     timer.AddTimeLog(Section::kPreprocessScene, Event::kEnd);
-#ifdef DEBUG
-  std::cout << "Preprocessing done." << std::endl;
-#endif
 }
 
 Scene::~Scene() {
   cameras_.clear();
   point_lights_.clear();
-  ambient_lights_.clear();
   materials_.clear();
   objects_.clear();
 }
 
 void Scene::LoadScene() {
   RawScene raw_scene;
-#ifdef DEBUG
-  std::cout << "\tLoading scene from " << filename_ << std::endl;
-#endif
   if (timer.configuration_.timer_.parse_scene_file_)
     timer.AddTimeLog(Section::kParseXML, Event::kStart);
   std::string file_extension = filename_.substr(filename_.find_last_of(".") + 1);
@@ -132,9 +107,6 @@ void Scene::LoadScene() {
   }
   if (timer.configuration_.timer_.parse_scene_file_)
     timer.AddTimeLog(Section::kParseXML, Event::kEnd);
-#ifdef DEBUG
-  std::cout << "\tLoading xml is done." << std::endl;
-#endif
 
   if (timer.configuration_.timer_.load_scene_)
     timer.AddTimeLog(Section::kLoadScene, Event::kStart);
@@ -143,15 +115,12 @@ void Scene::LoadScene() {
   shadow_ray_epsilon_ = raw_scene.shadow_ray_epsilon;
   max_recursion_depth_ = raw_scene.max_recursion_depth;
 
-#ifdef DEBUG
-  std::cout << "\tLoading ambient lights." << std::endl;
-#endif
-  ambient_lights_.push_back(
-      std::make_shared<AmbientLightSource>(raw_scene.ambient_light));
+  for (const auto &raw_image : raw_scene.images) {
+    images_.push_back(std::make_shared<BaseImage>(raw_image.path));
+  }
 
-#ifdef DEBUG
-  std::cout << "\tLoading point lights." << std::endl;
-#endif
+  ambient_light_ = std::make_shared<AmbientLightSource>(raw_scene.ambient_light);
+
   for (const auto &raw_point_light : raw_scene.point_lights) {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
@@ -161,9 +130,6 @@ void Scene::LoadScene() {
     point_lights_.push_back(std::make_shared<PointLightSource>(
         transform_matrix * raw_point_light.position, raw_point_light.intensity));
   }
-#ifdef DEBUG
-  std::cout << "\tLoading area lights." << std::endl;
-#endif
   for (const auto &raw_area_light : raw_scene.area_lights) {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
@@ -176,9 +142,26 @@ void Scene::LoadScene() {
         transformed_position, raw_area_light.radiance, transformed_normal,
         raw_area_light.size));
   }
-#ifdef DEBUG
-  std::cout << "\tLoading cameras." << std::endl;
-#endif
+
+  for (const auto &raw_directional_light : raw_scene.directional_lights) {
+    directional_lights_.push_back(std::make_shared<DirectionalLightSource>(
+        raw_directional_light.direction, raw_directional_light.radiance));
+  }
+
+  for (const auto &raw_spot_light : raw_scene.spot_lights) {
+    spot_lights_.push_back(std::make_shared<SpotLightSource>(
+        raw_spot_light.position, raw_spot_light.direction,
+        raw_spot_light.intensity, raw_spot_light.coverage_angle,
+        raw_spot_light.falloff_angle));
+  }
+
+  {
+    const auto &raw_spherical_light = raw_scene.spherical_directional_light;
+    spherical_directional_light_ =
+        std::make_shared<SphericalDirectionalLightSource>(
+            raw_spherical_light.type, raw_spherical_light.sampler,
+            images_[raw_spherical_light.image_id - 1]);
+  }
   for (const auto &raw_camera : raw_scene.cameras) {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
@@ -201,20 +184,45 @@ void Scene::LoadScene() {
       near_distance = near_distance * norm(transformed_gaze - transformed_position);
       transformed_gaze = normalize(transformed_gaze - transformed_position);
     }
+
+    std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings;
+    for (const auto &raw_tone_mapping : raw_camera.tone_mappings) {
+      switch (raw_tone_mapping.algorithm) {
+        case RawToneMappingAlgorithm::kPhotographic:
+          tone_mappings.push_back(std::make_shared<PhotographicToneMapping>(raw_camera.image_width, raw_camera.image_height, raw_tone_mapping.key,
+                                                                            raw_tone_mapping.burn,
+                                                                            raw_tone_mapping.saturation,
+                                                                            raw_tone_mapping.gamma,
+                                                                            raw_tone_mapping.extension));
+          break;
+        case RawToneMappingAlgorithm::kFilmic:
+          tone_mappings.push_back(std::make_shared<FilmicToneMapping>(raw_camera.image_width, raw_camera.image_height, raw_tone_mapping.key,
+                                                                            raw_tone_mapping.burn,
+                                                                            raw_tone_mapping.saturation,
+                                                                            raw_tone_mapping.gamma,
+                                                                            raw_tone_mapping.extension));
+          break;
+        case RawToneMappingAlgorithm::kACES:
+          tone_mappings.push_back(std::make_shared<ACESToneMapping>(raw_camera.image_width, raw_camera.image_height, raw_tone_mapping.key,
+                                                                            raw_tone_mapping.burn,
+                                                                            raw_tone_mapping.saturation,
+                                                                            raw_tone_mapping.gamma,
+                                                                            raw_tone_mapping.extension));
+          break;
+      }
+    }
+
     cameras_.push_back(std::make_shared<BaseCamera>(
         raw_camera.look_at_camera, transformed_position, transformed_gaze,
         transformed_gaze_point, raw_camera.up, raw_camera.near_plane,
         raw_camera.fov_y, near_distance, raw_camera.image_width,
-        raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples,
+        raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples, tone_mappings,
         configuration_.sampling_.time_sampling_,
         configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
         raw_camera.aperture_size, configuration_.sampling_.aperture_sampling_,
         configuration_.sampling_.aperture_type_));
   }
 
-#ifdef DEBUG
-  std::cout << "\tLoading materials." << std::endl;
-#endif
   for (const auto &raw_material : raw_scene.materials) {
     switch (raw_material.material_type) {
       case RawMaterialType::kDefault:
@@ -245,18 +253,6 @@ void Scene::LoadScene() {
         break;
     }
   }
-
-#ifdef DEBUG
-  std::cout << "\tLoading images." << std::endl;
-#endif
-
-  for (const auto &raw_image : raw_scene.images) {
-    images_.push_back(std::make_shared<BaseImage>(raw_image.path));
-  }
-
-#ifdef DEBUG
-  std::cout << "\tLoading textures." << std::endl;
-#endif
 
   for (const auto &raw_texture_map : raw_scene.texture_maps) {
   if (raw_texture_map.type == RawTextureMapType::kCheckerboard)
@@ -291,9 +287,6 @@ void Scene::LoadScene() {
     
   }
 
-#ifdef DEBUG
-  std::cout << "\tLoading spheres." << std::endl;
-#endif
   for (const auto &raw_sphere : raw_scene.spheres) {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
@@ -314,9 +307,7 @@ void Scene::LoadScene() {
                 raw_sphere.radius, raw_sphere.motion_blur, transform_matrix,
                 scaling_flip)));
   }
-#ifdef DEBUG
-  std::cout << "\tLoading planes." << std::endl;
-#endif
+
   for (const auto &raw_plane : raw_scene.planes) {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
@@ -336,9 +327,7 @@ void Scene::LoadScene() {
                 raw_plane.normal, raw_plane.motion_blur, transform_matrix,
                 scaling_flip));
   }
-#ifdef DEBUG
-  std::cout << "\tLoading triangles." << std::endl;
-#endif
+
   for (const auto &raw_triangle : raw_scene.triangles) {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
@@ -363,10 +352,6 @@ void Scene::LoadScene() {
                 textures.size() > 0 ? raw_scene.tex_coord_data[raw_triangle.indices.v2_id - 1] : Vec2f{0,0},
                 raw_triangle.motion_blur, transform_matrix, scaling_flip)));
   }
-
-#ifdef DEBUG
-  std::cout << "\tLoading meshes." << std::endl;
-#endif
 
   int meshes_start_index = objects_.size();
   for (const auto &raw_mesh : raw_scene.meshes) {
@@ -397,11 +382,6 @@ void Scene::LoadScene() {
                   scaling_flip)));
     }
   }
-  // exit(1);
-
-#ifdef DEBUG
-  std::cout << "\tLoading mesh instances." << std::endl;
-#endif
 
   for (auto &raw_mesh_instance : raw_scene.mesh_instances) {
     RawScalingFlip scaling_flip{false, false, false};
@@ -422,11 +402,6 @@ void Scene::LoadScene() {
       any_reset = true;
     }
 
-    // std::cout << "Mesh instance object id " << raw_mesh_instance.object_id
-    //           << " base object id " << raw_mesh_instance.base_object_id
-    //           << std::endl;
-    // std::cout << transform_matrix << std::endl;
-
     do {
       if (!any_reset) {
         transform_matrix =
@@ -434,9 +409,6 @@ void Scene::LoadScene() {
             parse_transformation(current_raw_mesh.transformations, scaling_flip,
                                  raw_scene.translations, raw_scene.scalings,
                                  raw_scene.rotations, raw_scene.composites);
-        // std::cout << "Multiplying transform matrix with : "
-        //           << current_raw_mesh.object_id << std::endl;
-        // std::cout << transform_matrix << std::endl;
       }
 
       any_reset = any_reset || current_raw_mesh.reset_transform;
@@ -448,10 +420,6 @@ void Scene::LoadScene() {
         if (temp_raw_mesh.object_id == base_object_id) {
           mesh_object = std::dynamic_pointer_cast<MeshObject>(
               objects_[meshes_start_index + counter]);
-          // std::cout << "Mesh instance object id " <<
-          // raw_mesh_instance.object_id
-          //           << " matched with " << temp_raw_mesh.object_id <<
-          //           std::endl;
           break;
         }
         counter++;
@@ -460,10 +428,6 @@ void Scene::LoadScene() {
       for (auto &temp_raw_mesh_instance : raw_scene.mesh_instances) {
         if (temp_raw_mesh_instance.object_id == base_object_id) {
           current_raw_mesh = temp_raw_mesh_instance;
-          // std::cout << "Mesh instance object id " <<
-          // raw_mesh_instance.object_id
-          //           << " matched with instance : "
-          //           << temp_raw_mesh_instance.object_id << std::endl;
           break;
         }
       }
@@ -482,8 +446,6 @@ void Scene::LoadScene() {
       material = mesh_object->material_;
     }
 
-    // std::cout << transform_matrix << std::endl;
-
     std::vector<std::shared_ptr<BaseTextureMap>> textures;
     std::stringstream ss(raw_mesh_instance.textures);
     std::string texture_id_str;
@@ -498,7 +460,6 @@ void Scene::LoadScene() {
                 material, textures, mesh_object, raw_mesh_instance.motion_blur,
                 transform_matrix, scaling_flip)));
   }
-  // exit(1);
 
   if (timer.configuration_.timer_.load_scene_)
     timer.AddTimeLog(Section::kLoadScene, Event::kEnd);
@@ -510,9 +471,6 @@ void Scene::PreprocessScene() {
 #endif
 
   for (const auto &object : objects_) {
-#ifdef DEBUG
-    std::cout << "\tPreprocessing for object : " << object_index << std::endl;
-#endif
     std::shared_ptr<BaseObject> object_casted =
         std::dynamic_pointer_cast<BaseObject>(object);
 
@@ -534,14 +492,7 @@ void Scene::Render() {
         timer.configuration_.timer_.tone_mapping_ ||
         timer.configuration_.timer_.export_image_)
       timer.AddTimeLog(Section::kRenderScene, Event::kStart, camera_index);
-
-#ifdef DEBUG
-    std::cout << "Rendering camera " << camera_index << std::endl;
-#endif
     scheduling_algorithm_(camera, camera_index);
-#ifdef DEBUG
-    std::cout << "Tonemapping result " << camera_index << std::endl;
-#endif
 
     if (timer.configuration_.timer_.filtering_)
       timer.AddTimeLog(Section::kFiltering, Event::kStart, camera_index);
@@ -554,17 +505,14 @@ void Scene::Render() {
 
     if (timer.configuration_.timer_.tone_mapping_)
       timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
-    tone_mapping_algorithm_(camera->GetImageDataReference(),
-                            camera->image_width_, camera->image_height_,
-                            camera->GetTonemappedImageDataReference());
+
+      camera->ApplyToneMappings();
+
     if (timer.configuration_.timer_.tone_mapping_)
       timer.AddTimeLog(Section::kToneMapping, Event::kEnd, camera_index);
-#ifdef DEBUG
-    std::cout << "Exporting result " << camera_index << std::endl;
-#endif
     if (timer.configuration_.timer_.export_image_)
       timer.AddTimeLog(Section::kExportImage, Event::kStart, camera_index);
-    camera->ExportView(exporter_);
+    camera->ExportView();
     if (timer.configuration_.timer_.export_image_)
       timer.AddTimeLog(Section::kExportImage, Event::kEnd, camera_index);
     if (timer.configuration_.timer_.render_scene_ ||

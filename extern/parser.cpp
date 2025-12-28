@@ -148,10 +148,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   }
   stream.clear();
 
-#ifdef PARSER_DEBUG
-  std::cout << "\t\tCameras parsed." << std::endl;
-#endif
-
   // Get Lights
   element = root->FirstChildElement("Lights");
   auto child = element->FirstChildElement("AmbientLight");
@@ -197,10 +193,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     area_lights.push_back(area_light);
     element = element->NextSiblingElement("AreaLight");
   }
-
-#ifdef PARSER_DEBUG
-  std::cout << "\t\tLights parsed." << std::endl;
-#endif
 
   // Get Materials
   element = root->FirstChildElement("Materials");
@@ -470,11 +462,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
           transformation_element->NextSiblingElement("Composite");
     }
   }
-
-#ifdef PARSER_DEBUG
-  std::cout << "\t\tMaterials parsed." << std::endl;
-#endif
-
   // Get VertexData
   element = root->FirstChildElement("VertexData");
   std::string elem_text = element->GetText();
@@ -498,10 +485,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     tex_coord_data.push_back(texcoord);
   }
   stream.clear();
-
-#ifdef PARSER_DEBUG
-  std::cout << "\t\tVertex data parsed." << std::endl;
-#endif
 
   // Get Meshes
   element = root->FirstChildElement("Objects");
@@ -548,10 +531,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     element = element->NextSiblingElement("Mesh");
   }
   stream.clear();
-#ifdef PARSER_DEBUG
-  std::cout << "\t\tMeshes parsed." << std::endl;
-#endif
-
   // Get Mesh Instances
   element = root->FirstChildElement("Objects");
   element = element->FirstChildElement("MeshInstance");
@@ -592,10 +571,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   }
   stream.clear();
 
-#ifdef PARSER_DEBUG
-  std::cout << "\t\tMesh Instances parsed." << std::endl;
-#endif
-
   // Get Triangles
   element = root->FirstChildElement("Objects");
   element = element->FirstChildElement("Triangle");
@@ -631,10 +606,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     triangles.push_back(triangle);
     element = element->NextSiblingElement("Triangle");
   }
-
-#ifdef PARSER_DEBUG
-  std::cout << "\t\tTriangles parsed." << std::endl;
-#endif
 
   // Get Spheres
   element = root->FirstChildElement("Objects");
@@ -674,9 +645,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
     spheres.push_back(sphere);
     element = element->NextSiblingElement("Sphere");
   }
-#ifdef PARSER_DEBUG
-  std::cout << "\t\tSpheres parsed." << std::endl;
-#endif
 }
 
 void parser::RawScene::loadFromJSON(const std::string &filepath) {
@@ -684,21 +652,10 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   if (!file.is_open()) {
     throw std::runtime_error("Error: The JSON file cannot be loaded.");
   }
-#ifdef PARSER_DEBUG
-  std::cout << "Json reading." << std::endl;
-#endif
+
   nlohmann::json json_data;
   file >> json_data;
-
-#ifdef PARSER_DEBUG
-  std::cout << "Json read." << std::endl;
-#endif
-
   json_data = json_data["Scene"];
-
-#ifdef PARSER_DEBUG
-  std::cout << "Scene object." << std::endl;
-#endif
 
   // Parse background color
   if (json_data.contains("BackgroundColor")) {
@@ -709,20 +666,12 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     background_color = {0, 0, 0};
   }
 
-#ifdef PARSER_DEBUG
-  std::cout << "Background color parsed." << std::endl;
-#endif
-  
   // Parse shadow ray epsilon
   if (json_data.contains("ShadowRayEpsilon")) {
     shadow_ray_epsilon = std::stof(json_data["ShadowRayEpsilon"].get<std::string>());
   } else {
     shadow_ray_epsilon = 0.001f;
   }
-
-#ifdef PARSER_DEBUG
-  std::cout << "Shadow ray epsilon parsed." << std::endl;
-#endif
   
   // Parse max recursion depth
   if (json_data.contains("MaxRecursionDepth")) {
@@ -731,9 +680,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     max_recursion_depth = 1;
   }
 
-#ifdef PARSER_DEBUG
-  std::cout << "Max recursion depth parsed." << std::endl;
-#endif
 
   // Parse intersection test epsilon
   if (json_data.contains("IntersectionTestEpsilon")) {
@@ -741,10 +687,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   } else {
     intersection_test_epsilon = 0.001f;
   }
-
-#ifdef PARSER_DEBUG
-  std::cout << "Intersection test epsilon parsed." << std::endl;
-#endif
 
   // Parse Cameras
   if (json_data.contains("Cameras")) {
@@ -795,14 +737,46 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       camera.num_samples = cam.contains("NumSamples") ? std::stoi(cam["NumSamples"].get<std::string>()) : 0;
       camera.focus_distance = cam.contains("FocusDistance") ? std::stof(cam["FocusDistance"].get<std::string>()) : 0;
       camera.aperture_size = cam.contains("ApertureSize") ? std::stof(cam["ApertureSize"].get<std::string>()) : 0;
+      
+      // Read tonemappings
+      if(cam.contains("Tonemap")){
+        std::vector<nlohmann::json> json_tonemaps;
+        try {
+          auto tm_tmo = cam["Tonemap"]["TMO"].get<std::string>();
+          json_tonemaps.push_back(cam["Tonemap"]);
+        } catch (nlohmann::json::type_error& e) {
+          for (const auto& tm : cam["Tonemap"]) {
+            json_tonemaps.push_back(tm);
+          }
+        }
+
+        for(auto & tm : json_tonemaps){
+          RawToneMapping tonemap;
+          std::string algorithm = tm["TMO"].get<std::string>();
+          if(algorithm == "Photographic"){
+            tonemap.algorithm = RawToneMappingAlgorithm::kPhotographic;
+          } else if (algorithm == "Filmic"){
+            tonemap.algorithm = RawToneMappingAlgorithm::kFilmic;
+          } else if (algorithm == "ACES"){
+            tonemap.algorithm = RawToneMappingAlgorithm::kACES;
+          }
+          std::string options = tm["TMOOptions"].get<std::string>();
+          std::stringstream ss_options(options);
+          ss_options >> tonemap.key >> tonemap.burn;
+
+          tonemap.saturation = tm.contains("Saturation") ? std::stof(tm["Saturation"].get<std::string>()) : 1.0f;
+          tonemap.gamma = tm.contains("Gamma") ? std::stof(tm["Gamma"].get<std::string>()) : 1.0f;
+          tonemap.extension = tm.contains("Extension") ? tm["Extension"].get<std::string>() : ".png";
+
+          camera.tone_mappings.push_back(tonemap);
+        }
+
+      }
+      
       cameras.push_back(camera);
     }
   }
 
-#ifdef PARSER_DEBUG
-  std::cout << "Cameras parsed." << std::endl;
-#endif
-  
   // Parse Lights
   if (json_data.contains("Lights")) {
     auto lights = json_data["Lights"];
@@ -869,9 +843,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       }
     }
   }
-#ifdef PARSER_DEBUG
-  std::cout << "Lights parsed." << std::endl;
-#endif
   // Parse Materials
   if (json_data.contains("Materials")) {
     // Type check
@@ -932,9 +903,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       materials.push_back(material);
     }
   }
-  #ifdef PARSER_DEBUG
-  std::cout << "Materials parsed." << std::endl;
-#endif
+
   // Parse Textures
   if (json_data.contains("Textures")) {
     auto tex = json_data["Textures"];
@@ -1053,10 +1022,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     }
   }
   
-  #ifdef PARSER_DEBUG
-  std::cout << "Textures parsed." << std::endl;
-#endif
-  
   // Parse Transformations
   if (json_data.contains("Transformations")) {
     auto transforms = json_data["Transformations"];
@@ -1114,9 +1079,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       ss_data >> translation.tx >> translation.ty >> translation.tz;
       translations.push_back(translation);
     }
-    #ifdef PARSER_DEBUG
-  std::cout << "\tTranslations parsed." << std::endl;
-#endif
     for (const auto& t : json_scalings) {
       RawScaling scaling;
       auto data = t["_data"].get<std::string>();
@@ -1124,9 +1086,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       ss_data >> scaling.sx >> scaling.sy >> scaling.sz;
       scalings.push_back(scaling);
     }
-    #ifdef PARSER_DEBUG
-  std::cout << "\tScalings parsed." << std::endl;
-#endif
     for (const auto& t : json_rotations) {
       RawRotation rotation;
       auto data = t["_data"].get<std::string>();
@@ -1134,9 +1093,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       ss_data >> rotation.angle >> rotation.x >> rotation.y >> rotation.z;
       rotations.push_back(rotation);
     }
-    #ifdef PARSER_DEBUG
-  std::cout << "\tRotations parsed." << std::endl;
-#endif
     for (const auto& t : json_composites) {
       RawComposite composite;
       auto composite_str = t["_data"].get<std::string>();
@@ -1148,13 +1104,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       }
       composites.push_back(composite);
     }
-    #ifdef PARSER_DEBUG
-  std::cout << "\tComposites parsed." << std::endl;
-#endif
   }
-#ifdef PARSER_DEBUG
-  std::cout << "Transformations parsed." << std::endl;
-#endif
   // Parse VertexData
   if (json_data.contains("VertexData")) {
     auto vertex_datas = json_data["VertexData"]["_data"].get<std::string>();
@@ -1165,9 +1115,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       vertex_data.push_back(vertex);
     }
   }
-  #ifdef PARSER_DEBUG
-  std::cout << "Vertex data parsed." << std::endl;
-#endif
   // Parse TexCoordData
   if (json_data.contains("TexCoordData")) {
     auto tex_coord_datas = json_data["TexCoordData"]["_data"].get<std::string>();
@@ -1178,9 +1125,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       tex_coord_data.push_back(tex_coord);
     }
   }
-  #ifdef PARSER_DEBUG
-  std::cout << "Tex coord data parsed." << std::endl;
-#endif
   // Parse Meshes
   if (json_data.contains("Objects")) {
     std::vector<nlohmann::json> json_meshes(0);
@@ -1342,8 +1286,5 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       planes.push_back(plane);
     }
   }
-  #ifdef PARSER_DEBUG
-  std::cout << "Objects parsed." << std::endl;
-#endif
   file.close();
 }
