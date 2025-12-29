@@ -9,7 +9,7 @@ BaseCamera::BaseCamera(
     const Vec3f& gaze_point, const Vec3f& up, const Vec4f& near_plane,
     const FP_PRECISION fov_y, const FP_PRECISION near_distance, const int image_width,
     const int image_height, const std::string& image_name,
-    const unsigned int num_samples, std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings, const SamplingAlgorithm time_sampling,
+    const unsigned int num_samples, std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings, bool left_handed, const SamplingAlgorithm time_sampling,
     const SamplingAlgorithm pixel_sampling, const FP_PRECISION focus_distance,
     const FP_PRECISION aperture_size, const SamplingAlgorithm aperture_sampling,
     const ApertureType aperture_type)
@@ -20,6 +20,7 @@ BaseCamera::BaseCamera(
       up_(up),
       num_samples_(num_samples),
       tone_mappings_(tone_mappings),
+      left_handed_(left_handed),
       mem_num_samples_(num_samples ? num_samples : 1),
       focus_distance_(focus_distance),
       aperture_size_(aperture_size),

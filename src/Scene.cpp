@@ -212,7 +212,7 @@ void Scene::LoadScene() {
         raw_camera.look_at_camera, transformed_position, transformed_gaze,
         transformed_gaze_point, raw_camera.up, raw_camera.near_plane,
         raw_camera.fov_y, near_distance, raw_camera.image_width,
-        raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples, tone_mappings,
+        raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples, tone_mappings, raw_camera.left_handed,
         configuration_.sampling_.time_sampling_,
         configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
         raw_camera.aperture_size, configuration_.sampling_.aperture_sampling_,

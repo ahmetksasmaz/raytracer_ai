@@ -10,37 +10,70 @@ public:
   SphericalDirectionalLightSource(RawEnvironmentMapType type, std::shared_ptr<BaseImage> image, RawEnvironmentMapSampler sampler)
       : BaseLightSource({0,0,0}), type_(type), image_(image), sampler_(sampler) {}
 
-  Vec3f GetIntensity(const Vec3f& surface_normal, Vec3f& direction) const
+  Vec3f GetIntensity(const Vec3f& surface_normal, Vec3f& direction, bool no_sample = false) const
   {
     // Map direction to texture coordinates
     FP_PRECISION u = 0.0f;
     FP_PRECISION v = 0.0f;
 
-    FP_PRECISION theta;
-    FP_PRECISION phi;
     FP_PRECISION pdf;
-    
-    if(sampler_ == kUniform){
-      uniform_hemisphere_sample(theta, phi, pdf);
+    if(!no_sample){
+
+      FP_PRECISION theta;
+      FP_PRECISION phi;
+      
+      if(sampler_ == kUniform){
+        uniform_hemisphere_sample(theta, phi, pdf);
+      }
+      else if(sampler_ == kCosine){
+        cosine_hemisphere_sample(theta, phi, pdf);
+      }
+      // Find orthonormal basis
+      Vec3f normal_prime;
+      normal_prime.x = surface_normal.x;
+      normal_prime.y = surface_normal.y;
+      normal_prime.z = surface_normal.z;
+      int min_index = 0;
+      FP_PRECISION min_value = surface_normal.x;
+      if (surface_normal.y < min_value)
+      {
+        min_value = surface_normal.y;
+        min_index = 1;
+      }
+      if (surface_normal.z < min_value)
+      {
+        min_value = surface_normal.z;
+        min_index = 2;
+      }
+      switch (min_index)
+      {
+      case 0:
+        normal_prime.x = 1.0f;
+        break;
+      case 1:
+        normal_prime.y = 1.0f;
+        break;
+      case 2:
+        normal_prime.z = 1.0f;
+        break;
+      }
+      normal_prime = normalize(normal_prime);
+      Vec3f tangent = normalize(cross(normal_prime, surface_normal));
+      Vec3f bitangent = cross(surface_normal, tangent);
+
+      direction = normalize(tangent * (std::sin(theta) * std::cos(phi)) +
+        bitangent * (std::sin(theta) * std::sin(phi)) +
+        surface_normal * std::cos(theta));
     }
-    else if(sampler_ == kCosine){
-      cosine_hemisphere_sample(theta, phi, pdf);
+    else{
+      direction = surface_normal;
+      pdf = 1/(2*M_PI);
     }
-    Vec3f tangent, bitangent;
-    if (std::abs(surface_normal.x) > std::abs(surface_normal.y)) {
-      tangent = normalize(cross(Vec3f{0, 1, 0}, surface_normal));
-    } else {
-      tangent = normalize(cross(Vec3f{1, 0, 0}, surface_normal));
-    }
-    bitangent = cross(surface_normal, tangent);
-    direction = normalize(tangent * (std::sin(theta) * std::cos(phi)) +
-                          bitangent * (std::sin(theta) * std::sin(phi)) +
-                          surface_normal * std::cos(theta));
 
     if (type_ == kLatLong)
     {
-      FP_PRECISION u = (1+atan2(direction.x, -direction.z)/M_PI)/2.0;
-      FP_PRECISION v = acos(direction.y)/M_PI;
+      u = (1+atan2(direction.x, -direction.z)/M_PI)/2.0;
+      v = acos(direction.y)/M_PI;
     }
     else if (type_ == kProbe)
     {

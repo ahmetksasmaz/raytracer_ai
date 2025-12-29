@@ -287,9 +287,9 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
           if (configuration_.shading_.diffuse_)
           {
             Vec3f diffuse_term = hadamard(material_ptr->diffuse_, env_radiance) *
-              std::max(0.0, dot(hit_normal, -ray.direction_));
+              std::max(0.0, dot(hit_normal, direction));
             Vec3f texture_diffuse = hadamard(texture_diffuse_value, env_radiance) *
-                std::max(0.0, dot(hit_normal, -ray.direction_));
+                std::max(0.0, dot(hit_normal, direction));
             pixel_value += (1-texture_diffuse_coeff) * diffuse_term + texture_diffuse_coeff * texture_diffuse;
           }
           if (configuration_.shading_.specular_){
@@ -302,10 +302,10 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
                 env_radiance) *
                 pow(std::max(0.0, dot(hit_normal, half_vector)),
                 material_ptr->phong_exponent_);
-                Vec3f texture_specular = hadamard(texture_specular_value, env_radiance) *
+              Vec3f texture_specular = hadamard(texture_specular_value, env_radiance) *
                 pow(std::max(0.0, dot(hit_normal, half_vector)),
                 material_ptr->phong_exponent_);
-                pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
+              pixel_value += (1-texture_specular_coeff) * specular_term + texture_specular_coeff * texture_specular;
               }
             }
           }
@@ -868,7 +868,12 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
   {
     if (remaining_recursion == max_recursion-1)
     {
-      if(background_texture_map_)
+      if(spherical_directional_light_){
+        Vec3f direction;
+        Vec3f env_radiance = spherical_directional_light_->GetIntensity(ray.direction_, direction, true);
+        pixel_value = env_radiance;
+      }
+      else if(background_texture_map_)
       {
         FP_PRECISION u = 0.5 + (atan2(ray.direction_.z, ray.direction_.x) / (2 * M_PI));
         FP_PRECISION v = 0.5 - (asin(ray.direction_.y) / M_PI);
@@ -884,7 +889,14 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
     }
     else
     {
-      pixel_value = {0, 0, 0};
+      if(spherical_directional_light_){
+        Vec3f direction;
+        Vec3f env_radiance = spherical_directional_light_->GetIntensity(ray.direction_, direction, true);
+        pixel_value = env_radiance;
+      }
+      else{
+        pixel_value = {0, 0, 0};
+      }
     }
   }
 

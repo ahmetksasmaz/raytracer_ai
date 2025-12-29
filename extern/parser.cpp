@@ -737,7 +737,8 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       camera.num_samples = cam.contains("NumSamples") ? std::stoi(cam["NumSamples"].get<std::string>()) : 0;
       camera.focus_distance = cam.contains("FocusDistance") ? std::stof(cam["FocusDistance"].get<std::string>()) : 0;
       camera.aperture_size = cam.contains("ApertureSize") ? std::stof(cam["ApertureSize"].get<std::string>()) : 0;
-      
+      camera.left_handed = cam.contains("_handedness") ? cam["_handedness"].get<std::string>() == "left" : false;
+
       // Read tonemappings
       if(cam.contains("Tonemap")){
         std::vector<nlohmann::json> json_tonemaps;

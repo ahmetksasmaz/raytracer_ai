@@ -26,9 +26,9 @@ BaseImage::BaseImage(const std::string& path) : path_(path) {
         mipmapping_.push_back(std::vector<std::vector<Vec3f>>(height_, std::vector<Vec3f>(width_)));
         for (int i = 0; i < height_; i++) {
           for (int j = 0; j < width_; j++) {
-            mipmapping_[0][i][j] = Vec3f{FP_PRECISION(out[3 * (i * width_ + j) + 0]),
-                                FP_PRECISION(out[3 * (i * width_ + j) + 1]),
-                                FP_PRECISION(out[3 * (i * width_ + j) + 2])};
+            mipmapping_[0][i][j] = Vec3f{FP_PRECISION(out[4 * (i * width_ + j) + 0]),
+                                FP_PRECISION(out[4 * (i * width_ + j) + 1]),
+                                FP_PRECISION(out[4 * (i * width_ + j) + 2])};
           }
         }
 
