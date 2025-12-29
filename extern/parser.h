@@ -148,6 +148,7 @@ struct RawCamera {
   std::string image_name;
   std::string transformations = "";
   std::vector<RawToneMapping> tone_mappings = {};
+  bool left_handed = false;
 };
 
 struct RawPointLight {

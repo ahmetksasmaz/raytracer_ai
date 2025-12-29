@@ -19,7 +19,7 @@ class BaseCamera {
       const FP_PRECISION fov_y, const FP_PRECISION near_distance, const int image_width,
       const int image_height, const std::string& image_name,
       const unsigned int num_samples = 0,
-      std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings = {},
+      std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings = {}, bool left_handed = false,
       const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,
       const SamplingAlgorithm pixel_sampling = SamplingAlgorithm::kBest,
       const FP_PRECISION focus_distance = 0.0, const FP_PRECISION aperture_size = 0.0,
@@ -64,6 +64,7 @@ class BaseCamera {
   const unsigned int num_samples_;
   const FP_PRECISION focus_distance_;
   const FP_PRECISION aperture_size_;
+  const bool left_handed_;
 
   const ApertureType aperture_type_;
   const std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings_;

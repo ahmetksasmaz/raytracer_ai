@@ -30,14 +30,20 @@ void ACESToneMapping::ApplyToneMapping(Vec3f* image_data){
         return (L * (L * A + B)) / (L * (L * C + D) + E);
     };
 
-    FP_PRECISION l_white = 0.0;
-    std::vector<FP_PRECISION> Lw_sorted = Lw;
-    std::sort(Lw_sorted.begin(), Lw_sorted.end());
-    int burn_index = static_cast<int>((1.0 - burn_/100.0) * Lw_sorted.size());
-    l_white = Lw_sorted[burn_index];
+    if(burn_ > 0.0){
+        FP_PRECISION l_white = 0.0;
+        std::vector<FP_PRECISION> Lw_sorted = Lw;
+        std::sort(Lw_sorted.begin(), Lw_sorted.end());
+        int burn_index = static_cast<int>((1.0 - burn_/100.0) * Lw_sorted.size());
+        l_white = Lw_sorted[burn_index];
 
-    for(int i = 0; i < width_ * height_; i++){
-        Lw[i] = map(Lw[i]) / map(l_white);
+        for(int i = 0; i < width_ * height_; i++){
+            Lw[i] = map(Lw[i]) / map(l_white);
+        }
+    } else {
+        for(int i = 0; i < width_ * height_; i++){
+            Lw[i] = map(Lw[i]);
+        }
     }
     
     for(int i = 0; i < width_ * height_; i++){
