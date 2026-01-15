@@ -310,11 +310,7 @@ Vec3f Scene::RecursiveRayTracingAlgorithm(
             }
           }
       }
-    }
 
-    
-    if (!inside_object_ptr)
-    {
       for (auto point_light : point_lights_)
       {
         Ray shadow_ray = {
