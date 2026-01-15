@@ -10,7 +10,7 @@ class ModifiedBlinnPhong : public BaseBRDF {
  public:
     ModifiedBlinnPhong(const FP_PRECISION exponent, const bool normalized)
         : BaseBRDF(exponent, normalized) {}
-    Vec3f Evaluate(const Vec3f &incoming_direction, const Vec3f &outgoing_direction, const Vec3f &normal, const Vec3f &kd, const Vec3f &ks, FP_PRECISION) const override {
+    Vec3f Evaluate(const Vec3f &incoming_direction, const Vec3f &outgoing_direction, const Vec3f &normal, const Vec3f &kd, const Vec3f &ks, FP_PRECISION, FP_PRECISION) const override {
         if(!normalized_){
             Vec3f half_vector = normalize(incoming_direction + outgoing_direction);
             FP_PRECISION NdotH = std::max((FP_PRECISION)0.0, dot(normal, half_vector));

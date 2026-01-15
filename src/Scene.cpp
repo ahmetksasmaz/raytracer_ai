@@ -245,7 +245,7 @@ void Scene::LoadScene() {
         materials_.push_back(std::make_shared<BaseMaterial>(
             raw_material.brdf_id < 0 ? std::make_shared<OriginalBlinnPhong>(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
-            raw_material.phong_exponent, raw_material.roughness));
+            raw_material.phong_exponent, raw_material.roughness, raw_material.refraction_index, raw_material.absorption_index));
         break;
 
       case RawMaterialType::kMirror:
@@ -253,7 +253,7 @@ void Scene::LoadScene() {
             raw_material.brdf_id < 0 ? std::make_shared<OriginalBlinnPhong>(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness,
-            raw_material.mirror));
+            raw_material.mirror, raw_material.refraction_index, raw_material.absorption_index));
         break;
       case RawMaterialType::kConductor:
         materials_.push_back(std::make_shared<ConductorMaterial>(

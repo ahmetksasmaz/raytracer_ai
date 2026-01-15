@@ -376,6 +376,7 @@ struct RawScene {
     planes.clear();
     images.clear();
     texture_maps.clear();
+    brdfs.clear();
   }
 
   // Data
