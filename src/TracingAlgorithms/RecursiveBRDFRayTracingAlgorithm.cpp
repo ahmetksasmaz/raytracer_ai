@@ -25,46 +25,45 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
     {
         if (configuration_.acceleration_.bvh_high_level_)
         {
-        hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector);
+            hit_object_ptr = bvh_root_->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, false);
         }
         else
         {
-        for (auto object : objects_)
-        {
-            FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
-            Vec3f normal;
-            std::shared_ptr<BaseObject> hit_object_casted =
-                std::dynamic_pointer_cast<BaseObject>(object);
-            if (object->Intersect(ray, temp_hit, normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector))
+            for (auto object : objects_)
             {
-            if (t_hit > temp_hit)
-            {
-                t_hit = temp_hit;
-                hit_object_ptr = object;
-                hit_normal = normal;
+                FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
+                Vec3f normal;
+                std::shared_ptr<BaseObject> hit_object_casted =
+                    std::dynamic_pointer_cast<BaseObject>(object);
+                if (object->Intersect(ray, temp_hit, normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, false))
+                {
+                    if (t_hit > temp_hit)
+                    {
+                        t_hit = temp_hit;
+                        hit_object_ptr = object;
+                        hit_normal = normal;
+                    }
+                }
             }
-            }
-        }
         }
 
         for (const auto &plane : plane_objects_)
         {
-        // Plane cast plane object
-        auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
+            // Plane cast plane object
+            auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
 
-        FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
-        Vec3f normal;
-        if (plane_casted->IntersectPlane(ray, temp_hit, normal))
-        {
-            if (t_hit > temp_hit)
+            FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
+            Vec3f normal;
+            if (plane_casted->IntersectPlane(ray, temp_hit, normal))
             {
-            t_hit = temp_hit;
-            hit_object_ptr = plane;
-            hit_normal = normal;
+                if (t_hit > temp_hit)
+                {
+                t_hit = temp_hit;
+                hit_object_ptr = plane;
+                hit_normal = normal;
+                }
             }
         }
-        }
-
     }
     else
     {
@@ -234,27 +233,27 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         if(material_ptr->roughness_ > 0.0f){
             Vec3f normal_prime = hit_normal;
             int min_index = 0;
-            FP_PRECISION min_value = hit_normal.x;
-            if (hit_normal.y < min_value)
+            FP_PRECISION min_value = std::abs(hit_normal.x);
+            if (std::abs(hit_normal.y) < min_value)
             {
-                min_value = hit_normal.y;
+                min_value = std::abs(hit_normal.y);
                 min_index = 1;
             }
-            if (hit_normal.z < min_value)
+            if (std::abs(hit_normal.z) < min_value)
             {
-                min_value = hit_normal.z;
+                min_value = std::abs(hit_normal.z);
                 min_index = 2;
             }
             switch (min_index)
             {
                 case 0:
-                    normal_prime.x = 1.0f;
+                    normal_prime = Vec3f{0.0f, hit_normal.z, -hit_normal.y};
                     break;
                 case 1:
-                    normal_prime.y = 1.0f;
+                    normal_prime = Vec3f{hit_normal.z, 0.0f, -hit_normal.x};
                     break;
                 case 2:
-                    normal_prime.z = 1.0f;
+                    normal_prime = Vec3f{hit_normal.y, -hit_normal.x, 0.0f};
                     break;
             }
 
@@ -276,21 +275,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         Ray reflection_ray = {ray.pixel_, intersection_point, reflection_direction, ray.diff_, ray.time_};
         Vec3f reflection_color = RecursiveBRDFRayTracingAlgorithm(reflection_ray, inside_object_ptr, remaining_recursion, max_recursion);
 
-        FP_PRECISION f_zero_value = 1.0;
-        if(dielectric_material_ptr){
-            FP_PRECISION n1 = inside_object_ptr ? dielectric_material_ptr->refraction_index_ : 1.0;
-            FP_PRECISION n2 = inside_object_ptr ? 1.0 : dielectric_material_ptr->refraction_index_;
-            f_zero_value = std::pow((n2 - n1) / (n2 + n1), 2.0);
-        }
-        else if(conductor_material_ptr){
-            FP_PRECISION n1 = inside_object_ptr ? conductor_material_ptr->refraction_index_ : 1.0;
-            FP_PRECISION n2 = inside_object_ptr ? 1.0 : conductor_material_ptr->refraction_index_;
-            FP_PRECISION k2 = conductor_material_ptr->absorption_index_;
-            f_zero_value = ((n2 - n1)*(n2 - n1) + k2*k2) / ((n2 + n1)*(n2 + n1) + k2*k2);
-        }
-        FP_PRECISION f_theta_value = f_zero_value + (1.0 - f_zero_value) * std::pow((1.0 - dot(-ray.direction_, distorted_normal)), 5.0);
-
-        Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, reflection_direction, distorted_normal, KD, KS, f_theta_value);
+        Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, reflection_direction, distorted_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
         if(mirror_material_ptr){
             total_light_value += hadamard(reflection_color, hadamard(mirror_material_ptr->mirror_, brdf));
         }
@@ -408,7 +393,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         Vec3f env_radiance = spherical_directional_light_->GetIntensity(hit_normal, direction);
         bool is_in_shadow = ShadowCheck(direction, std::numeric_limits<FP_PRECISION>::max());
         if(!is_in_shadow){
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, direction, hit_normal, KD, KS);
+            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
             total_light_value += hadamard(env_radiance, brdf) * std::max(0.0, dot(hit_normal, direction));
         }
     }
@@ -418,7 +403,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         FP_PRECISION distance_to_light = norm(point_light->position_ - intersection_point);
         bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
         if(!is_in_shadow){
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS);
+            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
             total_light_value += hadamard(point_light->intensity_, brdf) * std::max(0.0, dot(hit_normal, light_direction)) / (distance_to_light * distance_to_light);
         }
     }
@@ -426,31 +411,31 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
     {
         std::vector<Vec2f> diff = area_light_sampling_algorithm_(1);
         Vec3f area_light_position = area_light->position_;
-        Vec3f area_light_normal = -normalize(area_light->normal_);
+        Vec3f area_light_normal = normalize(area_light->normal_);
         Vec3f normal_prime = area_light_normal;
         int min_index = 0;
-        FP_PRECISION min_value = area_light_normal.x;
-        if (area_light_normal.y < min_value)
+        FP_PRECISION min_value = std::abs(area_light_normal.x);
+        if (std::abs(area_light_normal.y) < min_value)
         {
-          min_value = area_light_normal.y;
+          min_value = std::abs(area_light_normal.y);
           min_index = 1;
         }
-        if (area_light_normal.z < min_value)
+        if (std::abs(area_light_normal.z) < min_value)
         {
-          min_value = area_light_normal.z;
+          min_value = std::abs(area_light_normal.z);
           min_index = 2;
         }
         switch (min_index)
         {
-        case 0:
-          normal_prime.x = 1.0f;
-          break;
-        case 1:
-          normal_prime.y = 1.0f;
-          break;
-        case 2:
-          normal_prime.z = 1.0f;
-          break;
+            case 0:
+            normal_prime = Vec3f{0.0f, area_light_normal.z, -area_light_normal.y};
+            break;
+            case 1:
+            normal_prime = Vec3f{area_light_normal.z, 0.0f, -area_light_normal.x};
+            break;
+            case 2:
+            normal_prime = Vec3f{area_light_normal.y, -area_light_normal.x, 0.0f};
+            break;
         }
         Vec3f u = normalize(cross(normal_prime, area_light_normal));
         Vec3f v = cross(area_light_normal, u);
@@ -459,8 +444,8 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         FP_PRECISION distance_to_light = norm(area_light_position - intersection_point);
         bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
         if(!is_in_shadow){
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS);
-            total_light_value += hadamard(area_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction)) * area_light->size_ * area_light->size_ * dot(area_light_normal, -light_direction) / (distance_to_light * distance_to_light);
+            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
+            total_light_value += hadamard(area_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction)) * area_light->size_ * area_light->size_ * dot(-area_light_normal, light_direction) / (distance_to_light * distance_to_light);
         }
     }
     for(auto& spot_light : spot_lights_)
@@ -486,7 +471,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
                 else{
                     value = spot_light->intensity_ / (distance_to_light * distance_to_light);
                 }
-                Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS);
+                Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
                 total_light_value += hadamard(value, brdf) * std::max(0.0, dot(hit_normal, light_direction));
             }
         }
@@ -496,10 +481,12 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         Vec3f light_direction = -normalize(dir_light->direction_);
         bool is_in_shadow = ShadowCheck(light_direction, std::numeric_limits<FP_PRECISION>::max());
         if(!is_in_shadow){
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS);
+            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
             total_light_value += hadamard(dir_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction));
         }
     }
+    
+    total_light_value += hadamard(ambient_light_->intensity_, KA);
 
     return total_light_value;
 };

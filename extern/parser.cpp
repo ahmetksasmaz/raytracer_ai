@@ -670,7 +670,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   if (json_data.contains("ShadowRayEpsilon")) {
     shadow_ray_epsilon = std::stof(json_data["ShadowRayEpsilon"].get<std::string>());
   } else {
-    shadow_ray_epsilon = 0.001f;
+    shadow_ray_epsilon = 0.00001;
   }
   
   // Parse max recursion depth
@@ -920,13 +920,14 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   }
   // Parse BRDFs
   if (json_data.contains("BRDFs")) {
-    if(json_data.contains("OriginalBlinnPhong")){
+    nlohmann::json brdfs_json = json_data["BRDFs"];
+    if(brdfs_json.contains("OriginalBlinnPhong")){
       std::vector<nlohmann::json> json_original_bps;
       try {
-        auto brdf_id = json_data["BRDFs"]["OriginalBlinnPhong"]["_id"].get<std::string>();
-        json_original_bps.push_back(json_data["BRDFs"]["OriginalBlinnPhong"]);
+        auto brdf_id = brdfs_json["OriginalBlinnPhong"]["_id"].get<std::string>();
+        json_original_bps.push_back(brdfs_json["OriginalBlinnPhong"]);
       } catch (nlohmann::json::type_error& e) {
-        for (const auto& brdf : json_data["BRDFs"]["OriginalBlinnPhong"]) {
+        for (const auto& brdf : brdfs_json["OriginalBlinnPhong"]) {
           json_original_bps.push_back(brdf);
         }
       }
@@ -939,13 +940,13 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         brdfs.push_back(obp);
       }
     }
-    if(json_data.contains("ModifiedBlinnPhong")){
+    if(brdfs_json.contains("ModifiedBlinnPhong")){
       std::vector<nlohmann::json> json_modified_bps;
       try {
-        auto brdf_id = json_data["BRDFs"]["ModifiedBlinnPhong"]["_id"].get<std::string>();
-        json_modified_bps.push_back(json_data["BRDFs"]["ModifiedBlinnPhong"]);
+        auto brdf_id = brdfs_json["ModifiedBlinnPhong"]["_id"].get<std::string>();
+        json_modified_bps.push_back(brdfs_json["ModifiedBlinnPhong"]);
       } catch (nlohmann::json::type_error& e) {
-        for (const auto& brdf : json_data["BRDFs"]["ModifiedBlinnPhong"]) {
+        for (const auto& brdf : brdfs_json["ModifiedBlinnPhong"]) {
           json_modified_bps.push_back(brdf);
         }
       }
@@ -958,13 +959,13 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         brdfs.push_back(mbp);
       }
     }
-    if(json_data.contains("OriginalPhong")){
+    if(brdfs_json.contains("OriginalPhong")){
       std::vector<nlohmann::json> json_original_phongs;
       try {
-        auto brdf_id = json_data["BRDFs"]["OriginalPhong"]["_id"].get<std::string>();
-        json_original_phongs.push_back(json_data["BRDFs"]["OriginalPhong"]);
+        auto brdf_id = brdfs_json["OriginalPhong"]["_id"].get<std::string>();
+        json_original_phongs.push_back(brdfs_json["OriginalPhong"]);
       } catch (nlohmann::json::type_error& e) {
-        for (const auto& brdf : json_data["BRDFs"]["OriginalPhong"]) {
+        for (const auto& brdf : brdfs_json["OriginalPhong"]) {
           json_original_phongs.push_back(brdf);
         }
       }
@@ -977,13 +978,13 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         brdfs.push_back(op);
       }
     }
-    if(json_data.contains("ModifiedPhong")){
+    if(brdfs_json.contains("ModifiedPhong")){
       std::vector<nlohmann::json> json_modified_phongs;
       try {
-        auto brdf_id = json_data["BRDFs"]["ModifiedPhong"]["_id"].get<std::string>();
-        json_modified_phongs.push_back(json_data["BRDFs"]["ModifiedPhong"]);
+        auto brdf_id = brdfs_json["ModifiedPhong"]["_id"].get<std::string>();
+        json_modified_phongs.push_back(brdfs_json["ModifiedPhong"]);
       } catch (nlohmann::json::type_error& e) {
-        for (const auto& brdf : json_data["BRDFs"]["ModifiedPhong"]) {
+        for (const auto& brdf : brdfs_json["ModifiedPhong"]) {
           json_modified_phongs.push_back(brdf);
         }
       }
@@ -996,13 +997,13 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         brdfs.push_back(mp);
       }
     }
-    if(json_data.contains("TorranceSparrow")){
+    if(brdfs_json.contains("TorranceSparrow")){
       std::vector<nlohmann::json> json_torrance_sparrows;
       try {
-        auto brdf_id = json_data["BRDFs"]["TorranceSparrow"]["_id"].get<std::string>();
-        json_torrance_sparrows.push_back(json_data["BRDFs"]["TorranceSparrow"]);
+        auto brdf_id = brdfs_json["TorranceSparrow"]["_id"].get<std::string>();
+        json_torrance_sparrows.push_back(brdfs_json["TorranceSparrow"]);
       } catch (nlohmann::json::type_error& e) {
-        for (const auto& brdf : json_data["BRDFs"]["TorranceSparrow"]) {
+        for (const auto& brdf : brdfs_json["TorranceSparrow"]) {
           json_torrance_sparrows.push_back(brdf);
         }
       }
@@ -1011,6 +1012,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         ct.type = RawBRDFType::kTorranceSparrow;
         ct.kd_fresnel = brdf.contains("_kdfresnel") ? brdf["_kdfresnel"].get<std::string>() == "true" : false;
         ct.id = std::stoi(brdf["_id"].get<std::string>());
+        ct.exponent = std::stof(brdf["Exponent"].get<std::string>());
         brdfs.push_back(ct);
       }
     }
@@ -1081,16 +1083,25 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         std::stringstream ss_mirror(mirror);
         ss_mirror >> material.mirror.x >> material.mirror.y >> material.mirror.z;
       }
-      if (material.material_type == RawMaterialType::kDielectric && material_obj.contains("AbsorptionCoefficient")) {
+      if (material_obj.contains("AbsorptionCoefficient")) {
         auto ac = material_obj["AbsorptionCoefficient"].get<std::string>();
         std::stringstream ss_ac(ac);
         ss_ac >> material.absorption_coefficient.x >> material.absorption_coefficient.y >> material.absorption_coefficient.z;
       }
-      if ((material.material_type == RawMaterialType::kConductor || material.material_type == RawMaterialType::kDielectric) && material_obj.contains("RefractionIndex")) {
+      else{
+        material.absorption_coefficient = {-1.0f, -1.0f, -1.0f};
+      }
+      if (material_obj.contains("RefractionIndex")) {
         material.refraction_index = std::stof(material_obj["RefractionIndex"].get<std::string>());
       }
-      if (material.material_type == RawMaterialType::kConductor && material_obj.contains("AbsorptionIndex")) {
+      else{
+        material.refraction_index = -1.0f;
+      }
+      if (material_obj.contains("AbsorptionIndex")) {
         material.absorption_index = std::stof(material_obj["AbsorptionIndex"].get<std::string>());
+      }
+      else{
+        material.absorption_index = -1.0f;
       }
       material.phong_exponent = material_obj.contains("PhongExponent") ? std::stof(material_obj["PhongExponent"].get<std::string>()) : 0.0f;
       material.roughness = material_obj.contains("Roughness") ? std::stof(material_obj["Roughness"].get<std::string>()) : 0.0f;
