@@ -918,6 +918,107 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     }
 
   }
+  // Parse BRDFs
+  if (json_data.contains("BRDFs")) {
+    if(json_data.contains("OriginalBlinnPhong")){
+      std::vector<nlohmann::json> json_original_bps;
+      try {
+        auto brdf_id = json_data["BRDFs"]["OriginalBlinnPhong"]["_id"].get<std::string>();
+        json_original_bps.push_back(json_data["BRDFs"]["OriginalBlinnPhong"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& brdf : json_data["BRDFs"]["OriginalBlinnPhong"]) {
+          json_original_bps.push_back(brdf);
+        }
+      }
+      for(const auto& brdf : json_original_bps){
+        RawBRDF obp;
+        obp.type = RawBRDFType::kOriginalBlinnPhong;
+        obp.id = std::stoi(brdf["_id"].get<std::string>());
+        obp.normalized = brdf.contains("_normalized") ? brdf["_normalized"].get<std::string>() == "true" : false;
+        obp.exponent = std::stof(brdf["Exponent"].get<std::string>());
+        brdfs.push_back(obp);
+      }
+    }
+    if(json_data.contains("ModifiedBlinnPhong")){
+      std::vector<nlohmann::json> json_modified_bps;
+      try {
+        auto brdf_id = json_data["BRDFs"]["ModifiedBlinnPhong"]["_id"].get<std::string>();
+        json_modified_bps.push_back(json_data["BRDFs"]["ModifiedBlinnPhong"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& brdf : json_data["BRDFs"]["ModifiedBlinnPhong"]) {
+          json_modified_bps.push_back(brdf);
+        }
+      }
+      for(const auto& brdf : json_modified_bps){
+        RawBRDF mbp;
+        mbp.type = RawBRDFType::kModifiedBlinnPhong;
+        mbp.id = std::stoi(brdf["_id"].get<std::string>());
+        mbp.normalized = brdf.contains("_normalized") ? brdf["_normalized"].get<std::string>() == "true" : false;
+        mbp.exponent = std::stof(brdf["Exponent"].get<std::string>());
+        brdfs.push_back(mbp);
+      }
+    }
+    if(json_data.contains("OriginalPhong")){
+      std::vector<nlohmann::json> json_original_phongs;
+      try {
+        auto brdf_id = json_data["BRDFs"]["OriginalPhong"]["_id"].get<std::string>();
+        json_original_phongs.push_back(json_data["BRDFs"]["OriginalPhong"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& brdf : json_data["BRDFs"]["OriginalPhong"]) {
+          json_original_phongs.push_back(brdf);
+        }
+      }
+      for(const auto& brdf : json_original_phongs){
+        RawBRDF op;
+        op.type = RawBRDFType::kOriginalPhong;
+        op.id = std::stoi(brdf["_id"].get<std::string>());
+        op.normalized = brdf.contains("_normalized") ? brdf["_normalized"].get<std::string>() == "true" : false;
+        op.exponent = std::stof(brdf["Exponent"].get<std::string>());
+        brdfs.push_back(op);
+      }
+    }
+    if(json_data.contains("ModifiedPhong")){
+      std::vector<nlohmann::json> json_modified_phongs;
+      try {
+        auto brdf_id = json_data["BRDFs"]["ModifiedPhong"]["_id"].get<std::string>();
+        json_modified_phongs.push_back(json_data["BRDFs"]["ModifiedPhong"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& brdf : json_data["BRDFs"]["ModifiedPhong"]) {
+          json_modified_phongs.push_back(brdf);
+        }
+      }
+      for(const auto& brdf : json_modified_phongs){
+        RawBRDF mp;
+        mp.type = RawBRDFType::kModifiedPhong;
+        mp.id = std::stoi(brdf["_id"].get<std::string>());
+        mp.normalized = brdf.contains("_normalized") ? brdf["_normalized"].get<std::string>() == "true" : false;
+        mp.exponent = std::stof(brdf["Exponent"].get<std::string>());
+        brdfs.push_back(mp);
+      }
+    }
+    if(json_data.contains("TorranceSparrow")){
+      std::vector<nlohmann::json> json_torrance_sparrows;
+      try {
+        auto brdf_id = json_data["BRDFs"]["TorranceSparrow"]["_id"].get<std::string>();
+        json_torrance_sparrows.push_back(json_data["BRDFs"]["TorranceSparrow"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& brdf : json_data["BRDFs"]["TorranceSparrow"]) {
+          json_torrance_sparrows.push_back(brdf);
+        }
+      }
+      for(const auto& brdf : json_torrance_sparrows){
+        RawBRDF ct;
+        ct.type = RawBRDFType::kTorranceSparrow;
+        ct.kd_fresnel = brdf.contains("_kdfresnel") ? brdf["_kdfresnel"].get<std::string>() == "true" : false;
+        ct.id = std::stoi(brdf["_id"].get<std::string>());
+        brdfs.push_back(ct);
+      }
+    }
+    std::sort(brdfs.begin(), brdfs.end(), [](const RawBRDF &a, const RawBRDF &b) {
+      return a.id < b.id;
+    });
+  }
+
   // Parse Materials
   if (json_data.contains("Materials")) {
     // Type check
@@ -944,6 +1045,11 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         }
       } else {
         material.material_type = RawMaterialType::kDefault;
+      }
+      if(material_obj.contains("_BRDF")){
+        material.brdf_id = std::stoi(material_obj["_BRDF"].get<std::string>());
+      } else {
+        material.brdf_id = -1;
       }
       material.degamma = material_obj.contains("_degamma") ? material_obj["_degamma"].get<std::string>() == "true" : false;
       
