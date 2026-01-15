@@ -97,6 +97,10 @@ class Scene {
       Ray &ray,
       const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
       int remaining_recursion, int max_recursion);
+  Vec3f RecursiveBRDFRayTracingAlgorithm(
+      Ray &ray,
+      const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
+      int remaining_recursion, int max_recursion);
 
   void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                     int camera_index);
