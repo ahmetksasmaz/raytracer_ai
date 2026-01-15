@@ -42,6 +42,8 @@ enum RawEnvironmentMapType { kProbe, kLatLong };
 
 enum RawEnvironmentMapSampler { kUniform, kCosine };
 
+enum RawBRDFType { kOriginalBlinnPhong, kOriginalPhong, kModifiedBlinnPhong, kModifiedPhong, kTorranceSparrow };
+
 struct Vec2f {
   FP_PRECISION x, y;
 };
@@ -197,6 +199,7 @@ struct RawMaterial {
   FP_PRECISION phong_exponent;
   FP_PRECISION roughness = 0.0;
   bool degamma = false;
+  int brdf_id = -1;
 };
 
 struct RawFace {
@@ -278,6 +281,14 @@ struct RawComposite {
 
 struct RawImage {
   std::string path;
+};
+
+struct RawBRDF{
+  RawBRDFType type;
+  int id;
+  FP_PRECISION exponent = 1.0;
+  bool kd_fresnel = false;
+  bool normalized = false;
 };
 
 struct RawTextureMap {
@@ -387,6 +398,7 @@ struct RawScene {
   std::vector<RawTriangle> triangles;
   std::vector<RawSphere> spheres;
   std::vector<RawPlane> planes;
+  std::vector<RawBRDF> brdfs;
 
   std::vector<RawTranslation> translations;
   std::vector<RawScaling> scalings;

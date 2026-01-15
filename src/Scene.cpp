@@ -219,22 +219,45 @@ void Scene::LoadScene() {
         configuration_.sampling_.aperture_type_));
   }
 
+  for(const auto &raw_brdf : raw_scene.brdfs){
+    switch (raw_brdf.type) {
+      case RawBRDFType::kOriginalBlinnPhong:
+        brdfs_.push_back(std::make_shared<OriginalBlinnPhong>(raw_brdf.exponent));
+        break;
+      case RawBRDFType::kOriginalPhong:
+        brdfs_.push_back(std::make_shared<OriginalPhong>(raw_brdf.exponent));
+        break;
+      case RawBRDFType::kModifiedBlinnPhong:
+        brdfs_.push_back(std::make_shared<ModifiedBlinnPhong>(raw_brdf.exponent, raw_brdf.normalized));
+        break;
+      case RawBRDFType::kModifiedPhong:
+        brdfs_.push_back(std::make_shared<ModifiedPhong>(raw_brdf.exponent, raw_brdf.normalized));
+        break;
+      case RawBRDFType::kTorranceSparrow:
+        brdfs_.push_back(std::make_shared<TorranceSparrow>(raw_brdf.exponent, raw_brdf.kd_fresnel));
+        break;
+    }
+  }
+
   for (const auto &raw_material : raw_scene.materials) {
     switch (raw_material.material_type) {
       case RawMaterialType::kDefault:
         materials_.push_back(std::make_shared<BaseMaterial>(
+            raw_material.brdf_id < 0 ? nullptr : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness));
         break;
 
       case RawMaterialType::kMirror:
         materials_.push_back(std::make_shared<MirrorMaterial>(
+            raw_material.brdf_id < 0 ? nullptr : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness,
             raw_material.mirror));
         break;
       case RawMaterialType::kConductor:
         materials_.push_back(std::make_shared<ConductorMaterial>(
+            raw_material.brdf_id < 0 ? nullptr : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness,
             raw_material.mirror, raw_material.refraction_index,
@@ -242,6 +265,7 @@ void Scene::LoadScene() {
         break;
       case RawMaterialType::kDielectric:
         materials_.push_back(std::make_shared<DielectricMaterial>(
+            raw_material.brdf_id < 0 ? nullptr : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness,
             raw_material.mirror, raw_material.absorption_coefficient,

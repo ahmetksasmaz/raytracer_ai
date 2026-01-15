@@ -35,6 +35,12 @@
 #include "PhotographicToneMapping.hpp"
 #include "FilmicToneMapping.hpp"
 #include "ACESToneMapping.hpp"
+#include "BaseBRDF.hpp"
+#include "OriginalBlinnPhong.hpp"
+#include "OriginalPhong.hpp"
+#include "ModifiedBlinnPhong.hpp"
+#include "ModifiedPhong.hpp"
+#include "TorranceSparrow.hpp"
 
 using namespace parser;
 
@@ -63,6 +69,7 @@ class Scene {
   std::vector<std::shared_ptr<DirectionalLightSource>> directional_lights_;
   std::vector<std::shared_ptr<SpotLightSource>> spot_lights_;
   std::shared_ptr<SphericalDirectionalLightSource> spherical_directional_light_;
+  std::vector<std::shared_ptr<BaseBRDF>> brdfs_;
   std::vector<std::shared_ptr<BaseMaterial>> materials_;
   std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> objects_;
   std::vector<std::shared_ptr<PlaneObject>> plane_objects_;
