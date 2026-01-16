@@ -300,4 +300,64 @@ void LightMeshObject::Preprocess(bool high_level_bvh_enabled,
     left_ = BoundingVolumeHierarchyElement::Construct(
         triangle_objects_, 0, triangle_objects_.size(), 0);
   }
+
+  // Sampling Preprocess
+  std::vector<FP_PRECISION> triangle_areas;
+  FP_PRECISION total_area = 0.0;
+  for(auto& triangle_object : triangle_objects_)
+  {
+    std::shared_ptr<TriangleObject> triangle_object_casted =
+        std::dynamic_pointer_cast<TriangleObject>(triangle_object);
+    Vec3f v0 = triangle_object_casted->v0_;
+    Vec3f v1 = triangle_object_casted->v1_;
+    Vec3f v2 = triangle_object_casted->v2_;
+    FP_PRECISION area = norm(cross(v1 - v0, v2 - v0)) * 0.5;
+    triangle_areas.push_back(area);
+    total_area += area;
+  }
+
+  // Calculate CDF and PDF
+  FP_PRECISION cumulative_area = 0.0;
+  for (const auto& area : triangle_areas) {
+    cumulative_area += area;
+    cdf_pdf_.emplace_back(cumulative_area / total_area, area / total_area);
+  }
+}
+
+void LightMeshObject::Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const {
+  // Sample a triangle based on area PDF
+  FP_PRECISION random_value = static_cast <FP_PRECISION> (rand()) / static_cast <FP_PRECISION> (RAND_MAX);
+
+  size_t triangle_index = 0;
+  size_t left_index = 0;;
+  size_t right_index = cdf_pdf_.size() - 1;
+  while (left_index <= right_index) {
+    size_t mid_index = left_index + (right_index - left_index) / 2;
+    if (random_value <= cdf_pdf_[mid_index].first) {
+      triangle_index = mid_index;
+      right_index = mid_index - 1;
+    } else {
+      left_index = mid_index + 1;
+    }
+  }
+
+  std::shared_ptr<TriangleObject> triangle_object_casted =
+      std::dynamic_pointer_cast<TriangleObject>(triangle_objects_[triangle_index]);
+
+  // Uniformly sample a point on the selected triangle
+  FP_PRECISION r1 = static_cast <FP_PRECISION> (rand()) / static_cast <FP_PRECISION> (RAND_MAX);
+  FP_PRECISION r2 = static_cast <FP_PRECISION> (rand()) / static_cast <FP_PRECISION> (RAND_MAX);
+
+  FP_PRECISION sqrt_r1 = sqrt(r1);
+  FP_PRECISION u = 1 - sqrt_r1;
+  FP_PRECISION v = r2 * sqrt_r1;
+  FP_PRECISION w = 1 - u - v;
+
+  Vec3f v0 = triangle_object_casted->v0_;
+  Vec3f v1 = triangle_object_casted->v1_;
+  Vec3f v2 = triangle_object_casted->v2_;
+
+  sample_point = transform_matrix_ * (u * v0 + v * v1 + w * v2) + motion_blur_;
+  sample_normal = normalize(transform_matrix_ ^ triangle_object_casted->normal_);
+  pdf = cdf_pdf_[triangle_index].second;
 }

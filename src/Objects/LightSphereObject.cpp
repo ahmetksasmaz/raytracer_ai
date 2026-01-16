@@ -154,3 +154,7 @@ void LightSphereObject::Preprocess(bool high_level_bvh_enabled,
     InitializeSelf(min_point, max_point);
   }
 }
+
+void LightSphereObject::Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const {
+  
+}
