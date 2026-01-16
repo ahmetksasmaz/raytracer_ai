@@ -1,12 +1,13 @@
 #pragma once
 
 #include "BaseObject.hpp"
+#include "ObjectLightSource.hpp"
 #include "BoundingVolumeHierarchy.hpp"
 #include "TriangleObject.hpp"
 
 using namespace ply_reader;
 
-class LightMeshObject : public BaseObject {
+class LightMeshObject : public BaseObject, public ObjectLightSource {
  public:
   LightMeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
              const std::vector<RawFace>& raw_face_data,
@@ -21,6 +22,8 @@ class LightMeshObject : public BaseObject {
       bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 
+      virtual void Sample() const override = 0;
+
   virtual ~LightMeshObject() = default;
 
   void Preprocess(bool high_level_bvh_enabled, bool low_level_bvh_enabled,
@@ -28,5 +31,4 @@ class LightMeshObject : public BaseObject {
 
   std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>>
       triangle_objects_;
-  const Vec3f radiance_;
 };
