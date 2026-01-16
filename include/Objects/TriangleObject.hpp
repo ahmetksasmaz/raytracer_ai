@@ -25,11 +25,11 @@ class TriangleObject : public BaseObject {
   void Preprocess(bool high_level_bvh_enabled, bool low_level_bvh_enabled,
                   bool transform_enabled = true) override;
 
- private:
   const Vec3f v0_;
   const Vec3f v1_;
   const Vec3f v2_;
   Vec3f normal_;
+private:
   const Vec2f tex_v0_;
   const Vec2f tex_v1_;
   const Vec2f tex_v2_;

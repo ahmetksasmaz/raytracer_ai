@@ -17,7 +17,7 @@ class LightSphereObject : public BaseObject, public ObjectLightSource {
       Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool,
       bool) const override;
 
-  virtual void Sample() const override = 0;
+  virtual void Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const override = 0;
 
   virtual ~LightSphereObject() = default;
 

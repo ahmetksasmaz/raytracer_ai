@@ -22,7 +22,7 @@ class LightMeshObject : public BaseObject, public ObjectLightSource {
       bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 
-      virtual void Sample() const override = 0;
+  virtual void Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const override = 0;
 
   virtual ~LightMeshObject() = default;
 
@@ -31,4 +31,5 @@ class LightMeshObject : public BaseObject, public ObjectLightSource {
 
   std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>>
       triangle_objects_;
+  std::vector<std::pair<FP_PRECISION, FP_PRECISION>> cdf_pdf_;
 };
