@@ -41,6 +41,8 @@
 #include "ModifiedBlinnPhong.hpp"
 #include "ModifiedPhong.hpp"
 #include "TorranceSparrow.hpp"
+#include "LightMeshObject.hpp"
+#include "LightSphereObject.hpp"
 
 using namespace parser;
 
@@ -72,6 +74,7 @@ class Scene {
   std::vector<std::shared_ptr<BaseBRDF>> brdfs_;
   std::vector<std::shared_ptr<BaseMaterial>> materials_;
   std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> objects_;
+  std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> light_objects_;
   std::vector<std::shared_ptr<PlaneObject>> plane_objects_;
 
   std::vector<std::shared_ptr<BaseImage>> images_;

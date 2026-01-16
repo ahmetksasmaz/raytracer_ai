@@ -1,17 +1,17 @@
-#include "MeshObject.hpp"
+#include "LightMeshObject.hpp"
 
 #include <cstring>
 #include <iostream>
 #include <limits>
 
-MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
+LightMeshObject::LightMeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
                        const std::vector<RawFace>& raw_face_data,
                        const std::vector<Vec3f>& raw_vertex_data,
                        const std::vector<Vec2f>& raw_tex_coord_data,
                         const long long vertex_offset, const long long tex_coord_offset,
                        const Vec3f motion_blur, const Mat4x4f& transform_matrix,
-                       RawScalingFlip scaling_flip)
-    : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip) {
+                       RawScalingFlip scaling_flip, Vec3f radiance)
+    : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip), radiance_(radiance) {
   for (const auto& raw_face : raw_face_data) {
     triangle_objects_.push_back(
         std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
@@ -27,11 +27,11 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
   }
 };
 
-MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
+LightMeshObject::LightMeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
                        const std::string& ply_filename, const long long vertex_offset, const long long tex_coord_offset, const Vec3f motion_blur,
                        const Mat4x4f& transform_matrix,
-                       RawScalingFlip scaling_flip)
-    : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip) {
+                       RawScalingFlip scaling_flip, Vec3f radiance)
+    : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip), radiance_(radiance) {
   int nelems;
   char** elem_names;
   int file_type;
@@ -167,7 +167,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
   ply_close(ply_file);
 }
 
-std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
+std::shared_ptr<BoundingVolumeHierarchyElement> LightMeshObject::Intersect(
     Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
@@ -234,7 +234,7 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshObject::Intersect(
              : nullptr;
 }
 
-void MeshObject::Preprocess(bool high_level_bvh_enabled,
+void LightMeshObject::Preprocess(bool high_level_bvh_enabled,
                             bool low_level_bvh_enabled, bool) {
   FP_PRECISION x_min = std::numeric_limits<FP_PRECISION>::max();
   FP_PRECISION y_min = std::numeric_limits<FP_PRECISION>::max();

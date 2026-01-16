@@ -15,6 +15,34 @@
 
 #define FP_PRECISION double
 
+namespace ply_reader{
+  typedef struct Vertex {
+    float x, y, z; /* the usual 3-space position of a vertex */
+  } Vertex;
+
+  typedef struct Face {
+    unsigned char nverts; /* number of vertex indices in list */
+    int* verts;           /* vertex index list */
+  } Face;
+  
+  typedef struct VertexWithUV {
+    float x, y, z;
+    float u, v;
+  } VertexWithUV;
+  
+  typedef struct VertexWithUVN {
+    float x, y, z;
+    float nx, ny, nz;
+    float u, v;
+  } VertexWithUVN;
+  
+  extern PlyProperty vert_props[3];
+  extern PlyProperty vert_props_uv[5];
+  extern PlyProperty vert_props_uvn[8];
+  extern PlyProperty face_props[1];
+  extern PlyProperty face_props2[1];
+}
+
 namespace parser {
 // Notice that all the structures are as simple as possible
 // so that you are not enforced to adopt any style or design.
@@ -220,6 +248,19 @@ struct RawMesh {
   Vec3f motion_blur = {0, 0, 0};
 };
 
+struct RawLightMesh {
+  int object_id;
+  int material_id;
+  std::string textures;
+  std::vector<RawFace> faces;
+  long long vertex_offset = 0;
+  long long tex_coord_offset = 0;
+  std::string ply_filepath = "";
+  std::string transformations = "";
+  Vec3f motion_blur = {0, 0, 0};
+  Vec3f radiance;
+};
+
 struct RawMeshInstance {
   int object_id;
   int material_id;
@@ -247,6 +288,17 @@ struct RawSphere {
   FP_PRECISION radius;
   std::string transformations = "";
   Vec3f motion_blur = {0, 0, 0};
+};
+
+struct RawLightSphere {
+  int object_id;
+  int material_id;
+  std::string textures;
+  int center_vertex_id;
+  FP_PRECISION radius;
+  std::string transformations = "";
+  Vec3f motion_blur = {0, 0, 0};
+  Vec3f radiance;
 };
 
 struct RawPlane {
@@ -377,6 +429,8 @@ struct RawScene {
     images.clear();
     texture_maps.clear();
     brdfs.clear();
+    light_meshes.clear();
+    light_spheres.clear();
   }
 
   // Data
@@ -400,6 +454,8 @@ struct RawScene {
   std::vector<RawSphere> spheres;
   std::vector<RawPlane> planes;
   std::vector<RawBRDF> brdfs;
+  std::vector<RawLightMesh> light_meshes;
+  std::vector<RawLightSphere> light_spheres;
 
   std::vector<RawTranslation> translations;
   std::vector<RawScaling> scalings;
