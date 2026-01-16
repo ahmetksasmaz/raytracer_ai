@@ -15,6 +15,49 @@
 #include <iostream>
 #endif
 
+namespace ply_reader{
+  PlyProperty vert_props[3] = {
+      /* list of property information for a vertex */
+      {const_cast<char*>("x"), PLY_FLOAT, PLY_FLOAT, offsetof(Vertex, x), 0, 0, 0,
+      0},
+      {const_cast<char*>("y"), PLY_FLOAT, PLY_FLOAT, offsetof(Vertex, y), 0, 0, 0,
+      0},
+      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(Vertex, z), 0, 0, 0,
+      0},
+  };
+
+  PlyProperty vert_props_uv[5] = {
+      {const_cast<char*>("x"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, x), 0, 0, 0, 0},
+      {const_cast<char*>("y"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, y), 0, 0, 0, 0},
+      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, z), 0, 0, 0, 0},
+      {const_cast<char*>("u"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, u), 0, 0, 0, 0},
+      {const_cast<char*>("v"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, v), 0, 0, 0, 0},
+  };
+
+  PlyProperty vert_props_uvn[8] = {
+      {const_cast<char*>("x"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, x), 0, 0, 0, 0},
+      {const_cast<char*>("y"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, y), 0, 0, 0, 0},
+      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, z), 0, 0, 0, 0},
+      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, nx), 0, 0, 0, 0},
+      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, ny), 0, 0, 0, 0},
+      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, nz), 0, 0, 0, 0},
+      {const_cast<char*>("u"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, u), 0, 0, 0, 0},
+      {const_cast<char*>("v"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, v), 0, 0, 0, 0},
+  };
+
+  PlyProperty face_props[1] = {
+      /* list of property information for a vertex */
+      {const_cast<char*>("vertex_indices"), PLY_INT, PLY_INT,
+      offsetof(Face, verts), 1, PLY_UCHAR, PLY_UCHAR, offsetof(Face, nverts)},
+  };
+
+  PlyProperty face_props2[1] = {
+      /* list of property information for a vertex */
+      {const_cast<char*>("vertex_index"), PLY_INT, PLY_INT,
+      offsetof(Face, verts), 1, PLY_UCHAR, PLY_UCHAR, offsetof(Face, nverts)},
+  };
+}
+
 void parser::RawScene::loadFromXml(const std::string &filepath) {
   tinyxml2::XMLDocument file;
   std::stringstream stream;
@@ -1338,6 +1381,8 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     std::vector<nlohmann::json> json_triangles(0);
     std::vector<nlohmann::json> json_spheres(0);
     std::vector<nlohmann::json> json_planes(0);
+    std::vector<nlohmann::json> json_light_meshes(0);
+    std::vector<nlohmann::json> json_light_spheres(0);
     if(json_data["Objects"].contains("Mesh")){
       try {
         auto light_id = json_data["Objects"]["Mesh"]["_id"].get<std::string>();
@@ -1388,6 +1433,26 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         }
       }
     }
+    if(json_data["Objects"].contains("LightMesh")){
+      try {
+        auto light_id = json_data["Objects"]["LightMesh"]["_id"].get<std::string>();
+        json_light_meshes.push_back(json_data["Objects"]["LightMesh"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Objects"]["LightMesh"]) {
+          json_light_meshes.push_back(cam);
+        }
+      }
+    }
+    if(json_data["Objects"].contains("LightSphere")){
+      try {
+        auto light_id = json_data["Objects"]["LightSphere"]["_id"].get<std::string>();
+        json_light_spheres.push_back(json_data["Objects"]["LightSphere"]);
+      } catch (nlohmann::json::type_error& e) {
+        for (const auto& cam : json_data["Objects"]["LightSphere"]) {
+          json_light_spheres.push_back(cam);
+        }
+      }
+    }
     for (const auto& obj : json_meshes) {
       RawMesh mesh;
       mesh.object_id = std::stoi(obj["_id"].get<std::string>());
@@ -1423,6 +1488,47 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         ss >> mesh.motion_blur.x >> mesh.motion_blur.y >> mesh.motion_blur.z;
       }
       meshes.push_back(mesh);
+    }
+    for (const auto& obj : json_light_meshes) {
+      RawLightMesh mesh;
+      mesh.object_id = std::stoi(obj["_id"].get<std::string>());
+      mesh.material_id = std::stoi(obj["Material"].get<std::string>());
+      mesh.transformations = obj.contains("Transformations") ? obj["Transformations"].get<std::string>() : "";
+      mesh.textures = obj.contains("Textures") ? obj["Textures"].get<std::string>() : "";
+      if (obj.contains("Faces")) {
+        if (obj["Faces"].contains("_plyFile")) {
+          mesh.ply_filepath = obj["Faces"]["_plyFile"].get<std::string>();
+        } else {
+          auto face_data = obj["Faces"]["_data"].get<std::string>();
+          std::stringstream ss(face_data);
+          while (ss.peek() != EOF) {
+            RawFace face;
+            ss >> face.v0_id >> face.v1_id >> face.v2_id;
+            mesh.faces.push_back(face);
+          }
+        }
+        if(obj["Faces"].contains("_vertexOffset")) {
+          mesh.vertex_offset = std::stoll(obj["Faces"]["_vertexOffset"].get<std::string>());
+        } else {
+          mesh.vertex_offset = 0;
+        }
+        if(obj["Faces"].contains("_textureOffset")) {
+          mesh.tex_coord_offset = std::stoll(obj["Faces"]["_textureOffset"].get<std::string>());
+        } else {
+          mesh.tex_coord_offset = 0;
+        }
+      }
+      if (obj.contains("MotionBlur")) {
+        auto motion_blur = obj["MotionBlur"].get<std::string>();
+        std::stringstream ss(motion_blur);
+        ss >> mesh.motion_blur.x >> mesh.motion_blur.y >> mesh.motion_blur.z;
+      }
+      if (obj.contains("Radiance")) {
+        auto radiance = obj["Radiance"].get<std::string>();
+        std::stringstream ss(radiance);
+        ss >> mesh.radiance.x >> mesh.radiance.y >> mesh.radiance.z;
+      }
+      light_meshes.push_back(mesh);
     }
     
     for (const auto& mi : json_mesh_instances) {
@@ -1472,6 +1578,27 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         ss >> sphere.motion_blur.x >> sphere.motion_blur.y >> sphere.motion_blur.z;
       }
       spheres.push_back(sphere);
+    }
+
+    for (const auto& s : json_light_spheres) {
+      RawLightSphere sphere;
+      sphere.object_id = std::stoi(s["_id"].get<std::string>());
+      sphere.material_id = std::stoi(s["Material"].get<std::string>());
+      sphere.transformations = s.contains("Transformations") ? s["Transformations"].get<std::string>() : "";
+      sphere.textures = s.contains("Textures") ? s["Textures"].get<std::string>() : "";
+      sphere.center_vertex_id = std::stoi(s["Center"].get<std::string>());
+      sphere.radius = std::stof(s["Radius"].get<std::string>());
+      if (s.contains("MotionBlur")) {
+        auto motion_blur = s["MotionBlur"].get<std::string>();
+        std::stringstream ss(motion_blur);
+        ss >> sphere.motion_blur.x >> sphere.motion_blur.y >> sphere.motion_blur.z;
+      }
+      if (s.contains("Radiance")) {
+        auto radiance = s["Radiance"].get<std::string>();
+        std::stringstream ss(radiance);
+        ss >> sphere.radiance.x >> sphere.radiance.y >> sphere.radiance.z;
+      }
+      light_spheres.push_back(sphere);
     }
 
     for(const auto& p : json_planes) {

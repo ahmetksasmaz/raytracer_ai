@@ -328,6 +328,28 @@ void Scene::LoadScene() {
                 scaling_flip)));
   }
 
+  for (const auto &raw_sphere : raw_scene.light_spheres) {
+    RawScalingFlip scaling_flip{false, false, false};
+    Mat4x4f transform_matrix = parse_transformation(
+        raw_sphere.transformations, scaling_flip, raw_scene.translations,
+        raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    std::vector<std::shared_ptr<BaseTextureMap>> textures;
+    std::stringstream ss(raw_sphere.textures);
+    std::string texture_id_str;
+    while (std::getline(ss, texture_id_str, ' ')) {
+      int texture_id = std::stoi(texture_id_str);
+      textures.push_back(texture_maps_[texture_id - 1]);
+    }
+    objects_.push_back(
+        std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+            std::make_shared<LightSphereObject>(
+                materials_[raw_sphere.material_id - 1], textures,
+                raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
+                raw_sphere.radius, raw_sphere.motion_blur, transform_matrix,
+                scaling_flip, raw_sphere.radiance)));
+    light_objects_.push_back(objects_.back());
+  }
+
   for (const auto &raw_plane : raw_scene.planes) {
     RawScalingFlip scaling_flip{false, false, false};
     Mat4x4f transform_matrix = parse_transformation(
@@ -401,6 +423,36 @@ void Scene::LoadScene() {
                   raw_scene.vertex_data, raw_scene.tex_coord_data, raw_mesh.vertex_offset, raw_mesh.tex_coord_offset, raw_mesh.motion_blur, transform_matrix,
                   scaling_flip)));
     }
+  }
+
+  for (const auto &raw_mesh : raw_scene.light_meshes) {
+    RawScalingFlip scaling_flip{false, false, false};
+    Mat4x4f transform_matrix = parse_transformation(
+        raw_mesh.transformations, scaling_flip, raw_scene.translations,
+        raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
+    std::vector<std::shared_ptr<BaseTextureMap>> textures;
+    std::stringstream ss(raw_mesh.textures);
+    std::string texture_id_str;
+    while (std::getline(ss, texture_id_str, ' ')) {
+      int texture_id = std::stoi(texture_id_str);
+      textures.push_back(texture_maps_[texture_id - 1]);
+    }
+    if (raw_mesh.ply_filepath != "") {
+      objects_.push_back(
+          std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+              std::make_shared<LightMeshObject>(
+                  materials_[raw_mesh.material_id - 1], textures, raw_mesh.ply_filepath,
+                  raw_mesh.vertex_offset, raw_mesh.tex_coord_offset,
+                  raw_mesh.motion_blur, transform_matrix, scaling_flip, raw_mesh.radiance)));
+    } else {
+      objects_.push_back(
+          std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
+              std::make_shared<LightMeshObject>(
+                  materials_[raw_mesh.material_id - 1], textures, raw_mesh.faces,
+                  raw_scene.vertex_data, raw_scene.tex_coord_data, raw_mesh.vertex_offset, raw_mesh.tex_coord_offset, raw_mesh.motion_blur, transform_matrix,
+                  scaling_flip, raw_mesh.radiance)));
+    }
+    light_objects_.push_back(objects_.back());
   }
 
   for (auto &raw_mesh_instance : raw_scene.mesh_instances) {
