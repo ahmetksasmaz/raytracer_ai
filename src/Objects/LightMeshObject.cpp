@@ -331,7 +331,7 @@ void LightMeshObject::Sample(const Vec3f& intersection_point, Vec3f &sample_poin
   size_t triangle_index = 0;
   size_t left_index = 0;;
   size_t right_index = cdf_pdf_.size() - 1;
-  while (left_index <= right_index) {
+  while (left_index <= right_index && left_index < cdf_pdf_.size() && right_index >= 0) {
     size_t mid_index = left_index + (right_index - left_index) / 2;
     if (random_value <= cdf_pdf_[mid_index].first) {
       triangle_index = mid_index;

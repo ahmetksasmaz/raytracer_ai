@@ -156,5 +156,66 @@ void LightSphereObject::Preprocess(bool high_level_bvh_enabled,
 }
 
 void LightSphereObject::Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const {
+  Vec3f local_intersection_point =
+      inverse_transform_matrix_ * (intersection_point - motion_blur_);
+  Vec3f direction_to_center = normalize(center_ - local_intersection_point);
+  FP_PRECISION distance_to_center =
+      norm(center_ - local_intersection_point);
+  FP_PRECISION sin_theta_max = radius_ / distance_to_center;
+  if(radius_ > distance_to_center){
+      sin_theta_max = 1.0 - 1e-4;
+  }
+  FP_PRECISION cos_theta_max = sqrt(1 - sin_theta_max * sin_theta_max);
+  FP_PRECISION r1 = (FP_PRECISION)rand() / RAND_MAX;
+  FP_PRECISION r2 = (FP_PRECISION)rand() / RAND_MAX;
+  FP_PRECISION theta = acos(1 - r1 + r1 * cos_theta_max);
+  FP_PRECISION phi = 2 * M_PI * r2;
+  // Find orthonormal basis
+  Vec3f normal_prime = direction_to_center;
+  int min_index = 0;
+  FP_PRECISION min_value = std::abs(direction_to_center.x);
+  if (std::abs(direction_to_center.y) < min_value)
+  {
+      min_value = std::abs(direction_to_center.y);
+      min_index = 1;
+  }
+  if (std::abs(direction_to_center.z) < min_value)
+  {
+      min_value = std::abs(direction_to_center.z);
+      min_index = 2;
+  }
+  switch (min_index)
+  {
+      case 0:
+          normal_prime = Vec3f{0.0f, direction_to_center.z, -direction_to_center.y};
+          break;
+      case 1:
+          normal_prime = Vec3f{direction_to_center.z, 0.0f, -direction_to_center.x};
+          break;
+      case 2:
+          normal_prime = Vec3f{direction_to_center.y, -direction_to_center.x, 0.0f};
+          break;
+  }
+
+  Vec3f tangent = normalize(cross(normal_prime, direction_to_center));
+  Vec3f bitangent = cross(direction_to_center, tangent);
+
+  Vec3f direction_to_sample_normal = normalize(tangent * (std::sin(theta) * std::cos(phi)) +
+    bitangent * (std::sin(theta) * std::sin(phi)) +
+    direction_to_center * std::cos(theta));
   
+  Vec3f local_target_point  = local_intersection_point + direction_to_sample_normal;
+  Vec3f global_target_point = transform_matrix_ * local_target_point + motion_blur_;
+  Vec3f global_direction_to_sample_point = normalize(global_target_point - intersection_point);
+  Ray sample_ray{Vec2i{0,0}, intersection_point, global_direction_to_sample_point, Vec2f{0,0}, 0.0f};
+  FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
+  Vec3f intersection_normal;
+  Vec2f tex_coords;
+  Vec2f hit_u_vector;
+  Vec2f hit_v_vector;
+  Intersect(sample_ray, t_hit, intersection_normal, tex_coords, hit_u_vector, hit_v_vector, tangent, bitangent, false, false);
+  
+  sample_point = sample_ray.origin_ + t_hit * sample_ray.direction_;
+  sample_normal = intersection_normal;
+  pdf = 1 / (2 * M_PI * (1 - cos_theta_max));
 }

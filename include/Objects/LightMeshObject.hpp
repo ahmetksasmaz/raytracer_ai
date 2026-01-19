@@ -22,7 +22,7 @@ class LightMeshObject : public BaseObject, public ObjectLightSource {
       bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 
-  virtual void Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const override = 0;
+  virtual void Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const override;
 
   virtual ~LightMeshObject() = default;
 
