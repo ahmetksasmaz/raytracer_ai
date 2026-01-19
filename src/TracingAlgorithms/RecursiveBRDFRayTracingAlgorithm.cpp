@@ -387,6 +387,12 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         return is_in_shadow;
     };
 
+    // STEP : LIGHT OBJECT HITS
+    auto light_object_casted = std::dynamic_pointer_cast<ObjectLightSource>(hit_object_ptr);
+    if (light_object_casted){
+        return light_object_casted->radiance_;
+    }
+
     // STEP : ACCUMULATE LIGHT CONTRIBUTIONS
     if(spherical_directional_light_){
         Vec3f direction;
@@ -483,6 +489,28 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         if(!is_in_shadow){
             Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
             total_light_value += hadamard(dir_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction));
+        }
+    }
+    
+    // STEP : OBJECT LIGHT SAMPLING
+    {
+        int object_light_count = light_objects_.size();
+        if(object_light_count > 0){
+            int random_light_index = rand() % object_light_count;
+            auto light_object = light_objects_[random_light_index];
+            auto light_object_casted = std::dynamic_pointer_cast<ObjectLightSource>(light_object);
+            Vec3f sample_point;
+            Vec3f sample_normal;
+            FP_PRECISION pdf_value = 0.0;
+
+            light_object_casted->Sample(intersection_point, sample_point, sample_normal, pdf_value);
+            Vec3f light_direction = normalize(sample_point - intersection_point);
+            FP_PRECISION distance_to_light = norm(sample_point - intersection_point);
+            bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
+            if(!is_in_shadow){
+                Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
+                total_light_value += hadamard(light_object_casted->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction)) * std::max(0.0, dot(-sample_normal, light_direction)) / (distance_to_light * distance_to_light * pdf_value * object_light_count);
+            }
         }
     }
     
