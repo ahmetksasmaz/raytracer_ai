@@ -17,6 +17,10 @@ Scene::Scene(const std::string &filename, const Configuration &configuration)
       break;
   }
 
+  path_tracing_algorithm_ = std::bind(
+      &Scene::RecursiveBRDFPathTracingAlgorithm, this, std::placeholders::_1,
+      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+
   switch (configuration_.strategies_.scheduling_algorithm_) {
     case SchedulingAlgorithm::kNonThread:
       scheduling_algorithm_ =
@@ -105,7 +109,6 @@ void Scene::LoadScene() {
 
   background_color_ = raw_scene.background_color;
   shadow_ray_epsilon_ = raw_scene.shadow_ray_epsilon;
-  max_recursion_depth_ = raw_scene.max_recursion_depth;
 
   for (const auto &raw_image : raw_scene.images) {
     images_.push_back(std::make_shared<BaseImage>(raw_image.path));
@@ -212,7 +215,15 @@ void Scene::LoadScene() {
         raw_camera.look_at_camera, transformed_position, transformed_gaze,
         transformed_gaze_point, raw_camera.up, raw_camera.near_plane,
         raw_camera.fov_y, near_distance, raw_camera.image_width,
-        raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples, tone_mappings, raw_camera.left_handed,
+        raw_camera.image_height, raw_camera.image_name, raw_camera.num_samples, tone_mappings,
+        raw_camera.max_recursion_depth,
+        raw_camera.min_recursion_depth, raw_camera.left_handed,
+        raw_camera.path_tracing_enabled,
+        raw_camera.importance_sampling_enabled,
+        raw_camera.nee_enabled,
+        raw_camera.mis_balance_enabled,
+        raw_camera.russian_roulette_enabled,
+        raw_camera.splitting_factor,
         configuration_.sampling_.time_sampling_,
         configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
         raw_camera.aperture_size, configuration_.sampling_.aperture_sampling_,

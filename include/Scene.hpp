@@ -46,6 +46,16 @@
 
 using namespace parser;
 
+struct PathTracerSettings{
+    int max_recursion_depth;
+    int min_recursion_depth;
+    int splitting_factor;
+    bool importance_sampling_enabled;
+    bool nee_enabled;
+    bool mis_balance_enabled;
+    bool russian_roulette_enabled;
+};
+
 class Scene {
  public:
   Scene(const std::string &filename, const Configuration &configuration);
@@ -62,7 +72,6 @@ class Scene {
   Vec3i background_color_;
   std::shared_ptr<BaseTextureMap> background_texture_map_ = nullptr;
   FP_PRECISION shadow_ray_epsilon_;
-  int max_recursion_depth_;
 
   std::vector<std::shared_ptr<BaseCamera>> cameras_;
   std::vector<std::shared_ptr<PointLightSource>> point_lights_;
@@ -86,6 +95,8 @@ class Scene {
       scheduling_algorithm_;
   std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
+  std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, std::shared_ptr<PathTracerSettings>&)>
+      path_tracing_algorithm_;
   std::function<void(Vec5f *, int, int, int, Vec3f *)> filtering_algorithm_;
   std::function<void(Vec3f *, int, int, std::vector<unsigned char> &)>
       tone_mapping_algorithm_;
@@ -104,6 +115,10 @@ class Scene {
       Ray &ray,
       const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
       int remaining_recursion, int max_recursion);
+    Vec3f RecursiveBRDFPathTracingAlgorithm(
+      Ray &ray,
+      const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
+      int current_recursion, std::shared_ptr<PathTracerSettings>& path_tracer_settings);
 
   void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                     int camera_index);
