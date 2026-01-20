@@ -19,7 +19,16 @@ class BaseCamera {
       const FP_PRECISION fov_y, const FP_PRECISION near_distance, const int image_width,
       const int image_height, const std::string& image_name,
       const unsigned int num_samples = 0,
-      std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings = {}, bool left_handed = false,
+      std::vector<std::shared_ptr<BaseToneMapping>> tone_mappings = {},
+      int max_recursion_depth = 1,
+      int min_recursion_depth = 0,
+      bool left_handed = false,
+      bool path_tracing_enabled = false,
+      bool importance_sampling_enabled = false,
+      bool nee_enabled = false,
+      bool mis_balance_enabled = false,
+      bool russian_roulette_enabled = false,
+      int splitting_factor = 1,
       const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,
       const SamplingAlgorithm pixel_sampling = SamplingAlgorithm::kBest,
       const FP_PRECISION focus_distance = 0.0, const FP_PRECISION aperture_size = 0.0,
@@ -48,6 +57,14 @@ class BaseCamera {
   const int image_width_;
   const int image_height_;
   const unsigned int mem_num_samples_;
+  const int max_recursion_depth_;
+  const int min_recursion_depth_;
+  const bool path_tracing_enabled_;
+  const bool importance_sampling_enabled_;
+  const bool nee_enabled_;
+  const bool mis_balance_enabled_;
+  const bool russian_roulette_enabled_;
+  const int splitting_factor_;
 
  private:
   const std::string image_name_;

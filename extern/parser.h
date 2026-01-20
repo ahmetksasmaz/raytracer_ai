@@ -179,6 +179,14 @@ struct RawCamera {
   std::string transformations = "";
   std::vector<RawToneMapping> tone_mappings = {};
   bool left_handed = false;
+  int max_recursion_depth;
+  int min_recursion_depth;
+  bool path_tracing_enabled = false;
+  bool importance_sampling_enabled = false;
+  bool nee_enabled = false;
+  bool mis_balance_enabled = false;
+  bool russian_roulette_enabled = false;
+  int splitting_factor = 1;
 };
 
 struct RawPointLight {
@@ -437,7 +445,6 @@ struct RawScene {
   Vec3i background_color;
   FP_PRECISION shadow_ray_epsilon;
   FP_PRECISION intersection_test_epsilon;
-  int max_recursion_depth;
   std::vector<RawCamera> cameras;
   Vec3f ambient_light;
   std::vector<RawPointLight> point_lights;

@@ -96,18 +96,6 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   stream >> shadow_ray_epsilon;
   stream.clear();
 
-  // Get MaxRecursionDepth
-  element = root->FirstChildElement("MaxRecursionDepth");
-  if (element) {
-    std::string elem_text = element->GetText();
-    std::replace(elem_text.begin(), elem_text.end(), '\t', ' ');
-    stream << elem_text << std::endl;
-  } else {
-    stream << "0" << std::endl;
-  }
-  stream >> max_recursion_depth;
-  stream.clear();
-
   // Get Cameras
   element = root->FirstChildElement("Cameras");
   element = element->FirstChildElement("Camera");
@@ -715,13 +703,6 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
   } else {
     shadow_ray_epsilon = 0.00001;
   }
-  
-  // Parse max recursion depth
-  if (json_data.contains("MaxRecursionDepth")) {
-    max_recursion_depth = std::stoi(json_data["MaxRecursionDepth"].get<std::string>());
-  } else {
-    max_recursion_depth = 1;
-  }
 
 
   // Parse intersection test epsilon
@@ -816,7 +797,31 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         }
 
       }
-      
+
+      camera.max_recursion_depth = cam.contains("MaxRecursionDepth") ? std::stoi(cam["MaxRecursionDepth"].get<std::string>()) : 1;
+      camera.min_recursion_depth = cam.contains("MinRecursionDepth") ? std::stoi(cam["MinRecursionDepth"].get<std::string>()) : 0;
+      if(cam.contains("Renderer")){
+        if(cam["Renderer"].get<std::string>() == "PathTracing"){
+          camera.path_tracing_enabled = true;
+          if(cam.contains("RendererParams")){
+            auto params = cam["RendererParams"].get<std::string>();
+            if(params.find("ImportanceSampling") != std::string::npos){
+              camera.importance_sampling_enabled = true;
+            }
+            if(params.find("NextEventEstimation") != std::string::npos){
+              camera.nee_enabled = true;
+            }
+            if(params.find("MIS_BALANCE") != std::string::npos){
+              camera.mis_balance_enabled = true;
+            }
+            if(params.find("RussianRoulette") != std::string::npos){
+              camera.russian_roulette_enabled = true;
+            }
+          }
+          camera.splitting_factor = std::stoi(cam["SplittingFactor"].get<std::string>());
+        }
+      }
+
       cameras.push_back(camera);
     }
   }
