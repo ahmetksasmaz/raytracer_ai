@@ -9,6 +9,10 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
 {
     current_recursion++;
     Vec3f total_light_value = {0, 0, 0};
+    int sample_count = 1;
+    if(current_recursion == 1){
+        sample_count = path_tracer_settings->splitting_factor;
+    }
 
     // STEP : CHECK FOR INTERSECTION
 
@@ -71,7 +75,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         inside_object_ptr->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, false);
         if (dot(ray.direction_, hit_normal) > 0)
         {
-        hit_normal = -hit_normal;
+            hit_normal = -hit_normal;
         }
     }
 
@@ -105,6 +109,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                 total_light_value = {0, 0, 0};
             }
         }
+
         return total_light_value * 1.0; // Take BRDF as 1
     }
 
@@ -271,63 +276,65 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         ConductorMaterial *conductor_material_ptr = dynamic_cast<ConductorMaterial *>(material_ptr.get());
         DielectricMaterial *dielectric_material_ptr = dynamic_cast<DielectricMaterial *>(material_ptr.get());
 
-        Vec3f reflection_direction = ray.direction_ - 2 * dot(ray.direction_, distorted_normal) * distorted_normal;
-        Ray reflection_ray = {ray.pixel_, intersection_point, reflection_direction, ray.diff_, ray.time_};
-        Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr, current_recursion, path_tracer_settings);
-
-        Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, reflection_direction, distorted_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
-        if(mirror_material_ptr){
-            total_light_value += hadamard(reflection_color, hadamard(mirror_material_ptr->mirror_, brdf));
-        }
-        else if(conductor_material_ptr){
-            FP_PRECISION n2 = conductor_material_ptr->refraction_index_;
-            FP_PRECISION k2 = conductor_material_ptr->absorption_index_;
-            FP_PRECISION cos_theta = -dot(ray.direction_, distorted_normal);
-            FP_PRECISION n2_k2_2 = n2 * n2 + k2 * k2;
-            FP_PRECISION n2_cos_theta_tw = 2 * n2 * cos_theta;
-            FP_PRECISION cos_theta_2 = cos_theta * cos_theta;
-            FP_PRECISION rs = (n2_k2_2 - n2_cos_theta_tw + cos_theta_2) /
-                    (n2_k2_2 + n2_cos_theta_tw + cos_theta_2);
-            FP_PRECISION rp = (n2_k2_2 * cos_theta_2 - n2_cos_theta_tw + 1) /
-                    (n2_k2_2 * cos_theta_2 + n2_cos_theta_tw + 1);
-            FP_PRECISION fresnel_reflection_ratio = (rs + rp) / 2;
-
-            total_light_value += hadamard(reflection_color, hadamard(conductor_material_ptr->mirror_ * fresnel_reflection_ratio, brdf));
-        }
-        else if(dielectric_material_ptr){
-            FP_PRECISION n1 = inside_object_ptr ? dielectric_material_ptr->refraction_index_ : 1.0;
-            FP_PRECISION n2 = inside_object_ptr ? 1.0 : dielectric_material_ptr->refraction_index_;
-            FP_PRECISION cos_theta = dot(-ray.direction_, distorted_normal);
-            FP_PRECISION cos_phi_2 = 1 - (n1 * n1 / (n2 * n2)) * (1 - cos_theta * cos_theta);
-            if (cos_phi_2 > 0.0){
-                FP_PRECISION cos_phi = sqrt(cos_phi_2);
-                FP_PRECISION r_p = (n1 * cos_theta - n2 * cos_phi) / (n1 * cos_theta + n2 * cos_phi);
-                FP_PRECISION r_s = (n1 * cos_phi - n2 * cos_theta) / (n1 * cos_phi + n2 * cos_theta);
-                FP_PRECISION fresnel_reflection_ratio = (r_p * r_p + r_s * r_s) / 2;
-                FP_PRECISION fresnel_transmission_ratio = 1.0 - fresnel_reflection_ratio;
-
-                Vec3f refraction_direction =
-                    normalize((n1 / n2) * ray.direction_ +
-                                (n1 / n2 * cos_theta - cos_phi) * distorted_normal);
-                Ray refraction_ray = {
-                    ray.pixel_,
-                    intersection_point - 2 * shadow_ray_epsilon_ * distorted_normal,
-                    refraction_direction, ray.diff_, ray.time_};
-                // If the object type is triangle, inside_object_ptr is nullptr, check
-                // later
-                Vec3f refraction_color = RecursiveBRDFPathTracingAlgorithm(
-                    refraction_ray, inside_object_ptr ? nullptr : hit_object_casted,
-                    current_recursion, path_tracer_settings);
-                total_light_value += hadamard(reflection_color, brdf) * fresnel_reflection_ratio;
-                total_light_value += refraction_color * fresnel_transmission_ratio;
+        if(mirror_material_ptr || conductor_material_ptr || dielectric_material_ptr){
+            Vec3f reflection_direction = ray.direction_ - 2 * dot(ray.direction_, distorted_normal) * distorted_normal;
+            Ray reflection_ray = {ray.pixel_, intersection_point, reflection_direction, ray.diff_, ray.time_};
+            Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr, current_recursion, path_tracer_settings);
+            
+            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, reflection_direction, distorted_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
+            if(mirror_material_ptr){
+                total_light_value += hadamard(reflection_color, hadamard(mirror_material_ptr->mirror_, brdf));
             }
-            else
-            {
-                total_light_value += hadamard(reflection_color, brdf);
+            else if(conductor_material_ptr){
+                FP_PRECISION n2 = conductor_material_ptr->refraction_index_;
+                FP_PRECISION k2 = conductor_material_ptr->absorption_index_;
+                FP_PRECISION cos_theta = -dot(ray.direction_, distorted_normal);
+                FP_PRECISION n2_k2_2 = n2 * n2 + k2 * k2;
+                FP_PRECISION n2_cos_theta_tw = 2 * n2 * cos_theta;
+                FP_PRECISION cos_theta_2 = cos_theta * cos_theta;
+                FP_PRECISION rs = (n2_k2_2 - n2_cos_theta_tw + cos_theta_2) /
+                (n2_k2_2 + n2_cos_theta_tw + cos_theta_2);
+                FP_PRECISION rp = (n2_k2_2 * cos_theta_2 - n2_cos_theta_tw + 1) /
+                (n2_k2_2 * cos_theta_2 + n2_cos_theta_tw + 1);
+                FP_PRECISION fresnel_reflection_ratio = (rs + rp) / 2;
+                
+                total_light_value += hadamard(reflection_color, hadamard(conductor_material_ptr->mirror_ * fresnel_reflection_ratio, brdf));
+            }
+            else if(dielectric_material_ptr){
+                FP_PRECISION n1 = inside_object_ptr ? dielectric_material_ptr->refraction_index_ : 1.0;
+                FP_PRECISION n2 = inside_object_ptr ? 1.0 : dielectric_material_ptr->refraction_index_;
+                FP_PRECISION cos_theta = dot(-ray.direction_, distorted_normal);
+                FP_PRECISION cos_phi_2 = 1 - (n1 * n1 / (n2 * n2)) * (1 - cos_theta * cos_theta);
+                if (cos_phi_2 > 0.0){
+                    FP_PRECISION cos_phi = sqrt(cos_phi_2);
+                    FP_PRECISION r_p = (n1 * cos_theta - n2 * cos_phi) / (n1 * cos_theta + n2 * cos_phi);
+                    FP_PRECISION r_s = (n1 * cos_phi - n2 * cos_theta) / (n1 * cos_phi + n2 * cos_theta);
+                    FP_PRECISION fresnel_reflection_ratio = (r_p * r_p + r_s * r_s) / 2;
+                    FP_PRECISION fresnel_transmission_ratio = 1.0 - fresnel_reflection_ratio;
+                    
+                    Vec3f refraction_direction =
+                    normalize((n1 / n2) * ray.direction_ +
+                    (n1 / n2 * cos_theta - cos_phi) * distorted_normal);
+                    Ray refraction_ray = {
+                        ray.pixel_,
+                        intersection_point - 2 * shadow_ray_epsilon_ * distorted_normal,
+                        refraction_direction, ray.diff_, ray.time_};
+                    // If the object type is triangle, inside_object_ptr is nullptr, check
+                    // later
+                    Vec3f refraction_color = RecursiveBRDFPathTracingAlgorithm(
+                        refraction_ray, inside_object_ptr ? nullptr : hit_object_casted,
+                        current_recursion, path_tracer_settings);
+                    total_light_value += hadamard(reflection_color, brdf) * fresnel_reflection_ratio;
+                    total_light_value += refraction_color * fresnel_transmission_ratio;
+                }
+                else
+                {
+                    total_light_value += hadamard(reflection_color, brdf);
+                }
             }
         }
     }
-
+                
     // STEP : HANDLE INSIDE HIT
     if(inside_object_ptr){
         std::shared_ptr<BaseObject> inside_object_casted =
@@ -445,7 +452,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         }
         Vec3f u = normalize(cross(normal_prime, area_light_normal));
         Vec3f v = cross(area_light_normal, u);
-        area_light_position = area_light_position + area_light->size_ * (u * (2.0 * diff[0].x - 1.0f) + v * (2.0 * diff[0].y - 1.0f));
+        area_light_position = area_light_position + area_light->size_ * (u * (diff[0].x - 0.5f) + v * (diff[0].y - 0.5f));
         Vec3f light_direction = normalize(area_light_position - intersection_point);
         FP_PRECISION distance_to_light = norm(area_light_position - intersection_point);
         bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
@@ -497,46 +504,19 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     // FROM HERE, START PATH TRACING
     // #####################################################################
 
-    // STEP : OBJECT LIGHT SAMPLING
-    
     if(current_recursion < path_tracer_settings->max_recursion_depth){
-        if(path_tracer_settings->nee_enabled){
-            int object_light_count = light_objects_.size();
-            if(object_light_count > 0){
-                int random_light_index = rand() % object_light_count;
-                auto light_object = light_objects_[random_light_index];
-                auto light_object_casted = std::dynamic_pointer_cast<ObjectLightSource>(light_object);
-                Vec3f sample_point;
-                Vec3f sample_normal;
-                FP_PRECISION pdf_value = 0.0;
-                
-                light_object_casted->Sample(intersection_point, sample_point, sample_normal, pdf_value);
-                Vec3f light_direction = normalize(sample_point - intersection_point);
-                FP_PRECISION distance_to_light = norm(sample_point - intersection_point);
-                bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
-                if(!is_in_shadow){
-                    Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
-                    Vec3f light_value = hadamard(light_object_casted->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction)) * std::max(0.0, dot(-sample_normal, light_direction)) / (distance_to_light * distance_to_light * object_light_count);
-                    total_light_value += light_value / pdf_value;
-                }
-            }
-        }
-
-        // STEP : INDIRECT LIGHT SAMPLING
-        int indirect_sample_count = 1;
-        if(current_recursion == 1){
-            indirect_sample_count = path_tracer_settings->splitting_factor;
-        }
-        for(int i = 0; i < indirect_sample_count; i++){
+        // STEP : DIRECT & INDIRECT LIGHT SAMPLING
+        for(int i = 0; i < sample_count; i++){
+            // STEP : INDIRECT LIGHT SAMPLE
             FP_PRECISION theta;
             FP_PRECISION phi;
-            FP_PRECISION brdf_pdf;
+            FP_PRECISION indirect_sample_pdf;
             
             if(path_tracer_settings->importance_sampling_enabled){
-                cosine_hemisphere_sample(theta, phi, brdf_pdf);
+                cosine_hemisphere_sample(theta, phi, indirect_sample_pdf);
             }
             else{
-                uniform_hemisphere_sample(theta, phi, brdf_pdf);
+                uniform_hemisphere_sample(theta, phi, indirect_sample_pdf);
             }
             // Find orthonormal basis
             Vec3f normal_prime = hit_normal;
@@ -581,8 +561,36 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                 sample_ray, inside_object_ptr,
                 current_recursion, path_tracer_settings);
             Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, sample_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
-            Vec3f brdf_value = hadamard(sample_color, brdf) * std::max(0.0, dot(hit_normal, sample_direction));
+            Vec3f indirect_sample_value = hadamard(sample_color, brdf) * std::max(0.0, dot(hit_normal, sample_direction)) / indirect_sample_pdf;
+            
+
+            // STEP : DIRECT LIGHT SAMPLE
+            Vec3f direct_sample_value = {0, 0, 0};
+            FP_PRECISION direct_light_pdf = 1.0;
+            if(path_tracer_settings->nee_enabled){
+                int object_light_count = light_objects_.size();
+                if(object_light_count > 0){
+                    int random_light_index = rand() % object_light_count;
+                    auto light_object = light_objects_[random_light_index];
+                    auto light_object_casted = std::dynamic_pointer_cast<ObjectLightSource>(light_object);
+                    Vec3f sample_point;
+                    Vec3f sample_normal;
+                    
+                    light_object_casted->Sample(intersection_point, sample_point, sample_normal, direct_light_pdf);
+                    direct_light_pdf /= (FP_PRECISION)object_light_count;
+                    if(direct_light_pdf > 0.0){
+                        Vec3f light_direction = normalize(sample_point - intersection_point);
+                        FP_PRECISION distance_to_light = norm(sample_point - intersection_point);
+                        bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
+                        if(!is_in_shadow){
+                            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
+                            direct_sample_value = hadamard(light_object_casted->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction)) / direct_light_pdf;
+                        }
+                    }
+                }
+            }
             if(path_tracer_settings->mis_balance_enabled){
+                // FIND IF THE INDIRECT SAMPLE HIT A LIGHT SOURCE
                 FP_PRECISION light_hit = std::numeric_limits<FP_PRECISION>::max();
                 Vec3f light_hit_normal;
                 Vec2f light_hit_tex_coords;
@@ -614,28 +622,28 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                     Vec3f sample_point;
                     Vec3f sample_normal;
                     light_object_casted->Sample(intersection_point, sample_point, sample_normal, light_pdf);
-                    FP_PRECISION distance_to_sample = norm(sample_point - intersection_point);
 
-                    FP_PRECISION weight_sum = brdf_pdf + light_pdf;
-                    FP_PRECISION brdf_weight = brdf_pdf / weight_sum;
-                    // FP_PRECISION light_weight = light_pdf / weight_sum;
+                    FP_PRECISION weight_sum = indirect_sample_pdf + light_pdf;
+                    FP_PRECISION brdf_weight = indirect_sample_pdf / weight_sum;
+                    FP_PRECISION light_weight = light_pdf / weight_sum;
 
-                    // Vec3f light_value = hadamard(light_object_casted->radiance_, brdf) * std::max(0.0, dot(hit_normal, sample_direction)) * std::max(0.0, dot(-sample_normal, sample_direction)) / (distance_to_sample * distance_to_sample);
-                    // total_light_value += light_value * light_weight / light_pdf + brdf_value * brdf_weight / brdf_pdf;
-                    total_light_value += brdf_value * brdf_weight / (brdf_pdf * indirect_sample_count);
+                    total_light_value += indirect_sample_value * brdf_weight;
+                    total_light_value += direct_sample_value * light_weight;
 
                 }else{
-                    // WEIGHT IS 1
-                    total_light_value += brdf_value / (brdf_pdf * indirect_sample_count);
+                    // NO WEIGHT DIFFERENCE
+                    total_light_value += indirect_sample_value;
+                    total_light_value += direct_sample_value;
                 }
             }else{
                 // NO WEIGHTING
-                total_light_value += brdf_value / (brdf_pdf * indirect_sample_count);
+                total_light_value += indirect_sample_value;
+                total_light_value += direct_sample_value;
             }
         }
     }
     // AMBIENT LIGHT IS DISABLED BECAUSE WE TRACE INDIRECT LIGHTING WITH PATH TRACING
     // total_light_value += hadamard(ambient_light_->intensity_, KA);
-    
-    return total_light_value;
+
+    return total_light_value / (FP_PRECISION)sample_count;
 };
