@@ -303,7 +303,7 @@ void LightMeshObject::Preprocess(bool high_level_bvh_enabled,
 
   // Sampling Preprocess
   std::vector<FP_PRECISION> triangle_areas;
-  FP_PRECISION total_area = 0.0;
+  total_area_ = 0.0;
   for(auto& triangle_object : triangle_objects_)
   {
     std::shared_ptr<TriangleObject> triangle_object_casted =
@@ -313,14 +313,14 @@ void LightMeshObject::Preprocess(bool high_level_bvh_enabled,
     Vec3f v2 = triangle_object_casted->v2_;
     FP_PRECISION area = norm(cross(v1 - v0, v2 - v0)) * 0.5;
     triangle_areas.push_back(area);
-    total_area += area;
+    total_area_ += area;
   }
 
   // Calculate CDF and PDF
   FP_PRECISION cumulative_area = 0.0;
   for (const auto& area : triangle_areas) {
     cumulative_area += area;
-    cdf_pdf_.emplace_back(cumulative_area / total_area, area / total_area);
+    cdf_pdf_.emplace_back(cumulative_area / total_area_, area / total_area_);
   }
 }
 
@@ -356,8 +356,14 @@ void LightMeshObject::Sample(const Vec3f& intersection_point, Vec3f &sample_poin
   Vec3f v0 = triangle_object_casted->v0_;
   Vec3f v1 = triangle_object_casted->v1_;
   Vec3f v2 = triangle_object_casted->v2_;
+  Vec3f transformed_v0 = transform_matrix_ * v0 + motion_blur_;
+  Vec3f transformed_v1 = transform_matrix_ * v1 + motion_blur_;
+  Vec3f transformed_v2 = transform_matrix_ * v2 + motion_blur_;
 
   sample_point = transform_matrix_ * (u * v0 + v * v1 + w * v2) + motion_blur_;
   sample_normal = normalize(transform_matrix_ ^ triangle_object_casted->normal_);
-  pdf = cdf_pdf_[triangle_index].second;
+  FP_PRECISION area = norm(cross(transformed_v1 - transformed_v0, transformed_v2 - transformed_v0)) * 0.5;
+  FP_PRECISION dot_product = std::max(0.0, dot(sample_normal, normalize(intersection_point - sample_point)));
+  FP_PRECISION dist2 = norm2(sample_point - intersection_point);
+  pdf = dot_product <= 0 ? 0 : cdf_pdf_[triangle_index].second * dist2 / (area * dot_product);
 }

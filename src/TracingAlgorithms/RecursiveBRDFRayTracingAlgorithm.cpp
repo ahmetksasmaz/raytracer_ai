@@ -445,7 +445,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         }
         Vec3f u = normalize(cross(normal_prime, area_light_normal));
         Vec3f v = cross(area_light_normal, u);
-        area_light_position = area_light_position + area_light->size_ * (u * (2.0 * diff[0].x - 1.0f) + v * (2.0 * diff[0].y - 1.0f));
+        area_light_position = area_light_position + area_light->size_ * (u * (diff[0].x - 0.5f) + v * (diff[0].y - 0.5f));
         Vec3f light_direction = normalize(area_light_position - intersection_point);
         FP_PRECISION distance_to_light = norm(area_light_position - intersection_point);
         bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
@@ -504,12 +504,15 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
             FP_PRECISION pdf_value = 0.0;
 
             light_object_casted->Sample(intersection_point, sample_point, sample_normal, pdf_value);
-            Vec3f light_direction = normalize(sample_point - intersection_point);
-            FP_PRECISION distance_to_light = norm(sample_point - intersection_point);
-            bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
-            if(!is_in_shadow){
-                Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
-                total_light_value += hadamard(light_object_casted->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction)) * std::max(0.0, dot(-sample_normal, light_direction)) / (distance_to_light * distance_to_light * pdf_value * object_light_count);
+            if(pdf_value > 0.0){
+                pdf_value /= static_cast<FP_PRECISION>(object_light_count);
+                Vec3f light_direction = normalize(sample_point - intersection_point);
+                FP_PRECISION distance_to_light = norm(sample_point - intersection_point);
+                bool is_in_shadow = ShadowCheck(light_direction, distance_to_light);
+                if(!is_in_shadow){
+                    Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_direction, hit_normal, KD, KS, material_ptr->refraction_index_, material_ptr->absorption_index_);
+                    total_light_value += hadamard(light_object_casted->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_direction)) / pdf_value;
+                }
             }
         }
     }

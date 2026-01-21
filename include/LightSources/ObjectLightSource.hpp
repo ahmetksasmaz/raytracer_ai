@@ -11,4 +11,5 @@ public:
   virtual void Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const = 0;
 
   const Vec3f radiance_;
+  FP_PRECISION total_area_;
 };
