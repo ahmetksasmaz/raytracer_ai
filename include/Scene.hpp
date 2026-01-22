@@ -16,7 +16,6 @@
 #include "BaseObject.hpp"
 #include "BaseTextureMap.hpp"
 #include "ConductorMaterial.hpp"
-#include "Configuration.hpp"
 #include "DielectricMaterial.hpp"
 #include "MeshInstanceObject.hpp"
 #include "MeshObject.hpp"
@@ -43,6 +42,7 @@
 #include "TorranceSparrow.hpp"
 #include "LightMeshObject.hpp"
 #include "LightSphereObject.hpp"
+#include "ArrayBVH.hpp"
 
 using namespace parser;
 
@@ -54,11 +54,12 @@ struct PathTracerSettings{
     bool nee_enabled;
     bool mis_balance_enabled;
     bool russian_roulette_enabled;
+    FP_PRECISION sample_max_val = 0.0f;
 };
 
 class Scene {
  public:
-  Scene(const std::string &filename, const Configuration &configuration);
+  Scene(const std::string &filename);
   void Render();
   ~Scene();
 
@@ -67,7 +68,6 @@ class Scene {
   void PreprocessScene();
 
   const std::string filename_;
-  const Configuration configuration_;
 
   Vec3i background_color_;
   std::shared_ptr<BaseTextureMap> background_texture_map_ = nullptr;
@@ -82,20 +82,20 @@ class Scene {
   std::shared_ptr<SphericalDirectionalLightSource> spherical_directional_light_;
   std::vector<std::shared_ptr<BaseBRDF>> brdfs_;
   std::vector<std::shared_ptr<BaseMaterial>> materials_;
-  std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> objects_;
-  std::vector<std::shared_ptr<BoundingVolumeHierarchyElement>> light_objects_;
+  std::vector<std::shared_ptr<BaseObject>> objects_;
+  std::vector<std::shared_ptr<BaseObject>> light_objects_;
   std::vector<std::shared_ptr<PlaneObject>> plane_objects_;
 
   std::vector<std::shared_ptr<BaseImage>> images_;
   std::vector<std::shared_ptr<BaseTextureMap>> texture_maps_;
 
-  std::shared_ptr<BoundingVolumeHierarchyElement> bvh_root_ = nullptr;
+  ArrayBVH bvh_;
 
   std::function<void(const std::shared_ptr<BaseCamera>, int)>
       scheduling_algorithm_;
   std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
-  std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, std::shared_ptr<PathTracerSettings>&)>
+  std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, const PathTracerSettings&, Vec3f)>
       path_tracing_algorithm_;
   std::function<void(Vec5f *, int, int, int, Vec3f *)> filtering_algorithm_;
   std::function<void(Vec3f *, int, int, std::vector<unsigned char> &)>
@@ -105,20 +105,20 @@ class Scene {
 
   Vec3f DefaultRayTracingAlgorithm(
       Ray &ray,
-      const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
+      const std::shared_ptr<BaseObject> inside_object_ptr,
       int, int);
   Vec3f RecursiveRayTracingAlgorithm(
       Ray &ray,
-      const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
+      const std::shared_ptr<BaseObject> inside_object_ptr,
       int remaining_recursion, int max_recursion);
   Vec3f RecursiveBRDFRayTracingAlgorithm(
       Ray &ray,
-      const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
+      const std::shared_ptr<BaseObject> inside_object_ptr,
       int remaining_recursion, int max_recursion);
     Vec3f RecursiveBRDFPathTracingAlgorithm(
       Ray &ray,
-      const std::shared_ptr<BoundingVolumeHierarchyElement> inside_object_ptr,
-      int current_recursion, std::shared_ptr<PathTracerSettings>& path_tracer_settings);
+      const std::shared_ptr<BaseObject> inside_object_ptr,
+      int current_recursion, const PathTracerSettings& settings, Vec3f throughput = {1.0f, 1.0f, 1.0f});
 
   void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                     int camera_index);

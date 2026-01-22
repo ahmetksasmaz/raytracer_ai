@@ -1,6 +1,6 @@
 #include "SphereObject.hpp"
 
-std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
+bool SphereObject::Intersect(
     Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool, bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
@@ -9,16 +9,13 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
-  // Calculate the discriminant
   Vec3f oc = transformed_ray.origin_ - center_;
   FP_PRECISION a = dot(transformed_ray.direction_, transformed_ray.direction_);
   FP_PRECISION b = 2.0f * dot(oc, transformed_ray.direction_);
   FP_PRECISION c = dot(oc, oc) - radius_ * radius_;
   FP_PRECISION discriminant = b * b - 4 * a * c;
 
-  // Check if the ray intersects with the sphere
   if (discriminant > 0) {
-    // Find the closest intersection point
     FP_PRECISION t1 = (-b - sqrt(discriminant)) / (2.0f * a);
     FP_PRECISION t2 = (-b + sqrt(discriminant)) / (2.0f * a);
     FP_PRECISION t = t1 > 1e-5 ? t1 : t2;
@@ -26,34 +23,6 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
       Vec3f local_point =
           transformed_ray.origin_ + t * transformed_ray.direction_;
       Vec3f local_normal = normalize(local_point - center_);
-      
-      
-      // FP_PRECISION local_x = local_normal.x;
-      // FP_PRECISION local_y = local_normal.y;
-      // FP_PRECISION local_z = local_normal.z;
-      // FP_PRECISION local_r = sqrt(local_x * local_x + local_y * local_y + local_z * local_z);
-      // FP_PRECISION local_t = atan2(local_y, local_x);
-      // FP_PRECISION local_p = acos(local_z / local_r);
-
-      // Vec3f local_normal_sample_1 = Vec3f{sin(local_p+0.05) * cos(local_t), sin(local_p+0.05) * sin(local_t), cos(local_p+0.05)};
-      // Vec3f local_normal_sample_2 = Vec3f{sin(local_p-0.05) * cos(local_t), sin(local_p-0.05) * sin(local_t), cos(local_p-0.05)};
-      // Vec3f local_normal_sample_3 = Vec3f{sin(local_p) * cos(local_t+0.05), sin(local_p) * sin(local_t+0.05), cos(local_p)};
-      // Vec3f local_normal_sample_4 = Vec3f{sin(local_p) * cos(local_t-0.05), sin(local_p) * sin(local_t-0.05), cos(local_p)};
-
-      // Vec3f local_point_sample_1 = center_ + radius_ * local_normal_sample_1;
-      // Vec3f local_point_sample_2 = center_ + radius_ * local_normal_sample_2;
-      // Vec3f local_point_sample_3 = center_ + radius_ * local_normal_sample_3;
-      // Vec3f local_point_sample_4 = center_ + radius_ * local_normal_sample_4;
-
-      // Vec3f global_point_sample_1 = transform_matrix_ * local_point_sample_1;
-      // Vec3f global_point_sample_2 = transform_matrix_ * local_point_sample_2;
-      // Vec3f global_point_sample_3 = transform_matrix_ * local_point_sample_3;
-      // Vec3f global_point_sample_4 = transform_matrix_ * local_point_sample_4;
-
-      // Vec3f first_axis_normal = normalize(global_point_sample_1 - global_point_sample_2);
-      // Vec3f second_axis_normal = normalize(global_point_sample_3 - global_point_sample_4);
-
-      // Vec3f approximated_normal = normalize(cross(first_axis_normal, second_axis_normal));
 
       Vec3f approximated_normal = normalize(inverse_transpose_transform_matrix_ * local_normal);
 
@@ -89,27 +58,18 @@ std::shared_ptr<BoundingVolumeHierarchyElement> SphereObject::Intersect(
         bitangent.z = (M_PI * P_val.y * sin(p));
         tangent_vector = transform_matrix_ ^ tangent;
         bitangent_vector = transform_matrix_ ^ bitangent;
-      
-        // hit_u_vector = Vec2f{-(atan2(sin(p)/(2*M_PI) - cos(p), cos(p)/(2*M_PI) + sin(p)) - p)/(2*M_PI), 0.0f};
-        // hit_v_vector = Vec2f{0.0f, (acos((cos(t)/M_PI -sin(t))/sqrt(1+(sin(2*t)/M_PI))) - t)/M_PI};
-
-        // hit_u_vector = Vec2f{1/(2*M_PI), 0.0f};
-        // hit_v_vector = Vec2f{0.0f, 1/(M_PI)};
 
         hit_u_vector = Vec2f{1/(2*M_PI*sin(t)), 0.0f};
         hit_v_vector = Vec2f{0.0f, 1/(M_PI)};
 
-        return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
-          std::const_pointer_cast<BaseObject>(this->shared_from_this()));
+        return true;
     }
   }
 
-  return nullptr;
+  return false;
 }
 
-void SphereObject::Preprocess(bool high_level_bvh_enabled,
-                              bool low_level_bvh_enabled, bool) {
-  if (high_level_bvh_enabled) {
+void SphereObject::Preprocess(bool) {
     FP_PRECISION x_min = center_.x - radius_;
     FP_PRECISION y_min = center_.y - radius_;
     FP_PRECISION z_min = center_.z - radius_;
@@ -152,5 +112,4 @@ void SphereObject::Preprocess(bool high_level_bvh_enabled,
          p3_motion, p4_motion, p5_motion, p6_motion, p7_motion});
 
     InitializeSelf(min_point, max_point);
-  }
 }

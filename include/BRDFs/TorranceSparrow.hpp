@@ -29,7 +29,17 @@ class TorranceSparrow : public BaseBRDF {
             f_zero_value = ((n1 - n2)*(n1 - n2) + k2*k2) / ((n1 + n2)*(n1 + n2) + k2*k2);
         }
         FP_PRECISION f_theta_value = f_zero_value + (1.0 - f_zero_value) * std::pow((1.0 - dot(half_vector, ray_coming_direction)), 5.0);
-        FP_PRECISION specular_term = (d_alpha * g_value * f_theta_value) / (4.0 * dot(ray_coming_direction, normal) * dot(light_coming_direction, normal));
+        FP_PRECISION NdotV = dot(ray_coming_direction, normal);
+        FP_PRECISION NdotL = dot(light_coming_direction, normal);
+        if (NdotV <= 1e-6 || NdotL <= 1e-6) {
+            if(kd_fresnel_){
+                return kd * (1.0 - f_theta_value) * (1.0 / M_PI);
+            }
+            else{
+                return kd * (1.0 / M_PI);
+            }
+        }
+        FP_PRECISION specular_term = (d_alpha * g_value * f_theta_value) / (4.0 * NdotV * NdotL);
         if(kd_fresnel_){
             return kd * (1.0 - f_theta_value) * (1.0 / M_PI) + ks * specular_term;
         }

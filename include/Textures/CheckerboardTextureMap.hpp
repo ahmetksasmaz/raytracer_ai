@@ -28,7 +28,6 @@ black_color_(black_color), white_color_(white_color) {}
   }
 
   virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec2f hit_u_vector, Vec2f hit_v_vector, Vec3f hit_tangent_vector, Vec3f hit_bitangent_vector, Vec3f &gradient_u, Vec3f &gradient_v) const override{
-    // Gradient is zero almost everywhere except at the edges, where it's undefined.
     gradient_u = Vec3f{0.0, 0.0, 0.0};
     gradient_v = Vec3f{0.0, 0.0, 0.0};
   }

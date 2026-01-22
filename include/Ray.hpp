@@ -15,7 +15,9 @@ class Ray {
         up_(up),
         time_(time),
         direction_i_(direction_i),
-        direction_j_(direction_j) {}
+        direction_j_(direction_j),
+        inverse_direction_({1.0 / direction.x, 1.0 / direction.y, 1.0 / direction.z}),
+        sign_{direction.x < 0 ? 1 : 0, direction.y < 0 ? 1 : 0, direction.z < 0 ? 1 : 0} {}
   const Vec2i pixel_;
   const Vec3f origin_;
   Vec3f direction_;
@@ -24,5 +26,7 @@ class Ray {
   const FP_PRECISION time_;
   const Vec3f direction_i_;
   const Vec3f direction_j_;
+  Vec3f inverse_direction_;
+  int sign_[3];
   ~Ray() {}
 };

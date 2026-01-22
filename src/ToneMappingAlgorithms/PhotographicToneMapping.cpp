@@ -2,6 +2,7 @@
 
 void PhotographicToneMapping::ApplyToneMapping(Vec3f* image_data){
     std::vector<FP_PRECISION> Lw(width_ * height_);
+    
     for(int i = 0; i < width_ * height_; i++){
         Lw[i] = 0.2126 * image_data[i].x + 0.7152 * image_data[i].y + 0.0722 * image_data[i].z;
     }
@@ -33,6 +34,14 @@ void PhotographicToneMapping::ApplyToneMapping(Vec3f* image_data){
         FP_PRECISION g = image_data[i].y;
         FP_PRECISION b = image_data[i].z;
         FP_PRECISION L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        
+        if (L <= 1e-10 || !std::isfinite(L) || !std::isfinite(r) || !std::isfinite(g) || !std::isfinite(b)) {
+            tonemapped_image_data_[i * 3 + 0] = 0;
+            tonemapped_image_data_[i * 3 + 1] = 0;
+            tonemapped_image_data_[i * 3 + 2] = 0;
+            continue;
+        }
+        
         FP_PRECISION r_coeff = r / L;
         FP_PRECISION g_coeff = g / L;
         FP_PRECISION b_coeff = b / L;

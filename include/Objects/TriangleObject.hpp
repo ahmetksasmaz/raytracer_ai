@@ -16,14 +16,13 @@ class TriangleObject : public BaseObject {
         tex_v1_(tex_v1),
         tex_v2_(tex_v2) {};
 
-  std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
+  bool Intersect(
       Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
       bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 
   virtual ~TriangleObject() = default;
-  void Preprocess(bool high_level_bvh_enabled, bool low_level_bvh_enabled,
-                  bool transform_enabled = true) override;
+  void Preprocess(bool transform_enabled = true) override;
 
   const Vec3f v0_;
   const Vec3f v1_;

@@ -1,6 +1,12 @@
 #include "PlaneObject.hpp"
 
-std::shared_ptr<BaseObject> PlaneObject::IntersectPlane(
+bool PlaneObject::Intersect(
+    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
+    bool backface_culling, bool stop_at_any_hit) const {
+    return IntersectPlane(ray, t_hit, intersection_normal, backface_culling, stop_at_any_hit);
+}
+
+bool PlaneObject::IntersectPlane(
     Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool, bool) const {
 
         
@@ -17,13 +23,12 @@ std::shared_ptr<BaseObject> PlaneObject::IntersectPlane(
         if (t > 1e-5) {
             t_hit = t;
             intersection_normal = normal_;
-            return std::const_pointer_cast<BaseObject>(this->shared_from_this());
+            return true;
         }
 
     }
-    return nullptr;
+    return false;
 }
 
-void PlaneObject::Preprocess(bool high_level_bvh_enabled,
-                              bool low_level_bvh_enabled, bool) {
+void PlaneObject::Preprocess(bool) {
 }

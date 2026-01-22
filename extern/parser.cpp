@@ -818,8 +818,15 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
               camera.russian_roulette_enabled = true;
             }
           }
-          camera.splitting_factor = std::stoi(cam["SplittingFactor"].get<std::string>());
+          if(cam.contains("SplittingFactor")){
+            camera.splitting_factor = std::stoi(cam["SplittingFactor"].get<std::string>());
+          } else {
+            camera.splitting_factor = 1;
+          }
         }
+      }
+      if(cam.contains("SampleMaxVal")){
+        camera.sample_max_val = std::stof(cam["SampleMaxVal"].get<std::string>());
       }
 
       cameras.push_back(camera);
