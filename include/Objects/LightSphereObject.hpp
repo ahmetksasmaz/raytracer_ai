@@ -13,7 +13,7 @@ class LightSphereObject : public BaseObject, public ObjectLightSource {
         center_(center),
         radius_(radius) {};
 
-  std::shared_ptr<BoundingVolumeHierarchyElement> Intersect(
+  bool Intersect(
       Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool,
       bool) const override;
 
@@ -21,8 +21,7 @@ class LightSphereObject : public BaseObject, public ObjectLightSource {
 
   virtual ~LightSphereObject() = default;
 
-  void Preprocess(bool high_level_bvh_enabled, bool low_level_bvh_enabled,
-                  bool transform_enabled = true) override;
+  void Preprocess(bool transform_enabled = true) override;
 
  private:
   const FP_PRECISION radius_;

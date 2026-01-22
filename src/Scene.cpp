@@ -2,80 +2,31 @@
 
 #include "Timer.hpp"
 
-Scene::Scene(const std::string &filename, const Configuration &configuration)
-    : filename_(filename), configuration_(configuration) {
-  switch (configuration_.strategies_.ray_tracing_algorithm_) {
-    case RayTracingAlgorithm::kDefault:
-      ray_tracing_algorithm_ = std::bind(
-          &Scene::DefaultRayTracingAlgorithm, this, std::placeholders::_1,
-          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-      break;
-    case RayTracingAlgorithm::kRecursive:
-      ray_tracing_algorithm_ = std::bind(
-          &Scene::RecursiveBRDFRayTracingAlgorithm, this, std::placeholders::_1,
-          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-      break;
-  }
+Scene::Scene(const std::string &filename)
+    : filename_(filename) {
+  ray_tracing_algorithm_ = std::bind(
+      &Scene::RecursiveBRDFRayTracingAlgorithm, this, std::placeholders::_1,
+      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 
   path_tracing_algorithm_ = std::bind(
       &Scene::RecursiveBRDFPathTracingAlgorithm, this, std::placeholders::_1,
-      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 
-  switch (configuration_.strategies_.scheduling_algorithm_) {
-    case SchedulingAlgorithm::kNonThread:
-      scheduling_algorithm_ =
-          std::bind(&Scene::NonThreadSchedulingAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
-    case SchedulingAlgorithm::kThreadQueue:
-      scheduling_algorithm_ =
-          std::bind(&Scene::ThreadQueueSchedulingAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
-    case SchedulingAlgorithm::kBlockDivide:
-      scheduling_algorithm_ = std::bind(&Scene::BlockDivideThreadSchedulingAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
-    case SchedulingAlgorithm::kSlidingThread:
-      scheduling_algorithm_ = std::bind(&Scene::SlidingThreadSchedulingAlgorithm, this,
-                    std::placeholders::_1, std::placeholders::_2);
-      break;
-  }
+  scheduling_algorithm_ =
+      std::bind(&Scene::ThreadQueueSchedulingAlgorithm, this,
+                std::placeholders::_1, std::placeholders::_2);
 
-  switch (configuration_.sampling_.area_light_sampling_) {
-    case SamplingAlgorithm::kRandom:
-      area_light_sampling_algorithm_ = uniform_random_2d;
-      break;
-  }
+  area_light_sampling_algorithm_ = uniform_random_2d;
 
-  switch (configuration_.sampling_.pixel_filtering_) {
-    case FilteringAlgorithm::kBox:
-      filtering_algorithm_ = std::bind(
-          &Scene::AveragingFilterAlgorithm, this, std::placeholders::_1,
-          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
-          std::placeholders::_5);
-      break;
-    case FilteringAlgorithm::kGaussian:
-      filtering_algorithm_ = std::bind(
-          &Scene::GaussianFilterAlgorithm, this, std::placeholders::_1,
-          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
-          std::placeholders::_5);
-      break;
-
-    case FilteringAlgorithm::kExtendedGaussian:
-      filtering_algorithm_ = std::bind(
-          &Scene::ExtendedGaussianFilterAlgorithm, this, std::placeholders::_1,
-          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
-          std::placeholders::_5);
-      break;
-  }
+  filtering_algorithm_ = std::bind(
+      &Scene::ExtendedGaussianFilterAlgorithm, this, std::placeholders::_1,
+      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
+      std::placeholders::_5);
 
   LoadScene();
-  if (timer.configuration_.timer_.preprocess_scene_)
-    timer.AddTimeLog(Section::kPreprocessScene, Event::kStart);
+  timer.AddTimeLog(Section::kPreprocessScene, Event::kStart);
   PreprocessScene();
-  if (timer.configuration_.timer_.preprocess_scene_)
-    timer.AddTimeLog(Section::kPreprocessScene, Event::kEnd);
+  timer.AddTimeLog(Section::kPreprocessScene, Event::kEnd);
 }
 
 Scene::~Scene() {
@@ -87,8 +38,7 @@ Scene::~Scene() {
 
 void Scene::LoadScene() {
   RawScene raw_scene;
-  if (timer.configuration_.timer_.parse_scene_file_)
-    timer.AddTimeLog(Section::kParseXML, Event::kStart);
+  timer.AddTimeLog(Section::kParseXML, Event::kStart);
   std::string file_extension = filename_.substr(filename_.find_last_of(".") + 1);
   for (auto &c : file_extension){
     c = std::tolower(c);
@@ -101,11 +51,9 @@ void Scene::LoadScene() {
   else {
     throw std::runtime_error("Error: Unsupported file format: " + file_extension);
   }
-  if (timer.configuration_.timer_.parse_scene_file_)
-    timer.AddTimeLog(Section::kParseXML, Event::kEnd);
+  timer.AddTimeLog(Section::kParseXML, Event::kEnd);
 
-  if (timer.configuration_.timer_.load_scene_)
-    timer.AddTimeLog(Section::kLoadScene, Event::kStart);
+  timer.AddTimeLog(Section::kLoadScene, Event::kStart);
 
   background_color_ = raw_scene.background_color;
   shadow_ray_epsilon_ = raw_scene.shadow_ray_epsilon;
@@ -224,10 +172,13 @@ void Scene::LoadScene() {
         raw_camera.mis_balance_enabled,
         raw_camera.russian_roulette_enabled,
         raw_camera.splitting_factor,
-        configuration_.sampling_.time_sampling_,
-        configuration_.sampling_.pixel_sampling_, raw_camera.focus_distance,
-        raw_camera.aperture_size, configuration_.sampling_.aperture_sampling_,
-        configuration_.sampling_.aperture_type_));
+        raw_camera.sample_max_val,
+        SamplingAlgorithm::kJittered,
+        SamplingAlgorithm::kHammersley,
+        raw_camera.focus_distance,
+        raw_camera.aperture_size,
+        SamplingAlgorithm::kHammersley,
+        ApertureType::kCircular));
   }
 
   for(const auto &raw_brdf : raw_scene.brdfs){
@@ -331,12 +282,11 @@ void Scene::LoadScene() {
       textures.push_back(texture_maps_[texture_id - 1]);
     }
     objects_.push_back(
-        std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<SphereObject>(
                 materials_[raw_sphere.material_id - 1], textures,
                 raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
                 raw_sphere.radius, raw_sphere.motion_blur, transform_matrix,
-                scaling_flip)));
+                scaling_flip));
   }
 
   for (const auto &raw_sphere : raw_scene.light_spheres) {
@@ -352,12 +302,11 @@ void Scene::LoadScene() {
       textures.push_back(texture_maps_[texture_id - 1]);
     }
     objects_.push_back(
-        std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<LightSphereObject>(
                 materials_[raw_sphere.material_id - 1], textures,
                 raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
                 raw_sphere.radius, raw_sphere.motion_blur, transform_matrix,
-                scaling_flip, raw_sphere.radiance)));
+                scaling_flip, raw_sphere.radiance));
     light_objects_.push_back(objects_.back());
   }
 
@@ -394,7 +343,6 @@ void Scene::LoadScene() {
       textures.push_back(texture_maps_[texture_id - 1]);
     }
     objects_.push_back(
-        std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<TriangleObject>(
                 materials_[raw_triangle.material_id - 1], textures,
                 raw_scene.vertex_data[raw_triangle.indices.v0_id - 1],
@@ -403,7 +351,7 @@ void Scene::LoadScene() {
                 textures.size() > 0 ? raw_scene.tex_coord_data[raw_triangle.indices.v0_id - 1] : Vec2f{0,0},
                 textures.size() > 0 ? raw_scene.tex_coord_data[raw_triangle.indices.v1_id - 1] : Vec2f{0,0},
                 textures.size() > 0 ? raw_scene.tex_coord_data[raw_triangle.indices.v2_id - 1] : Vec2f{0,0},
-                raw_triangle.motion_blur, transform_matrix, scaling_flip)));
+                raw_triangle.motion_blur, transform_matrix, scaling_flip));
   }
 
   int meshes_start_index = objects_.size();
@@ -421,18 +369,16 @@ void Scene::LoadScene() {
     }
     if (raw_mesh.ply_filepath != "") {
       objects_.push_back(
-          std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
                   materials_[raw_mesh.material_id - 1], textures, raw_mesh.ply_filepath,
                   raw_mesh.vertex_offset, raw_mesh.tex_coord_offset,
-                  raw_mesh.motion_blur, transform_matrix, scaling_flip)));
+                  raw_mesh.motion_blur, transform_matrix, scaling_flip));
     } else {
       objects_.push_back(
-          std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<MeshObject>(
                   materials_[raw_mesh.material_id - 1], textures, raw_mesh.faces,
                   raw_scene.vertex_data, raw_scene.tex_coord_data, raw_mesh.vertex_offset, raw_mesh.tex_coord_offset, raw_mesh.motion_blur, transform_matrix,
-                  scaling_flip)));
+                  scaling_flip));
     }
   }
 
@@ -450,18 +396,16 @@ void Scene::LoadScene() {
     }
     if (raw_mesh.ply_filepath != "") {
       objects_.push_back(
-          std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<LightMeshObject>(
                   materials_[raw_mesh.material_id - 1], textures, raw_mesh.ply_filepath,
                   raw_mesh.vertex_offset, raw_mesh.tex_coord_offset,
-                  raw_mesh.motion_blur, transform_matrix, scaling_flip, raw_mesh.radiance)));
+                  raw_mesh.motion_blur, transform_matrix, scaling_flip, raw_mesh.radiance));
     } else {
       objects_.push_back(
-          std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
               std::make_shared<LightMeshObject>(
                   materials_[raw_mesh.material_id - 1], textures, raw_mesh.faces,
                   raw_scene.vertex_data, raw_scene.tex_coord_data, raw_mesh.vertex_offset, raw_mesh.tex_coord_offset, raw_mesh.motion_blur, transform_matrix,
-                  scaling_flip, raw_mesh.radiance)));
+                  scaling_flip, raw_mesh.radiance));
     }
     light_objects_.push_back(objects_.back());
   }
@@ -473,7 +417,6 @@ void Scene::LoadScene() {
     std::shared_ptr<MeshObject> mesh_object = nullptr;
     std::shared_ptr<BaseMaterial> material = nullptr;
 
-    // Search for the root mesh objects
     auto current_raw_mesh = raw_mesh_instance;
     bool any_reset = false;
 
@@ -538,14 +481,12 @@ void Scene::LoadScene() {
     }
 
     objects_.push_back(
-        std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
             std::make_shared<MeshInstanceObject>(
                 material, textures, mesh_object, raw_mesh_instance.motion_blur,
-                transform_matrix, scaling_flip)));
+                transform_matrix, scaling_flip));
   }
 
-  if (timer.configuration_.timer_.load_scene_)
-    timer.AddTimeLog(Section::kLoadScene, Event::kEnd);
+  timer.AddTimeLog(Section::kLoadScene, Event::kEnd);
 }
 
 void Scene::PreprocessScene() {
@@ -554,55 +495,34 @@ void Scene::PreprocessScene() {
 #endif
 
   for (const auto &object : objects_) {
-    std::shared_ptr<BaseObject> object_casted =
-        std::dynamic_pointer_cast<BaseObject>(object);
-
-    object_casted->Preprocess(configuration_.acceleration_.bvh_high_level_,
-                              configuration_.acceleration_.bvh_low_level_);
+    object->Preprocess(true);
   }
 
-  if (configuration_.acceleration_.bvh_high_level_) {
-    bvh_root_ = BoundingVolumeHierarchyElement::Construct(objects_, 0,
-                                                          objects_.size(), 0);
-  }
+  bvh_.BuildBVH(objects_);
 }
 
 void Scene::Render() {
   int camera_index = 0;
   for (const auto &camera : cameras_) {
-    if (timer.configuration_.timer_.render_scene_ ||
-        timer.configuration_.timer_.ray_tracing_ ||
-        timer.configuration_.timer_.tone_mapping_ ||
-        timer.configuration_.timer_.export_image_)
-      timer.AddTimeLog(Section::kRenderScene, Event::kStart, camera_index);
+    timer.AddTimeLog(Section::kRenderScene, Event::kStart, camera_index);
     scheduling_algorithm_(camera, camera_index);
 
-    if (timer.configuration_.timer_.filtering_)
-      timer.AddTimeLog(Section::kFiltering, Event::kStart, camera_index);
+    timer.AddTimeLog(Section::kFiltering, Event::kStart, camera_index);
     filtering_algorithm_(camera->GetImageSampledDataReference(),
                          camera->image_width_, camera->image_height_,
                          camera->mem_num_samples_,
                          camera->GetImageDataReference());
-    if (timer.configuration_.timer_.filtering_)
-      timer.AddTimeLog(Section::kFiltering, Event::kEnd, camera_index);
+    timer.AddTimeLog(Section::kFiltering, Event::kEnd, camera_index);
 
-    if (timer.configuration_.timer_.tone_mapping_)
-      timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
+    timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
 
       camera->ApplyToneMappings();
 
-    if (timer.configuration_.timer_.tone_mapping_)
-      timer.AddTimeLog(Section::kToneMapping, Event::kEnd, camera_index);
-    if (timer.configuration_.timer_.export_image_)
-      timer.AddTimeLog(Section::kExportImage, Event::kStart, camera_index);
+    timer.AddTimeLog(Section::kToneMapping, Event::kEnd, camera_index);
+    timer.AddTimeLog(Section::kExportImage, Event::kStart, camera_index);
     camera->ExportView();
-    if (timer.configuration_.timer_.export_image_)
-      timer.AddTimeLog(Section::kExportImage, Event::kEnd, camera_index);
-    if (timer.configuration_.timer_.render_scene_ ||
-        timer.configuration_.timer_.ray_tracing_ ||
-        timer.configuration_.timer_.tone_mapping_ ||
-        timer.configuration_.timer_.export_image_)
-      timer.AddTimeLog(Section::kRenderScene, Event::kEnd, camera_index);
+    timer.AddTimeLog(Section::kExportImage, Event::kEnd, camera_index);
+    timer.AddTimeLog(Section::kRenderScene, Event::kEnd, camera_index);
     camera_index++;
   }
 }

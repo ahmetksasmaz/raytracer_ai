@@ -11,10 +11,78 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <thread>
 
 #include "../extern/parser.h"
 
 using namespace parser;
+
+struct FastRandomNumberGenerator {
+  uint64_t state;
+  
+  FastRandomNumberGenerator(uint64_t seed = 0) {
+    state = seed != 0 ? seed : 0x853c49e6748fea9bULL;
+  }
+  
+  inline uint64_t next() {
+    uint64_t x = state;
+    x ^= x >> 12;
+    x ^= x << 25;
+    x ^= x >> 27;
+    state = x;
+    return x * 0x2545F4914F6CDD1DULL;
+  }
+  
+  inline FP_PRECISION NextDouble() {
+    return static_cast<FP_PRECISION>(next() >> 11) * (1.0 / 9007199254740992.0);
+  }
+  
+  inline int NextInteger(int max) {
+    return static_cast<int>(next() % max);
+  }
+};
+
+inline thread_local FastRandomNumberGenerator ThreadLocalRandomNumberGenerator(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+
+inline FP_PRECISION FastRandom() {
+  return ThreadLocalRandomNumberGenerator.NextDouble();
+}
+
+inline int FastRandomInteger(int max) {
+  return ThreadLocalRandomNumberGenerator.NextInteger(max);
+}
+
+inline FP_PRECISION FastInverseSquareRoot(FP_PRECISION x) {
+#if FP_PRECISION == double
+  return 1.0 / std::sqrt(x);
+#else
+  float xhalf = 0.5f * x;
+  int i = *(int*)&x;
+  i = 0x5f3759df - (i >> 1);
+  x = *(float*)&i;
+  x = x * (1.5f - xhalf * x * x);
+  return x;
+#endif
+}
+
+inline Vec3f FastNormalize(Vec3f a) {
+  FP_PRECISION inverse_norm = FastInverseSquareRoot(a.x * a.x + a.y * a.y + a.z * a.z);
+  return Vec3f{a.x * inverse_norm, a.y * inverse_norm, a.z * inverse_norm};
+}
+
+inline void BuildOrthonormalBasis(const Vec3f& n, Vec3f& tangent, Vec3f& bitangent) {
+  if (n.z < -0.9999f) {
+    tangent = Vec3f{0.0, -1.0, 0.0};
+    bitangent = Vec3f{-1.0, 0.0, 0.0};
+    return;
+  }
+  FP_PRECISION sign = n.z >= 0.0 ? 1.0 : -1.0;
+  FP_PRECISION a = -1.0 / (sign + n.z);
+  FP_PRECISION b = n.x * n.y * a;
+  tangent = Vec3f{1.0 + sign * n.x * n.x * a, sign * b, -sign * n.x};
+  bitangent = Vec3f{b, sign + n.y * n.y * a, -n.y};
+}
 
 const Mat4x4f IDENTITY_MATRIX = {
     {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
@@ -370,14 +438,15 @@ inline Mat4x4f parse_transformation(std::string transformation_text,
 
 template <typename T>
 inline void shuffle(std::vector<T>& samples) {
-  for (int i = 0; i < samples.size(); i++) {
-    int j = rand() % samples.size();
+  for (size_t i = 0; i < samples.size(); i++) {
+    size_t j = FastRandomInteger(static_cast<int>(samples.size()));
     std::swap(samples[i], samples[j]);
   }
 }
 
 inline std::vector<FP_PRECISION> uniform_1d(int num_samples) {
   std::vector<FP_PRECISION> samples;
+  samples.reserve(num_samples);
   for (int i = 0; i < num_samples; i++) {
     samples.push_back((FP_PRECISION)i / num_samples);
   }
@@ -387,6 +456,7 @@ inline std::vector<FP_PRECISION> uniform_1d(int num_samples) {
 
 inline std::vector<Vec2f> uniform_2d(int num_samples) {
   std::vector<Vec2f> samples;
+  samples.reserve(num_samples * num_samples);
   for (int i = 0; i < num_samples; i++) {
     for (int j = 0; j < num_samples; j++) {
       samples.push_back(Vec2f{(FP_PRECISION)i / num_samples, (FP_PRECISION)j / num_samples});
@@ -398,8 +468,9 @@ inline std::vector<Vec2f> uniform_2d(int num_samples) {
 
 inline std::vector<FP_PRECISION> uniform_random_1d(int num_samples) {
   std::vector<FP_PRECISION> samples;
+  samples.reserve(num_samples);
   for (int i = 0; i < num_samples; i++) {
-    samples.push_back((FP_PRECISION)rand() / RAND_MAX);
+    samples.push_back(FastRandom());
   }
   shuffle(samples);
   return samples;
@@ -407,10 +478,10 @@ inline std::vector<FP_PRECISION> uniform_random_1d(int num_samples) {
 
 inline std::vector<Vec2f> uniform_random_2d(int num_samples) {
   std::vector<Vec2f> samples;
+  samples.reserve(num_samples * num_samples);
   for (int i = 0; i < num_samples; i++) {
     for (int j = 0; j < num_samples; j++) {
-      samples.push_back(
-          Vec2f{(FP_PRECISION)rand() / RAND_MAX, (FP_PRECISION)rand() / RAND_MAX});
+      samples.push_back(Vec2f{FastRandom(), FastRandom()});
     }
   }
   shuffle(samples);
@@ -419,8 +490,9 @@ inline std::vector<Vec2f> uniform_random_2d(int num_samples) {
 
 inline std::vector<FP_PRECISION> jittered_1d(int num_samples) {
   std::vector<FP_PRECISION> samples;
+  samples.reserve(num_samples);
   for (int i = 0; i < num_samples; i++) {
-    samples.push_back((i + (FP_PRECISION)rand() / RAND_MAX) / num_samples);
+    samples.push_back((i + FastRandom()) / num_samples);
   }
   shuffle(samples);
   return samples;
@@ -428,10 +500,11 @@ inline std::vector<FP_PRECISION> jittered_1d(int num_samples) {
 
 inline std::vector<Vec2f> jittered_2d(int num_samples) {
   std::vector<Vec2f> samples;
+  samples.reserve(num_samples * num_samples);
   for (int i = 0; i < num_samples; i++) {
     for (int j = 0; j < num_samples; j++) {
-      samples.push_back(Vec2f{(i + (FP_PRECISION)rand() / RAND_MAX) / num_samples,
-                              (j + (FP_PRECISION)rand() / RAND_MAX) / num_samples});
+      samples.push_back(Vec2f{(i + FastRandom()) / num_samples,
+                              (j + FastRandom()) / num_samples});
     }
   }
   shuffle(samples);
@@ -440,13 +513,14 @@ inline std::vector<Vec2f> jittered_2d(int num_samples) {
 
 inline std::vector<Vec2f> multi_jittered_2d(int num_samples) {
   std::vector<Vec2f> samples;
-  int n = sqrt(num_samples);
+  int n = static_cast<int>(sqrt(num_samples));
+  samples.reserve(n * n);
   FP_PRECISION subcell_width = 1.0 / num_samples;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       samples.push_back(
-          Vec2f{(i * n + j + (FP_PRECISION)rand() / RAND_MAX) * subcell_width,
-                (j * n + i + (FP_PRECISION)rand() / RAND_MAX) * subcell_width});
+          Vec2f{(i * n + j + FastRandom()) * subcell_width,
+                (j * n + i + FastRandom()) * subcell_width});
     }
   }
   shuffle(samples);
@@ -468,6 +542,7 @@ inline FP_PRECISION radical_inverse(unsigned int n, unsigned int base) {
 
 inline std::vector<Vec2f> hammersley_2d(int num_samples) {
   std::vector<Vec2f> samples;
+  samples.reserve(num_samples);
   for (int i = 0; i < num_samples; i++) {
     FP_PRECISION x = (FP_PRECISION)i / num_samples;
     FP_PRECISION y = (FP_PRECISION)radical_inverse(i, 2);
@@ -479,6 +554,7 @@ inline std::vector<Vec2f> hammersley_2d(int num_samples) {
 
 inline std::vector<Vec2f> halton_2d(int num_samples) {
   std::vector<Vec2f> samples;
+  samples.reserve(num_samples);
   for (int i = 0; i < num_samples; i++) {
     FP_PRECISION x = (FP_PRECISION)radical_inverse(i, 2);
     FP_PRECISION y = (FP_PRECISION)radical_inverse(i, 3);
@@ -489,12 +565,9 @@ inline std::vector<Vec2f> halton_2d(int num_samples) {
 }
 
 inline FP_PRECISION gaussian_kernel_weight(Vec2f diff, FP_PRECISION sigma) {
-  // Center the coordinates (assuming the Gaussian kernel is centered at (0.5,
-  // 0.5))
   FP_PRECISION x_centered = diff.x - 0.5;
   FP_PRECISION y_centered = diff.y - 0.5;
 
-  // Compute the Gaussian weight
   FP_PRECISION exponent = -(x_centered * x_centered + y_centered * y_centered) /
                    (2 * sigma * sigma);
   FP_PRECISION weight = std::exp(exponent) / (2 * M_PI * sigma * sigma);
@@ -503,8 +576,8 @@ inline FP_PRECISION gaussian_kernel_weight(Vec2f diff, FP_PRECISION sigma) {
 }
 
 inline void uniform_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP_PRECISION& pdf) {
-  FP_PRECISION u1 = (FP_PRECISION)rand() / RAND_MAX;
-  FP_PRECISION u2 = (FP_PRECISION)rand() / RAND_MAX;
+  FP_PRECISION u1 = FastRandom();
+  FP_PRECISION u2 = FastRandom();
 
   theta = std::acos(u1);
   phi = 2 * M_PI * u2;
@@ -512,10 +585,11 @@ inline void uniform_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP
 }
 
 inline void cosine_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP_PRECISION& pdf) {
-  FP_PRECISION u1 = (FP_PRECISION)rand() / RAND_MAX;
-  FP_PRECISION u2 = (FP_PRECISION)rand() / RAND_MAX;
+  FP_PRECISION u1 = FastRandom();
+  FP_PRECISION u2 = FastRandom();
 
   theta = std::asin(std::sqrt(u1));
   phi = 2 * M_PI * u2;
-  pdf = std::cos(theta) / M_PI;
+  FP_PRECISION cos_theta = std::cos(theta);
+  pdf = std::max(cos_theta, static_cast<FP_PRECISION>(1e-6)) / M_PI;
 }

@@ -1,22 +1,17 @@
 #include "TriangleObject.hpp"
 
-std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
+bool TriangleObject::Intersect(
     Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
-  // Vec3f transformed_ray_destination =
-  //     inverse_transform_matrix_ *
-  //     (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
-  // Vec3f transformed_ray_direction =
-  //     normalize(transformed_ray_destination - transformed_ray_origin);
   Vec3f transformed_ray_direction =
       normalize(inverse_transform_matrix_ ^ ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
   if (backface_culling && dot(transformed_ray.direction_, normal_) > 0) {
-    return nullptr;
+    return false;
   }
 
   Vec3f edge1 = v1_ - v0_;
@@ -29,14 +24,14 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
   FP_PRECISION u = inv_det * dot(s, ray_cross_e2);
 
   if (u < 0 || u > 1) {
-    return nullptr;
+    return false;
   }
 
   Vec3f s_cross_e1 = cross(s, edge1);
   FP_PRECISION v = inv_det * dot(transformed_ray.direction_, s_cross_e1);
 
   if (v < 0 || u + v > 1) {
-    return nullptr;
+    return false;
   }
 
   FP_PRECISION t = inv_det * dot(edge2, s_cross_e1);
@@ -84,26 +79,19 @@ std::shared_ptr<BoundingVolumeHierarchyElement> TriangleObject::Intersect(
         inv_uv_matrix.m[1][0] * edge1.x + inv_uv_matrix.m[1][1] * edge2.x,
         inv_uv_matrix.m[1][0] * edge1.y + inv_uv_matrix.m[1][1] * edge2.y,
         inv_uv_matrix.m[1][0] * edge1.z + inv_uv_matrix.m[1][1] * edge2.z};
-    
-    // if(dot(cross(tangent_vector, bitangent_vector), normal_) < 0) {
-    //   tangent_vector = tangent_vector * -1.0;
-    // }
+  
     tangent_vector = transform_matrix_ ^ tangent_vector;
     bitangent_vector = transform_matrix_ ^ bitangent_vector;
 
-    return std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
-        std::const_pointer_cast<BaseObject>(this->shared_from_this()));
+    return true;
   } else {
-    return nullptr;
+    return false;
   }
 }
 
-void TriangleObject::Preprocess(bool high_level_bvh_enabled,
-                                bool low_level_bvh_enabled,
-                                bool transform_enabled) {
+void TriangleObject::Preprocess(bool transform_enabled) {
   normal_ = normalize(cross(v1_ - v0_, v2_ - v0_));
 
-  if (high_level_bvh_enabled || low_level_bvh_enabled) {
     FP_PRECISION x_min = std::min({v0_.x, v1_.x, v2_.x});
     FP_PRECISION y_min = std::min({v0_.y, v1_.y, v2_.y});
     FP_PRECISION z_min = std::min({v0_.z, v1_.z, v2_.z});
@@ -157,5 +145,4 @@ void TriangleObject::Preprocess(bool high_level_bvh_enabled,
          p3_motion, p4_motion, p5_motion, p6_motion, p7_motion});
 
     InitializeSelf(min_point, max_point);
-  }
 }

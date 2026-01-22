@@ -10,8 +10,7 @@
 
 using namespace parser;
 
-class BaseObject : public BoundingVolumeHierarchyElement,
-                   public std::enable_shared_from_this<BaseObject> {
+class BaseObject : public std::enable_shared_from_this<BaseObject> {
  public:
   BaseObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures, const Vec3f motion_blur,
              const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip)
@@ -25,18 +24,19 @@ class BaseObject : public BoundingVolumeHierarchyElement,
     transpose_transform_matrix_ = !transform_matrix_;
   }
 
-  virtual void InitializeSelf(const Vec3f& min_point,
-                              const Vec3f& max_point) override final {
+  void InitializeSelf(const Vec3f& min_point, const Vec3f& max_point) {
     min_point_ = min_point;
     max_point_ = max_point;
   }
 
+  virtual bool Intersect(
+      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
+      bool backface_culling = true, bool stop_at_any_hit = false) const = 0;
+
   std::shared_ptr<BaseMaterial> material_;
 
   virtual ~BaseObject() = default;
-  virtual void Preprocess(bool high_level_bvh_enabled,
-                          bool low_level_bvh_enabled,
-                          bool transform_enabled = true) {};
+  virtual void Preprocess(bool transform_enabled = true) {};
 
   Vec3f motion_blur_;
   Mat4x4f transform_matrix_;
@@ -45,4 +45,7 @@ class BaseObject : public BoundingVolumeHierarchyElement,
   Mat4x4f inverse_transpose_transform_matrix_;
   RawScalingFlip scaling_flip_;
   std::vector<std::shared_ptr<BaseTextureMap>> textures_;
+  
+  Vec3f min_point_;
+  Vec3f max_point_;
 };

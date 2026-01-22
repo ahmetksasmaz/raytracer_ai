@@ -7,20 +7,11 @@ Timer timer;
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
-    std::cerr << "Usage: " << argv[0] << " <input_file>"
-              << " <configuration_file [OPTIONAL]>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <input_file>" << std::endl;
     return 1;
   }
 
-  Configuration configuration;
-
-  if (argc == 3) {
-    configuration.ParseFromFile(argv[2]);
-  }
-
-  timer.configuration_ = configuration;
-
-  Scene scene(argv[1], configuration);
+  Scene scene(argv[1]);
 
   scene.Render();
 

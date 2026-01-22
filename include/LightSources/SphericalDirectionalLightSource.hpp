@@ -12,7 +12,6 @@ public:
 
   Vec3f GetIntensity(const Vec3f& surface_normal, Vec3f& direction, bool no_sample = false) const
   {
-    // Map direction to texture coordinates
     FP_PRECISION u = 0.0f;
     FP_PRECISION v = 0.0f;
 
@@ -28,7 +27,6 @@ public:
       else if(sampler_ == kCosine){
         cosine_hemisphere_sample(theta, phi, pdf);
       }
-      // Find orthonormal basis
       Vec3f normal_prime;
       normal_prime.x = surface_normal.x;
       normal_prime.y = surface_normal.y;
@@ -86,7 +84,9 @@ public:
     int y = static_cast<int>(v * image_->height_);
 
     Vec3f color_value = (*image_)(x, y);
-
+    if (!std::isfinite(pdf) || pdf <= 1e-6) {
+      return {0, 0, 0};
+    }
     return color_value / pdf;
   }
 

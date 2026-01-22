@@ -29,6 +29,7 @@ class BaseCamera {
       bool mis_balance_enabled = false,
       bool russian_roulette_enabled = false,
       int splitting_factor = 1,
+      FP_PRECISION sample_max_val = 0.0f,
       const SamplingAlgorithm time_sampling = SamplingAlgorithm::kBest,
       const SamplingAlgorithm pixel_sampling = SamplingAlgorithm::kBest,
       const FP_PRECISION focus_distance = 0.0, const FP_PRECISION aperture_size = 0.0,
@@ -65,6 +66,7 @@ class BaseCamera {
   const bool mis_balance_enabled_;
   const bool russian_roulette_enabled_;
   const int splitting_factor_;
+  const FP_PRECISION sample_max_val_;
 
  private:
   const std::string image_name_;

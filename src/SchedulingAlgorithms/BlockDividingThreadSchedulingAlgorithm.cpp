@@ -7,14 +7,15 @@
 
 void Scene::BlockDivideThreadSchedulingAlgorithm(
     const std::shared_ptr<BaseCamera> camera, int camera_index) {
-      std::shared_ptr<PathTracerSettings> path_tracer_settings = std::make_shared<PathTracerSettings>();
-      path_tracer_settings->max_recursion_depth = camera->max_recursion_depth_;
-      path_tracer_settings->min_recursion_depth = camera->min_recursion_depth_;
-      path_tracer_settings->splitting_factor = camera->splitting_factor_;
-      path_tracer_settings->importance_sampling_enabled = camera->importance_sampling_enabled_;
-      path_tracer_settings->nee_enabled = camera->nee_enabled_;
-      path_tracer_settings->mis_balance_enabled = camera->mis_balance_enabled_;
-      path_tracer_settings->russian_roulette_enabled = camera->russian_roulette_enabled_;
+      PathTracerSettings path_tracer_settings;
+      path_tracer_settings.max_recursion_depth = camera->max_recursion_depth_;
+      path_tracer_settings.min_recursion_depth = camera->min_recursion_depth_;
+      path_tracer_settings.splitting_factor = camera->splitting_factor_;
+      path_tracer_settings.importance_sampling_enabled = camera->importance_sampling_enabled_;
+      path_tracer_settings.nee_enabled = camera->nee_enabled_;
+      path_tracer_settings.mis_balance_enabled = camera->mis_balance_enabled_;
+      path_tracer_settings.russian_roulette_enabled = camera->russian_roulette_enabled_;
+      path_tracer_settings.sample_max_val = camera->sample_max_val_;
 
 
   auto processor_count = std::thread::hardware_concurrency();
@@ -48,7 +49,6 @@ void Scene::BlockDivideThreadSchedulingAlgorithm(
 
   for (size_t i = 0; i < processor_count; i++) {
     threads.emplace_back([&, i]() {
-    // threads.emplace_back([&]() {
       while (true) {
         if (queues[i].empty()) {
           break;
@@ -59,23 +59,15 @@ void Scene::BlockDivideThreadSchedulingAlgorithm(
         std::vector<Ray> rays =
             camera->GenerateRay({index.first, index.second});
         for (int ray_index = 0; ray_index < rays.size(); ray_index++) {
-          if (timer.configuration_.timer_.ray_tracing_)
-            timer.AddTimeLog(Section::kRayTracing, Event::kStart, camera_index,
-                             index.second * camera->image_width_ + index.first,
-                             ray_index);
           const Vec3f pixel_value =
         camera->path_tracing_enabled_ ?
-        path_tracing_algorithm_(rays[ray_index], nullptr, 0, path_tracer_settings)
+        path_tracing_algorithm_(rays[ray_index], nullptr, 0, path_tracer_settings, {1.0f, 1.0f, 1.0f})
             : ray_tracing_algorithm_(
               rays[ray_index], nullptr, camera->max_recursion_depth_,
               camera->max_recursion_depth_);
           camera->UpdateSampledPixelValue({index.first, index.second},
                                           pixel_value, ray_index,
                                           rays[ray_index].diff_);
-          if (timer.configuration_.timer_.ray_tracing_)
-            timer.AddTimeLog(Section::kRayTracing, Event::kEnd, camera_index,
-                             index.second * camera->image_width_ + index.first,
-                             ray_index);
         }
       }
     });

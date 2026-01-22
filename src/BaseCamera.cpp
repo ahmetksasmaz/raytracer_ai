@@ -16,6 +16,7 @@ BaseCamera::BaseCamera(
     const bool mis_balance_enabled,
     const bool russian_roulette_enabled,
     const int splitting_factor,
+    const FP_PRECISION sample_max_val,
     const SamplingAlgorithm time_sampling,
     const SamplingAlgorithm pixel_sampling, const FP_PRECISION focus_distance,
     const FP_PRECISION aperture_size, const SamplingAlgorithm aperture_sampling,
@@ -40,6 +41,7 @@ BaseCamera::BaseCamera(
       mis_balance_enabled_(mis_balance_enabled),
       russian_roulette_enabled_(russian_roulette_enabled),
       splitting_factor_(splitting_factor),
+      sample_max_val_(sample_max_val),
       l_(look_at_camera ? -near_distance * tan(fov_y * M_PI / 360.0f) *
                               FP_PRECISION(image_width) / FP_PRECISION(image_height)
                         : near_plane.x),
@@ -275,10 +277,16 @@ void BaseCamera::UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
                                          const Vec3f& pixel_value,
                                          const int sample_index,
                                          const Vec2f& diff) {
+  Vec3f clamped_value = pixel_value;
+  if (sample_max_val_ > 0.0f) {
+    clamped_value.x = std::min(pixel_value.x, sample_max_val_);
+    clamped_value.y = std::min(pixel_value.y, sample_max_val_);
+    clamped_value.z = std::min(pixel_value.z, sample_max_val_);
+  }
   image_sampled_data_[(pixel_coordinate.y * image_width_ + pixel_coordinate.x) *
                           mem_num_samples_ +
                       sample_index] =
-      Vec5f{pixel_value.x, pixel_value.y, pixel_value.z, diff.x, diff.y};
+      Vec5f{clamped_value.x, clamped_value.y, clamped_value.z, diff.x, diff.y};
 }
 
 void BaseCamera::UpdatePixelValue(const Vec2i& pixel_coordinate,

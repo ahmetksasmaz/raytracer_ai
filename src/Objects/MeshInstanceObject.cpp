@@ -13,7 +13,7 @@ MeshInstanceObject::MeshInstanceObject(std::shared_ptr<BaseMaterial> material, s
                  transform_matrix, scaling_flip),
       mesh_object_(mesh_object) {};
 
-std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
+bool MeshInstanceObject::Intersect(
     Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
@@ -22,50 +22,25 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
 
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
-  // Vec3f transformed_ray_destination =
-  //     inverse_transform_matrix_ *
-  //     (ray.origin_ - motion_blur_ * ray.time_ + ray.direction_);
-  // Vec3f transformed_ray_direction =
-  //     normalize(transformed_ray_destination - transformed_ray_origin);
   Vec3f transformed_ray_direction =
       normalize(inverse_transform_matrix_ ^ ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
   FP_PRECISION mesh_hit = std::numeric_limits<FP_PRECISION>::max();
-  if (mesh_object_->left_) {
-    if (mesh_object_->left_->Intersect(transformed_ray, mesh_hit,
-                                       temp_intersection_normal,  tex_coords, hit_u_vector, hit_v_vector, tangent_vector, bitangent_vector,
-                                       backface_culling, stop_at_any_hit)) {
-      hit = true;
-    }
-  } else {
-    for (size_t i = 0; i < mesh_object_->triangle_objects_.size(); i++) {
-      FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
-      Vec3f normal;
-      if (!mesh_object_->triangle_objects_[i]->Intersect(
-              transformed_ray, temp_hit, normal, tex_coords, hit_u_vector, hit_v_vector, tangent_vector, bitangent_vector, backface_culling,
-              stop_at_any_hit)) {
-        continue;
-      }
-
-      if (temp_hit < mesh_hit) {
-        mesh_hit = temp_hit;
-        temp_intersection_normal = normal;
-      }
-      hit = true;
-      if (stop_at_any_hit) {
-        break;
-      }
-    }
+  
+  int hit_index = mesh_object_->triangle_bvh_.Intersect(transformed_ray, mesh_object_->triangle_objects_,
+                                        mesh_hit, temp_intersection_normal, tex_coords,
+                                        hit_u_vector, hit_v_vector, tangent_vector, bitangent_vector,
+                                        backface_culling, stop_at_any_hit);
+  if (hit_index >= 0) {
+    hit = true;
   }
+  
   if (hit) {
     Vec3f local_point =
         transformed_ray.origin_ + mesh_hit * transformed_ray.direction_;
-    // Vec3f local_point_destination = local_point + temp_intersection_normal;
     Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
-    // Vec3f global_point_destination =
-    //     transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
     Vec3f normalized_diff = normalize(diff);
@@ -75,15 +50,10 @@ std::shared_ptr<BoundingVolumeHierarchyElement> MeshInstanceObject::Intersect(
     intersection_normal = normalize(transform_matrix_ ^ temp_intersection_normal);
   }
 
-  return hit ? std::dynamic_pointer_cast<BoundingVolumeHierarchyElement>(
-                   std::const_pointer_cast<BaseObject>(
-                       this->shared_from_this()))
-             : nullptr;
+  return hit;
 }
 
-void MeshInstanceObject::Preprocess(bool high_level_bvh_enabled,
-                                    bool low_level_bvh_enabled, bool) {
-  if (high_level_bvh_enabled || low_level_bvh_enabled) {
+void MeshInstanceObject::Preprocess(bool) {
     Vec3f min_point = mesh_object_->min_point_;
     Vec3f max_point = mesh_object_->max_point_;
 
@@ -132,5 +102,4 @@ void MeshInstanceObject::Preprocess(bool high_level_bvh_enabled,
                                      p5_motion, p6_motion, p7_motion});
 
     InitializeSelf(min_point, max_point);
-  }
 }

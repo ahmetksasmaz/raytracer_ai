@@ -55,8 +55,6 @@ BaseImage::BaseImage(const std::string& path) : path_(path) {
       }
     }
 
-    
-
     // Initialize first mipmapping level
     int current_width = width_;
     int current_height = height_;

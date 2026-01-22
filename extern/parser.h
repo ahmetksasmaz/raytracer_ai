@@ -44,8 +44,6 @@ namespace ply_reader{
 }
 
 namespace parser {
-// Notice that all the structures are as simple as possible
-// so that you are not enforced to adopt any style or design.
 enum RawMaterialType { kDefault, kMirror, kConductor, kDielectric };
 
 enum RawTextureMapType { kImage, kPerlin, kCheckerboard };
@@ -187,6 +185,7 @@ struct RawCamera {
   bool mis_balance_enabled = false;
   bool russian_roulette_enabled = false;
   int splitting_factor = 1;
+  FP_PRECISION sample_max_val = 0.0f;
 };
 
 struct RawPointLight {
@@ -440,8 +439,6 @@ struct RawScene {
     light_meshes.clear();
     light_spheres.clear();
   }
-
-  // Data
   Vec3i background_color;
   FP_PRECISION shadow_ray_epsilon;
   FP_PRECISION intersection_test_epsilon;
@@ -472,7 +469,6 @@ struct RawScene {
   std::vector<RawImage> images;
   std::vector<RawTextureMap> texture_maps;
 
-  // Functions
   void loadFromXml(const std::string& filepath);
   void loadFromJSON(const std::string& filepath);
 };
