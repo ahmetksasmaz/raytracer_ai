@@ -63,6 +63,44 @@ inline FP_PRECISION FastInverseSquareRoot(FP_PRECISION x) {
   return 1.0 / std::sqrt(x);
 }
 
+// Standard normal via Box-Muller, on the thread-local generator.
+inline FP_PRECISION SampleGaussian(FP_PRECISION mean, FP_PRECISION stddev) {
+  if (stddev <= 0.0) return mean;
+  // Guard the log against exactly zero.
+  const FP_PRECISION u1 = std::max(FastRandom(), static_cast<FP_PRECISION>(1e-12));
+  const FP_PRECISION u2 = FastRandom();
+  return mean + stddev * std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * M_PI * u2);
+}
+
+// Poisson draw, used for photon shot noise and dark current.
+//
+// Two regimes, which is what makes this usable across the whole exposure range:
+// Knuth's product method is exact but costs O(lambda) draws, so it is used only
+// for small counts. Above the threshold the distribution is well approximated by
+// a Gaussian of matching mean and variance (sigma = sqrt(lambda)), which is the
+// standard treatment and avoids an unbounded loop on a bright pixel where
+// lambda can reach millions.
+inline FP_PRECISION SamplePoisson(FP_PRECISION lambda) {
+  if (!(lambda > 0.0)) return 0.0;
+
+  constexpr FP_PRECISION kExactThreshold = 30.0;
+  if (lambda < kExactThreshold) {
+    const FP_PRECISION limit = std::exp(-lambda);
+    FP_PRECISION product = FastRandom();
+    int count = 0;
+    while (product > limit) {
+      count++;
+      product *= FastRandom();
+    }
+    return static_cast<FP_PRECISION>(count);
+  }
+
+  // Round so the result stays a whole number of electrons, and clamp: the
+  // Gaussian tail can go negative where the Poisson cannot.
+  const FP_PRECISION approx = SampleGaussian(lambda, std::sqrt(lambda));
+  return std::max(static_cast<FP_PRECISION>(0.0), std::floor(approx + 0.5));
+}
+
 inline Vec3f FastNormalize(Vec3f a) {
   FP_PRECISION inverse_norm = FastInverseSquareRoot(a.x * a.x + a.y * a.y + a.z * a.z);
   return Vec3f{a.x * inverse_norm, a.y * inverse_norm, a.z * inverse_norm};

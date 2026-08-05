@@ -7,6 +7,7 @@
 #include "EXRExporter.hpp"
 #include "Configuration.hpp"
 #include "Spectrum.hpp"
+#include "SensorModel.hpp"
 #include "Helper.hpp"
 #include "Ray.hpp"
 #include "BaseToneMapping.hpp"
@@ -69,6 +70,15 @@ class BaseCamera {
   Vec3f* GetImageDataReference() { return image_data_; };
   const Spectrum* GetSpectralImage() const { return spectral_image_; };
 
+  // Optional sensor simulation. When absent the camera behaves exactly as
+  // before and only the conventional image path is used.
+  void SetSensor(const SensorModel& sensor) {
+    sensor_ = sensor;
+    has_sensor_ = true;
+  }
+  bool HasSensor() const { return has_sensor_; }
+  const SensorModel& GetSensor() const { return sensor_; }
+
   void ApplyToneMappings();
   void ExportView();
 
@@ -116,6 +126,9 @@ class BaseCamera {
   // the summed reconstruction weight.
   std::atomic<FP_PRECISION>* accumulator_;
   static constexpr int kAccumStride = kSpectralBands + 1;
+
+  SensorModel sensor_;
+  bool has_sensor_ = false;
 
   Spectrum* spectral_image_;  // resolved, sensor-independent
   Vec3f* image_data_;         // resolved, linear sRGB, conventional output

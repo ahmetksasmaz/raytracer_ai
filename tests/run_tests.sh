@@ -200,6 +200,26 @@ else
   SKIP=$((SKIP + 1))
 fi
 
+# Sensor physics: noise moments, radiometric linearity, Bayer layout. Noise is
+# checked statistically -- a wrong noise model still looks grainy, so only the
+# moments distinguish a correct one.
+if [ -z "$FILTER" ] || [[ "sensor-selfcheck" == *"$FILTER"* ]]; then
+  printf "%-22s %s\n" "sensor-selfcheck" "Poisson/Gaussian moments, radiometry, Bayer, quantisation"
+  if [ -x "$ROOT/sensortest" ]; then
+    if "$ROOT/sensortest" | sed 's/^/    /'; then
+      echo "    -> PASS"; PASS=$((PASS + 1))
+    else
+      echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("sensor-selfcheck")
+    fi
+  else
+    echo "    sensortest not built (make sensortest)"
+    echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("sensor-selfcheck")
+  fi
+  echo
+else
+  SKIP=$((SKIP + 1))
+fi
+
 # Same geometry and reflectance, different illuminant SPD. These MUST differ --
 # if they match, the illuminant data is not reaching the render.
 needs illuminant-discrimination illuminant_d65 illuminant_a

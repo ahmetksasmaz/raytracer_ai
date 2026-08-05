@@ -868,6 +868,40 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
           }
         }
       }
+      if (cam.contains("Sensor")) {
+        const auto &sensor_json = cam["Sensor"];
+        RawSensor &sensor = camera.sensor;
+        sensor.exists = true;
+        auto num = [&](const char *key, FP_PRECISION fallback) {
+          return sensor_json.contains(key)
+                     ? std::stod(sensor_json[key].get<std::string>())
+                     : fallback;
+        };
+        sensor.pattern = sensor_json.contains("_pattern")
+                             ? sensor_json["_pattern"].get<std::string>()
+                             : "RGGB";
+        sensor.exposure_time_s = num("ExposureTime", 0.01);
+        sensor.pixel_pitch_m = num("PixelPitch", 3.45e-6);
+        sensor.f_number = num("FNumber", 2.8);
+        sensor.full_well_e = num("FullWell", 10000.0);
+        sensor.gain_e_per_dn = num("Gain", 1.0);
+        sensor.bit_depth = static_cast<int>(num("BitDepth", 12));
+        sensor.read_noise_sigma_e = num("ReadNoise", 2.0);
+        sensor.dark_current_e_per_s = num("DarkCurrent", 5.0);
+        // Space-separated list; "None" disables every source, which is how a
+        // noise-free reference render is requested.
+        if (sensor_json.contains("NoiseSources")) {
+          const std::string sources = sensor_json["NoiseSources"].get<std::string>();
+          sensor.shot_noise = sources.find("Shot") != std::string::npos;
+          sensor.read_noise = sources.find("Read") != std::string::npos;
+          sensor.dark_current = sources.find("Dark") != std::string::npos;
+        }
+        sensor.quantum_efficiency = ParseSpectrumData(sensor_json, "QuantumEfficiency");
+        sensor.filter_red = ParseSpectrumData(sensor_json, "FilterRed");
+        sensor.filter_green = ParseSpectrumData(sensor_json, "FilterGreen");
+        sensor.filter_blue = ParseSpectrumData(sensor_json, "FilterBlue");
+      }
+
       if(cam.contains("SampleMaxVal")){
         camera.sample_max_val = std::stof(cam["SampleMaxVal"].get<std::string>());
       }
