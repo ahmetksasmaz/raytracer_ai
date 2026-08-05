@@ -19,15 +19,12 @@ noise_scale_(noise_scale), num_octaves_(num_octaves) {}
       FP_PRECISION amplitude = pow(0.5, i);
       s += amplitude *  perlin_noise(frequency * noise_scale_ * space_coords);
     }
-    // Raw Perlin noise is signed, so it has to be mapped into [0,1] before it
-    // can be used as a reflectance. NoiseConversion was parsed but never
-    // applied, which fed negative values straight into the diffuse term.
-    if (noise_conversion_ == RawTextureMapNoiseConversionType::kAbsVal) {
-      s = std::abs(s);
-    } else {
-      s = (s + 1.0) * 0.5;
-    }
-    s = std::min(std::max(s, static_cast<FP_PRECISION>(0.0)), static_cast<FP_PRECISION>(1.0));
+    // NoiseConversion is deliberately NOT applied here: perlin_noise() already
+    // applies it to each octave before returning. Applying it a second time
+    // here (as an earlier version of this file did, on the mistaken reading
+    // that the setting was unused) remaps an already-[0,1] value into
+    // [0.5, 1.0] for the linear mode, washing every Perlin surface out to
+    // near-white and roughly halving its contrast.
     return Vec3f{s,s,s};
   }
   virtual void GetGradientAt(Vec2f tex_coords, Vec3f space_coords, Vec2f hit_u_vector, Vec2f hit_v_vector, Vec3f hit_tangent_vector, Vec3f hit_bitangent_vector, Vec3f &gradient_u, Vec3f &gradient_v) const override{
