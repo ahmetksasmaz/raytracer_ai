@@ -18,9 +18,9 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                 material, textures, raw_vertex_data[raw_face.v0_id - 1 + vertex_offset],
                 raw_vertex_data[raw_face.v1_id - 1 + vertex_offset],
                 raw_vertex_data[raw_face.v2_id - 1 + vertex_offset],
-                textures_.size() > 0 ? raw_tex_coord_data[raw_face.v0_id - 1 + tex_coord_offset] : Vec2f{0,0},
-                textures_.size() > 0 ? raw_tex_coord_data[raw_face.v1_id - 1 + tex_coord_offset] : Vec2f{0,0},
-                textures_.size() > 0 ? raw_tex_coord_data[raw_face.v2_id - 1 + tex_coord_offset] : Vec2f{0,0},
+                TexCoordOrZero(raw_tex_coord_data, raw_face.v0_id - 1 + tex_coord_offset, textures_.size() > 0),
+                TexCoordOrZero(raw_tex_coord_data, raw_face.v1_id - 1 + tex_coord_offset, textures_.size() > 0),
+                TexCoordOrZero(raw_tex_coord_data, raw_face.v2_id - 1 + tex_coord_offset, textures_.size() > 0),
                 Vec3f{0, 0, 0},
                 IDENTITY_MATRIX, RawScalingFlip{false, false, false}));
   }
@@ -60,6 +60,25 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
         ply_get_property(ply_file, elem->name, &vert_props[2]);
         for (size_t j = 0; j < elem->num; j++) {
           Vertex vertex;
+          ply_get_element(ply_file, (void*)&vertex);
+
+          vertex_data_.push_back({vertex.x, vertex.y, vertex.z});
+        }
+      }
+      else if(elem->nprops == 6)
+      {
+        // Position + normal, no texture coordinates. The normal is parsed but
+        // not stored: shading normals are computed per-face elsewhere in the
+        // pipeline, matching how the 8-property (UVN) case already discards
+        // its normal after reading it.
+        ply_get_property(ply_file, elem->name, &vert_props_n[0]);
+        ply_get_property(ply_file, elem->name, &vert_props_n[1]);
+        ply_get_property(ply_file, elem->name, &vert_props_n[2]);
+        ply_get_property(ply_file, elem->name, &vert_props_n[3]);
+        ply_get_property(ply_file, elem->name, &vert_props_n[4]);
+        ply_get_property(ply_file, elem->name, &vert_props_n[5]);
+        for (size_t j = 0; j < elem->num; j++) {
+          VertexWithNormal vertex;
           ply_get_element(ply_file, (void*)&vertex);
 
           vertex_data_.push_back({vertex.x, vertex.y, vertex.z});
@@ -117,9 +136,9 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                   std::make_shared<TriangleObject>(
                       material, textures, vertex_data_[face.verts[0] + vertex_offset],
                       vertex_data_[face.verts[1] + vertex_offset], vertex_data_[face.verts[2] + vertex_offset],
-                      textures_.size() > 0 ? tex_coord_data_[face.verts[0] + tex_coord_offset] : Vec2f{0,0},
-                      textures_.size() > 0 ? tex_coord_data_[face.verts[1] + tex_coord_offset] : Vec2f{0,0},
-                      textures_.size() > 0 ? tex_coord_data_[face.verts[2] + tex_coord_offset] : Vec2f{0,0},
+                      TexCoordOrZero(tex_coord_data_, face.verts[0] + tex_coord_offset, textures_.size() > 0),
+                      TexCoordOrZero(tex_coord_data_, face.verts[1] + tex_coord_offset, textures_.size() > 0),
+                      TexCoordOrZero(tex_coord_data_, face.verts[2] + tex_coord_offset, textures_.size() > 0),
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false}));
         } else if (face.nverts == 4) {
@@ -128,9 +147,9 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                   std::make_shared<TriangleObject>(
                       material, textures, vertex_data_[face.verts[0] + vertex_offset],
                       vertex_data_[face.verts[1] + vertex_offset], vertex_data_[face.verts[2] + vertex_offset],
-                      textures_.size() > 0 ? tex_coord_data_[face.verts[0] + tex_coord_offset] : Vec2f{0,0},
-                      textures_.size() > 0 ? tex_coord_data_[face.verts[1] + tex_coord_offset] : Vec2f{0,0},
-                      textures_.size() > 0 ? tex_coord_data_[face.verts[2] + tex_coord_offset] : Vec2f{0,0},
+                      TexCoordOrZero(tex_coord_data_, face.verts[0] + tex_coord_offset, textures_.size() > 0),
+                      TexCoordOrZero(tex_coord_data_, face.verts[1] + tex_coord_offset, textures_.size() > 0),
+                      TexCoordOrZero(tex_coord_data_, face.verts[2] + tex_coord_offset, textures_.size() > 0),
                       Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                       RawScalingFlip{false, false, false}));
           }
@@ -139,18 +158,18 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
                 std::make_shared<TriangleObject>(
                   material, textures, vertex_data_[face.verts[0] + vertex_offset],
                   vertex_data_[face.verts[1] + vertex_offset], vertex_data_[face.verts[2] + vertex_offset],
-                  textures_.size() > 0 ? tex_coord_data_[face.verts[0] + tex_coord_offset] : Vec2f{0,0},
-                  textures_.size() > 0 ? tex_coord_data_[face.verts[1] + tex_coord_offset] : Vec2f{0,0},
-                  textures_.size() > 0 ? tex_coord_data_[face.verts[2] + tex_coord_offset] : Vec2f{0,0},
+                  TexCoordOrZero(tex_coord_data_, face.verts[0] + tex_coord_offset, textures_.size() > 0),
+                  TexCoordOrZero(tex_coord_data_, face.verts[1] + tex_coord_offset, textures_.size() > 0),
+                  TexCoordOrZero(tex_coord_data_, face.verts[2] + tex_coord_offset, textures_.size() > 0),
                   Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                   RawScalingFlip{false, false, false}));
                   triangle_objects_.push_back(
                       std::make_shared<TriangleObject>(
                         material, textures, vertex_data_[face.verts[0] + vertex_offset],
                         vertex_data_[face.verts[2] + vertex_offset], vertex_data_[face.verts[3] + vertex_offset],
-                        textures_.size() > 0 ? tex_coord_data_[face.verts[0] + tex_coord_offset] : Vec2f{0,0},
-                        textures_.size() > 0 ? tex_coord_data_[face.verts[2] + tex_coord_offset] : Vec2f{0,0},
-                        textures_.size() > 0 ? tex_coord_data_[face.verts[3] + tex_coord_offset] : Vec2f{0,0},
+                        TexCoordOrZero(tex_coord_data_, face.verts[0] + tex_coord_offset, textures_.size() > 0),
+                        TexCoordOrZero(tex_coord_data_, face.verts[2] + tex_coord_offset, textures_.size() > 0),
+                        TexCoordOrZero(tex_coord_data_, face.verts[3] + tex_coord_offset, textures_.size() > 0),
                         Vec3f{0, 0, 0}, IDENTITY_MATRIX,
                         RawScalingFlip{false, false, false}));
           }
