@@ -6,26 +6,32 @@
 namespace {
 
 // Beer-Lambert attenuation over a segment travelled inside a dielectric.
-Vec3f ApplyBeerLambert(const Vec3f &radiance,
-                       const std::shared_ptr<BaseObject> &medium,
-                       FP_PRECISION distance) {
+Spectrum ApplyBeerLambert(const Spectrum &radiance,
+                          const std::shared_ptr<BaseObject> &medium,
+                          FP_PRECISION distance) {
     auto *dielectric = dynamic_cast<DielectricMaterial *>(medium->material_.get());
     if (!dielectric) return radiance;
 
-    const Vec3f sigma = dielectric->absorption_coefficient_;
+    const Spectrum sigma = dielectric->absorption_coefficient_;
     // The parser stores -1 when AbsorptionCoefficient is absent. Feeding that
     // to exp(-sigma * d) would AMPLIFY the radiance exponentially, so treat any
-    // negative component as "no absorption specified".
-    if (sigma.x < 0.0 || sigma.y < 0.0 || sigma.z < 0.0) return radiance;
+    // negative band as "no absorption specified".
+    for (int i = 0; i < kSpectralBands; i++) {
+        if (sigma[i] < 0.0) return radiance;
+    }
 
-    return Vec3f{radiance.x * std::exp(-sigma.x * distance),
-                 radiance.y * std::exp(-sigma.y * distance),
-                 radiance.z * std::exp(-sigma.z * distance)};
+    // Absorption is now wavelength-dependent, which is the whole point: coloured
+    // glass attenuates each band differently rather than each RGB channel.
+    Spectrum result;
+    for (int i = 0; i < kSpectralBands; i++) {
+        result[i] = radiance[i] * std::exp(-sigma[i] * distance);
+    }
+    return result;
 }
 
 }  // namespace
 
-Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
+Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
     Ray &ray,
     const std::shared_ptr<BaseObject> inside_object_ptr,
     int current_recursion, const PathTracerSettings& settings, const PathState& state)
@@ -38,14 +44,14 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     // splitting sample. Only the second is divided by sample_count at the end --
     // dividing a single analytic evaluation by the splitting factor is what made
     // SplittingFactor darken direct lighting in proportion to itself.
-    Vec3f analytic_light_value = {0, 0, 0};
-    Vec3f sampled_light_value = {0, 0, 0};
+    Spectrum analytic_light_value;
+    Spectrum sampled_light_value;
 
     const int sample_count = (current_recursion == 1) ? settings.splitting_factor : 1;
 
     const int HARD_MAX_DEPTH = 32;
     if (current_recursion > HARD_MAX_DEPTH) {
-        return {0, 0, 0};
+        return Spectrum();
     }
 
     // Russian roulette. Killing a path with probability 1-p is only unbiased if
@@ -54,23 +60,23 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     // bounce and the whole image drifts dark.
     FP_PRECISION rr_scale = 1.0;
     if (settings.russian_roulette_enabled && current_recursion > settings.min_recursion_depth) {
-        const FP_PRECISION max_throughput = std::max({state.throughput.x, state.throughput.y, state.throughput.z});
+        const FP_PRECISION max_throughput = state.throughput.MaxComponent();
         if (!(max_throughput > 0.0)) {
-            return {0, 0, 0};  // path carries no energy; nothing to estimate
+            return Spectrum();  // path carries no energy; nothing to estimate
         }
         // Floor the probability so 1/p cannot explode on a near-black path.
         const FP_PRECISION rr_probability =
             std::min(std::max(max_throughput, static_cast<FP_PRECISION>(0.05)),
                      static_cast<FP_PRECISION>(0.95));
         if (FastRandom() > rr_probability) {
-            return {0, 0, 0};
+            return Spectrum();
         }
         rr_scale = 1.0 / rr_probability;
     }
 
     // Throughput as seen by any child of this vertex, already carrying the
     // roulette compensation.
-    const Vec3f throughput = state.throughput * rr_scale;
+    const Spectrum throughput = state.throughput * rr_scale;
 
     // STEP : CHECK FOR INTERSECTION
     FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
@@ -98,19 +104,17 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     if (!hit_object_ptr) {
         if (spherical_directional_light_) {
             Vec3f direction;
-            return spherical_directional_light_->GetIntensity(ray.direction_, direction, true);
+            return UpliftRGB(spherical_directional_light_->GetIntensity(ray.direction_, direction, true));
         }
         if (current_recursion == 1) {
             if (background_texture_map_) {
                 FP_PRECISION u = 0.5 + (atan2(ray.direction_.z, ray.direction_.x) / (2 * M_PI));
                 FP_PRECISION v = 0.5 - (asin(ray.direction_.y) / M_PI);
-                return background_texture_map_->GetColorAt({u, v}, {0,0,0});
+                return UpliftRGB(background_texture_map_->GetColorAt({u, v}, {0,0,0}));
             }
-            return {static_cast<FP_PRECISION>(background_color_.x), 
-                    static_cast<FP_PRECISION>(background_color_.y), 
-                    static_cast<FP_PRECISION>(background_color_.z)};
+            return background_color_;
         }
-        return {0, 0, 0};
+        return Spectrum();
     }
 
     // STEP : EMITTED RADIANCE
@@ -121,7 +125,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         if (emitter) {
             // Emitters are one-sided; the back face radiates nothing.
             if (dot(ray.direction_, hit_normal) > 0) {
-                return {0, 0, 0};
+                return Spectrum();
             }
 
             // Either nothing else is sampling lights, or this ray arrived
@@ -149,7 +153,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
 
             // NEE alone owns direct lighting. Adding emission here as well is
             // exactly the double count that makes NEE renders read ~2x bright.
-            return {0, 0, 0};
+            return Spectrum();
         }
     }
 
@@ -167,8 +171,8 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     std::shared_ptr<BaseMaterial> material_ptr = hit_object_ptr->material_;
     const std::vector<std::shared_ptr<BaseTextureMap>>& textures = hit_object_ptr->textures_;
 
-    Vec3f KD = material_ptr->diffuse_;
-    Vec3f KS = material_ptr->specular_;
+    Spectrum KD = material_ptr->diffuse_;
+    Spectrum KS = material_ptr->specular_;
 
     // TBN matrix for normal mapping
     Vec3f normalized_tangent = normalize(hit_tangent_vector);
@@ -227,7 +231,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         Vec3f texture_value = texture->GetColorAt(hit_tex_coords, hit_point, result_di, result_dj);
 
         if (texture->GetReplaceAllFlag()) {
-            return texture_value;
+            return UpliftRGB(texture_value);
         }
 
         FP_PRECISION diffuse_coeff = texture->GetDiffuseCoefficient();
@@ -236,10 +240,10 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         FP_PRECISION bump_coeff = texture->GetBumpCoefficient();
 
         if (diffuse_coeff > 0.0f) {
-            KD = KD * (1.0f - diffuse_coeff) + texture_value * diffuse_coeff;
+            KD = KD * (1.0 - diffuse_coeff) + UpliftRGB(texture_value) * diffuse_coeff;
         }
         if (specular_coeff > 0.0f) {
-            KS = KS * (1.0f - specular_coeff) + texture_value * specular_coeff;
+            KS = KS * (1.0 - specular_coeff) + UpliftRGB(texture_value) * specular_coeff;
         }
         if (normal_coeff > 0.0f) {
             Vec3f texture_normal = normalize(texture_value * 2.0f - Vec3f{1.0f, 1.0f, 1.0f});
@@ -280,13 +284,13 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
             // children are told prev_specular = true: next-event estimation
             // cannot sample a light through a mirror direction, which means the
             // BSDF path must be allowed to pick up emission on its own.
-            Vec3f specular_value = {0, 0, 0};
+            Spectrum specular_value;
             Vec3f reflection_direction = ray.direction_ - 2 * dot(ray.direction_, distorted_normal) * distorted_normal;
             Ray reflection_ray = {ray.pixel_, intersection_point, reflection_direction, ray.diff_, ray.time_};
 
             if (mirror_ptr) {
-                Vec3f new_throughput = hadamard(throughput, mirror_ptr->mirror_);
-                Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
+                Spectrum new_throughput = hadamard(throughput, mirror_ptr->mirror_);
+                Spectrum reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
                                                                             current_recursion, settings,
                                                                             PathState{new_throughput, 0.0, true});
                 specular_value += hadamard(reflection_color, mirror_ptr->mirror_);
@@ -301,9 +305,9 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                 FP_PRECISION rp = (n2_k2_2 * cos_theta_2 - n2_cos_theta_tw + 1) / (n2_k2_2 * cos_theta_2 + n2_cos_theta_tw + 1);
                 FP_PRECISION fresnel = (rs + rp) * 0.5f;
                 
-                Vec3f conductor_factor = conductor_ptr->mirror_ * fresnel;
-                Vec3f new_throughput = hadamard(throughput, conductor_factor);
-                Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
+                Spectrum conductor_factor = conductor_ptr->mirror_ * fresnel;
+                Spectrum new_throughput = hadamard(throughput, conductor_factor);
+                Spectrum reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
                                                                             current_recursion, settings,
                                                                             PathState{new_throughput, 0.0, true});
                 specular_value += hadamard(reflection_color, conductor_factor);
@@ -324,10 +328,10 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                     Ray refraction_ray = {ray.pixel_, intersection_point - 2 * shadow_ray_epsilon_ * distorted_normal, 
                                           refraction_direction, ray.diff_, ray.time_};
                     
-                    Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
+                    Spectrum reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
                                                 current_recursion, settings,
                                                 PathState{throughput * fresnel_r, 0.0, true});
-                    Vec3f refraction_color = RecursiveBRDFPathTracingAlgorithm(refraction_ray,
+                    Spectrum refraction_color = RecursiveBRDFPathTracingAlgorithm(refraction_ray,
                                                 inside_object_ptr ? nullptr : hit_object_ptr,
                                                 current_recursion, settings,
                                                 PathState{throughput * fresnel_t, 0.0, true});
@@ -335,7 +339,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                     specular_value += reflection_color * fresnel_r;
                     specular_value += refraction_color * fresnel_t;
                 } else {
-                    Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
+                    Spectrum reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
                                                                                 current_recursion, settings,
                                                                                 PathState{throughput, 0.0, true});
                     specular_value += reflection_color;
@@ -381,9 +385,9 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
 
     if (spherical_directional_light_) {
         Vec3f direction;
-        Vec3f env_radiance = spherical_directional_light_->GetIntensity(hit_normal, direction);
+        Spectrum env_radiance = UpliftRGB(spherical_directional_light_->GetIntensity(hit_normal, direction));
         if (!ShadowCheck(direction, std::numeric_limits<FP_PRECISION>::max())) {
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, direction, hit_normal, KD, KS, 
+            Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, direction, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             analytic_light_value += hadamard(env_radiance, brdf) * std::max(0.0, dot(hit_normal, direction));
         }
@@ -395,7 +399,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         FP_PRECISION dist_sq = dist * dist;
         if (dist_sq < 1e-10) continue;
         if (!ShadowCheck(light_dir, dist)) {
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+            Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             analytic_light_value += hadamard(point_light->intensity_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) / dist_sq;
         }
@@ -411,7 +415,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         FP_PRECISION dist_sq = dist * dist;
         if (dist_sq < 1e-10) continue;
         if (!ShadowCheck(light_dir, dist)) {
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+            Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             Vec3f light_normal = FastNormalize(area_light->normal_);
             // Clamp the light-side cosine too -- see the ray tracer for why.
@@ -435,7 +439,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                     FP_PRECISION coeff = (cos(angle) - cos(coverage_rad * 0.5f)) / (cos(falloff_rad * 0.5f) - cos(coverage_rad * 0.5f));
                     attenuation = coeff * coeff * coeff * coeff;
                 }
-                Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+                Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                             material_ptr->refraction_index_, material_ptr->absorption_index_);
                 analytic_light_value += hadamard(spot_light->intensity_ * attenuation / (dist * dist), brdf) * 
                                      std::max(0.0, dot(hit_normal, light_dir));
@@ -446,7 +450,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     for (const auto& dir_light : directional_lights_) {
         Vec3f light_dir = -normalize(dir_light->direction_);
         if (!ShadowCheck(light_dir, std::numeric_limits<FP_PRECISION>::max())) {
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+            Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             analytic_light_value += hadamard(dir_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir));
         }
@@ -483,7 +487,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                                                    hit_normal * cos_theta);
             Ray sample_ray = {ray.pixel_, intersection_point, sample_dir, ray.diff_, ray.time_};
 
-            const Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, sample_dir, hit_normal, KD, KS,
+            const Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, sample_dir, hit_normal, KD, KS,
                                                              material_ptr->refraction_index_, material_ptr->absorption_index_);
             const FP_PRECISION cos_term = std::max(static_cast<FP_PRECISION>(0.0), dot(hit_normal, sample_dir));
 
@@ -492,22 +496,16 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
             // weight is applied at the emitter and not here: applying it to the
             // whole recursive return would also scale the indirect light coming
             // back from deeper bounces, which MIS has no business touching.
-            const Vec3f new_throughput = hadamard(throughput, brdf) * cos_term / indirect_pdf;
+            const Spectrum new_throughput = hadamard(throughput, brdf) * cos_term / indirect_pdf;
             const PathState child_state{new_throughput, indirect_pdf, false};
 
-            Vec3f sample_color = RecursiveBRDFPathTracingAlgorithm(sample_ray, inside_object_ptr,
+            Spectrum sample_color = RecursiveBRDFPathTracingAlgorithm(sample_ray, inside_object_ptr,
                                                                    current_recursion, settings, child_state);
-            Vec3f indirect_value = hadamard(sample_color, brdf) * cos_term / indirect_pdf;
+            Spectrum indirect_value = hadamard(sample_color, brdf) * cos_term / indirect_pdf;
 
-            if (!std::isfinite(indirect_value.x)) indirect_value.x = 0;
-            if (!std::isfinite(indirect_value.y)) indirect_value.y = 0;
-            if (!std::isfinite(indirect_value.z)) indirect_value.z = 0;
+            indirect_value.SanitizeInPlace();
 
-            if (settings.sample_max_val > 0) {
-                indirect_value.x = std::min(indirect_value.x, settings.sample_max_val);
-                indirect_value.y = std::min(indirect_value.y, settings.sample_max_val);
-                indirect_value.z = std::min(indirect_value.z, settings.sample_max_val);
-            }
+            indirect_value.ClampMaxInPlace(settings.sample_max_val);
 
             sampled_light_value += indirect_value;
 
@@ -539,10 +537,10 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
             // speckle the result.
             if (ShadowCheck(light_dir, light_dist * (1.0 - 1e-4))) continue;
 
-            const Vec3f light_brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS,
+            const Spectrum light_brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS,
                                                                    material_ptr->refraction_index_, material_ptr->absorption_index_);
             const FP_PRECISION light_cos = std::max(static_cast<FP_PRECISION>(0.0), dot(hit_normal, light_dir));
-            Vec3f direct_value = hadamard(emitter->radiance_, light_brdf) * light_cos / light_pdf;
+            Spectrum direct_value = hadamard(emitter->radiance_, light_brdf) * light_cos / light_pdf;
 
             if (settings.mis_balance_enabled) {
                 // Balance heuristic for the light-sampling strategy, evaluated
@@ -555,15 +553,9 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                                    : direct_value;
             }
 
-            if (!std::isfinite(direct_value.x)) direct_value.x = 0;
-            if (!std::isfinite(direct_value.y)) direct_value.y = 0;
-            if (!std::isfinite(direct_value.z)) direct_value.z = 0;
+            direct_value.SanitizeInPlace();
 
-            if (settings.sample_max_val > 0) {
-                direct_value.x = std::min(direct_value.x, settings.sample_max_val);
-                direct_value.y = std::min(direct_value.y, settings.sample_max_val);
-                direct_value.z = std::min(direct_value.z, settings.sample_max_val);
-            }
+            direct_value.ClampMaxInPlace(settings.sample_max_val);
 
             sampled_light_value += direct_value;
         }
@@ -571,14 +563,12 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
 
     // Analytic lights were evaluated once; the sampled terms were evaluated
     // sample_count times. Only the latter is averaged.
-    Vec3f result = analytic_light_value +
+    Spectrum result = analytic_light_value +
                    sampled_light_value / static_cast<FP_PRECISION>(sample_count);
 
     result = result * rr_scale;
 
-    if (!std::isfinite(result.x)) result.x = 0;
-    if (!std::isfinite(result.y)) result.y = 0;
-    if (!std::isfinite(result.z)) result.z = 0;
+    result.SanitizeInPlace();
 
     return result;
 }

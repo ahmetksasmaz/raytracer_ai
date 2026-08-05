@@ -3,13 +3,13 @@
 
 #include "Scene.hpp"
 
-Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
+Spectrum Scene::RecursiveBRDFRayTracingAlgorithm(
     Ray &ray,
     const std::shared_ptr<BaseObject> inside_object_ptr,
     int remaining_recursion, int max_recursion)
 {
     remaining_recursion--;
-    Vec3f total_light_value = {0, 0, 0};
+    Spectrum total_light_value;
 
     // STEP : CHECK FOR INTERSECTION
     FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
@@ -37,19 +37,17 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
     if (!hit_object_ptr) {
         if (spherical_directional_light_) {
             Vec3f direction;
-            return spherical_directional_light_->GetIntensity(ray.direction_, direction, true);
+            return UpliftRGB(spherical_directional_light_->GetIntensity(ray.direction_, direction, true));
         }
         if (remaining_recursion == max_recursion - 1) {
             if (background_texture_map_) {
                 FP_PRECISION u = 0.5 + (atan2(ray.direction_.z, ray.direction_.x) / (2 * M_PI));
                 FP_PRECISION v = 0.5 - (asin(ray.direction_.y) / M_PI);
-                return background_texture_map_->GetColorAt({u, v}, {0,0,0});
+                return UpliftRGB(background_texture_map_->GetColorAt({u, v}, {0,0,0}));
             }
-            return {static_cast<FP_PRECISION>(background_color_.x), 
-                    static_cast<FP_PRECISION>(background_color_.y), 
-                    static_cast<FP_PRECISION>(background_color_.z)};
+            return background_color_;
         }
-        return {0, 0, 0};
+        return Spectrum();
     }
 
     // Shade double-sided -- see the path tracer for the rationale. Emitters keep
@@ -64,9 +62,9 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
     std::shared_ptr<BaseMaterial> material_ptr = hit_object_ptr->material_;
     const std::vector<std::shared_ptr<BaseTextureMap>>& textures = hit_object_ptr->textures_;
 
-    Vec3f KA = material_ptr->ambient_;
-    Vec3f KD = material_ptr->diffuse_;
-    Vec3f KS = material_ptr->specular_;
+    Spectrum KA = material_ptr->ambient_;
+    Spectrum KD = material_ptr->diffuse_;
+    Spectrum KS = material_ptr->specular_;
 
     // TBN matrix for normal mapping
     Vec3f normalized_tangent = normalize(hit_tangent_vector);
@@ -125,7 +123,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         Vec3f texture_value = texture->GetColorAt(hit_tex_coords, hit_point, result_di, result_dj);
 
         if (texture->GetReplaceAllFlag()) {
-            return texture_value;
+            return UpliftRGB(texture_value);
         }
 
         FP_PRECISION diffuse_coeff = texture->GetDiffuseCoefficient();
@@ -134,10 +132,10 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         FP_PRECISION bump_coeff = texture->GetBumpCoefficient();
 
         if (diffuse_coeff > 0.0f) {
-            KD = KD * (1.0f - diffuse_coeff) + texture_value * diffuse_coeff;
+            KD = KD * (1.0 - diffuse_coeff) + UpliftRGB(texture_value) * diffuse_coeff;
         }
         if (specular_coeff > 0.0f) {
-            KS = KS * (1.0f - specular_coeff) + texture_value * specular_coeff;
+            KS = KS * (1.0 - specular_coeff) + UpliftRGB(texture_value) * specular_coeff;
         }
         if (normal_coeff > 0.0f) {
             Vec3f texture_normal = normalize(texture_value * 2.0f - Vec3f{1.0f, 1.0f, 1.0f});
@@ -175,7 +173,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         if (mirror_ptr || conductor_ptr || dielectric_ptr) {
             Vec3f reflection_direction = ray.direction_ - 2 * dot(ray.direction_, distorted_normal) * distorted_normal;
             Ray reflection_ray = {ray.pixel_, intersection_point, reflection_direction, ray.diff_, ray.time_};
-            Vec3f reflection_color = RecursiveBRDFRayTracingAlgorithm(reflection_ray, inside_object_ptr, remaining_recursion, max_recursion);
+            Spectrum reflection_color = RecursiveBRDFRayTracingAlgorithm(reflection_ray, inside_object_ptr, remaining_recursion, max_recursion);
 
             if (mirror_ptr) {
                 total_light_value += hadamard(reflection_color, mirror_ptr->mirror_);
@@ -208,7 +206,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
                     Ray refraction_ray = {ray.pixel_, intersection_point - 2 * shadow_ray_epsilon_ * distorted_normal, 
                                           refraction_direction, ray.diff_, ray.time_};
                     
-                    Vec3f refraction_color = RecursiveBRDFRayTracingAlgorithm(
+                    Spectrum refraction_color = RecursiveBRDFRayTracingAlgorithm(
                         refraction_ray, inside_object_ptr ? nullptr : hit_object_ptr,
                         remaining_recursion, max_recursion);
                     
@@ -224,10 +222,10 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
     // STEP : HANDLE INSIDE HIT
     if (inside_object_ptr) {
         auto inside_casted = std::dynamic_pointer_cast<BaseObject>(inside_object_ptr);
-        Vec3f absorption = dynamic_cast<DielectricMaterial *>(inside_casted->material_.get())->absorption_coefficient_;
-        total_light_value.x *= exp(-absorption.x * t_hit);
-        total_light_value.y *= exp(-absorption.y * t_hit);
-        total_light_value.z *= exp(-absorption.z * t_hit);
+        const Spectrum absorption = dynamic_cast<DielectricMaterial *>(inside_casted->material_.get())->absorption_coefficient_;
+        for (int band = 0; band < kSpectralBands; band++) {
+            total_light_value[band] *= std::exp(-absorption[band] * t_hit);
+        }
         return total_light_value;
     }
 
@@ -251,9 +249,9 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
 
     if (spherical_directional_light_) {
         Vec3f direction;
-        Vec3f env_radiance = spherical_directional_light_->GetIntensity(hit_normal, direction);
+        Spectrum env_radiance = UpliftRGB(spherical_directional_light_->GetIntensity(hit_normal, direction));
         if (!ShadowCheck(direction, std::numeric_limits<FP_PRECISION>::max())) {
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, direction, hit_normal, KD, KS, 
+            Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, direction, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             total_light_value += hadamard(env_radiance, brdf) * std::max(0.0, dot(hit_normal, direction));
         }
@@ -263,7 +261,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         Vec3f light_dir = normalize(point_light->position_ - intersection_point);
         FP_PRECISION dist = norm(point_light->position_ - intersection_point);
         if (!ShadowCheck(light_dir, dist)) {
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+            Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             total_light_value += hadamard(point_light->intensity_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) / (dist * dist);
         }
@@ -277,7 +275,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
         Vec3f light_dir = normalize(light_pos - intersection_point);
         FP_PRECISION dist = norm(light_pos - intersection_point);
         if (!ShadowCheck(light_dir, dist)) {
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+            Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             Vec3f light_normal = FastNormalize(area_light->normal_);
             // The light-side cosine needs the same clamp as the surface-side
@@ -303,7 +301,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
                     FP_PRECISION coeff = (cos(angle) - cos(coverage_rad * 0.5f)) / (cos(falloff_rad * 0.5f) - cos(coverage_rad * 0.5f));
                     attenuation = coeff * coeff * coeff * coeff;
                 }
-                Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+                Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                             material_ptr->refraction_index_, material_ptr->absorption_index_);
                 total_light_value += hadamard(spot_light->intensity_ * attenuation / (dist * dist), brdf) * 
                                      std::max(0.0, dot(hit_normal, light_dir));
@@ -314,7 +312,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
     for (const auto& dir_light : directional_lights_) {
         Vec3f light_dir = -normalize(dir_light->direction_);
         if (!ShadowCheck(light_dir, std::numeric_limits<FP_PRECISION>::max())) {
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+            Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             total_light_value += hadamard(dir_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir));
         }
@@ -338,7 +336,7 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
                 FP_PRECISION dist = norm(sample_point - intersection_point);
                 // Shorten slightly so the emitter is not its own occluder.
                 if (!ShadowCheck(light_dir, dist * (1.0 - 1e-4))) {
-                    Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
+                    Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                                 material_ptr->refraction_index_, material_ptr->absorption_index_);
                     total_light_value += hadamard(light_object_casted->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) / pdf_value;
                 }
