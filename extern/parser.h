@@ -172,6 +172,28 @@ struct RawToneMapping {
   std::string extension = "";
 };
 
+// Camera sensor description. Absent from a scene file means no sensor
+// simulation: the conventional image path is used.
+struct RawSensor {
+  bool exists = false;
+  std::string pattern = "RGGB";
+  FP_PRECISION exposure_time_s = 0.01;
+  FP_PRECISION pixel_pitch_m = 3.45e-6;
+  FP_PRECISION f_number = 2.8;
+  FP_PRECISION full_well_e = 10000.0;
+  FP_PRECISION gain_e_per_dn = 1.0;
+  int bit_depth = 12;
+  FP_PRECISION read_noise_sigma_e = 2.0;
+  FP_PRECISION dark_current_e_per_s = 5.0;
+  bool shot_noise = true;
+  bool read_noise = true;
+  bool dark_current = true;
+  RawSpectrumData quantum_efficiency;
+  RawSpectrumData filter_red;
+  RawSpectrumData filter_green;
+  RawSpectrumData filter_blue;
+};
+
 struct RawCamera {
   bool look_at_camera = false;
   Vec3f position;
@@ -198,6 +220,7 @@ struct RawCamera {
   bool russian_roulette_enabled = false;
   int splitting_factor = 1;
   FP_PRECISION sample_max_val = 0.0f;
+  RawSensor sensor;
 };
 
 struct RawPointLight {

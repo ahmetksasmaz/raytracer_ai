@@ -25,6 +25,46 @@ Spectrum ResolveSpectrum(const RawSpectrumData &raw, const Vec3f &rgb_fallback) 
   return UpliftRGB(rgb_fallback);
 }
 
+// Builds the runtime sensor from a scene description, resolving each spectral
+// curve and falling back to synthesised placeholder filters when the scene did
+// not supply measured ones.
+SensorModel BuildSensor(const RawSensor &raw) {
+  SensorModel sensor;
+  sensor.exposure_time_s = raw.exposure_time_s;
+  sensor.pixel_pitch_m = raw.pixel_pitch_m;
+  sensor.f_number = raw.f_number;
+  sensor.full_well_e = raw.full_well_e;
+  sensor.gain_e_per_dn = raw.gain_e_per_dn;
+  sensor.bit_depth = raw.bit_depth;
+  sensor.noise.shot_noise = raw.shot_noise;
+  sensor.noise.read_noise = raw.read_noise;
+  sensor.noise.dark_current = raw.dark_current;
+  sensor.noise.read_noise_sigma_e = raw.read_noise_sigma_e;
+  sensor.noise.dark_current_e_per_s = raw.dark_current_e_per_s;
+
+  if (raw.pattern == "BGGR") sensor.pattern = BayerPattern::kBGGR;
+  else if (raw.pattern == "GRBG") sensor.pattern = BayerPattern::kGRBG;
+  else if (raw.pattern == "GBRG") sensor.pattern = BayerPattern::kGBRG;
+  else if (raw.pattern == "RGGB") sensor.pattern = BayerPattern::kRGGB;
+  else throw std::runtime_error("Unknown Bayer pattern '" + raw.pattern +
+                                "'. Known: RGGB, BGGR, GRBG, GBRG.");
+
+  if (raw.quantum_efficiency.IsSet()) {
+    sensor.quantum_efficiency =
+        ResolveSpectrum(raw.quantum_efficiency, Vec3f{0.5, 0.5, 0.5});
+  }
+
+  DefaultBayerCFA(sensor.cfa);
+  if (raw.filter_red.IsSet())
+    sensor.cfa[0] = ResolveSpectrum(raw.filter_red, Vec3f{1, 0, 0});
+  if (raw.filter_green.IsSet())
+    sensor.cfa[1] = ResolveSpectrum(raw.filter_green, Vec3f{0, 1, 0});
+  if (raw.filter_blue.IsSet())
+    sensor.cfa[2] = ResolveSpectrum(raw.filter_blue, Vec3f{0, 0, 1});
+
+  return sensor;
+}
+
 }  // namespace
 
 Scene::Scene(const std::string &filename)
@@ -204,6 +244,10 @@ void Scene::LoadScene() {
         raw_camera.aperture_size,
         SamplingAlgorithm::kHammersley,
         ApertureType::kCircular));
+
+    if (raw_camera.sensor.exists) {
+      cameras_.back()->SetSensor(BuildSensor(raw_camera.sensor));
+    }
   }
 
   for(const auto &raw_brdf : raw_scene.brdfs){

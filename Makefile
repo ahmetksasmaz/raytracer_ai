@@ -1,5 +1,5 @@
 # Common includes
-INCLUDES = -I extern/ -I include/ -I include/BRDFs -I include/LightSources -I include/Materials -I include/Objects -I include/Textures -I include/ToneMappingAlgorithms
+INCLUDES = -I extern/ -I include/ -I include/BRDFs -I include/LightSources -I include/Materials -I include/Objects -I include/Textures -I include/ToneMappingAlgorithms -I include/Sensor
 SOURCES = extern/*.cpp src/*.cpp src/*/*.cpp
 
 # Optimized release flags (keeping RTTI and exceptions for compatibility)
@@ -30,7 +30,12 @@ imgdiff: tools/imgdiff.cpp
 spectraltest: tools/spectraltest.cpp include/Spectrum.hpp include/SpectralData.hpp
 	g++ -std=c++17 -O2 -w tools/spectraltest.cpp -o spectraltest
 
-test: release imgdiff spectraltest
+# Statistical self-checks for the sensor model: noise moments, radiometric
+# linearity, Bayer layout, quantisation.
+sensortest: tools/sensortest.cpp include/Sensor/SensorModel.hpp include/Spectrum.hpp
+	g++ -std=c++17 -O2 -w -I include -I include/Sensor tools/sensortest.cpp -o sensortest
+
+test: release imgdiff spectraltest sensortest
 	./tests/run_tests.sh
 
 debug:
@@ -40,4 +45,4 @@ profile:
 	g++ $(INCLUDES) $(SOURCES) -o raytracer_profile -std=c++17 -O2 -g -march=native -ffast-math -w
 
 clean:
-	rm -f raytracer raytracer_debug raytracer_profile imgdiff spectraltest
+	rm -f raytracer raytracer_debug raytracer_profile imgdiff spectraltest sensortest
