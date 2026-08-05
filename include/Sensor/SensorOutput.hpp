@@ -45,6 +45,10 @@ bool WriteDemosaiced(const std::string& path, int width, int height,
                      const std::vector<FP_PRECISION>& dn,
                      const SensorModel& sensor);
 
+// Bilinear demosaic shared by the sensorRGB and sRGB outputs.
+void Demosaic(int width, int height, const std::vector<FP_PRECISION>& dn,
+              const SensorModel& sensor, std::vector<FP_PRECISION> rgb[3]);
+
 // --- 4. sensorRGB -> CIE XYZ ------------------------------------------------
 // Least-squares fit over a set of reflectances under a chosen illuminant.
 //
@@ -65,5 +69,17 @@ ColorMatrixFit FitSensorToXYZ(const SensorModel& sensor,
                               const std::string& illuminant_name);
 
 bool WriteColorMatrix(const std::string& path, const ColorMatrixFit& fit);
+
+// --- 5. Display-ready sRGB --------------------------------------------------
+// Demosaic -> sensorRGB -> CIE XYZ (via the fitted matrix above) -> linear sRGB
+// -> sRGB transfer function. This is the only output that leaves sensor space,
+// and it exists to make the render viewable; the sensorRGB products above are
+// the ones to compute on.
+//
+// Exposure is normalised on a high percentile rather than the maximum so a
+// single hot pixel cannot darken the whole image.
+bool WriteDemosaicedSRGB(const std::string& path, int width, int height,
+                         const std::vector<FP_PRECISION>& dn,
+                         const SensorModel& sensor, const ColorMatrixFit& fit);
 
 }  // namespace sensor_output

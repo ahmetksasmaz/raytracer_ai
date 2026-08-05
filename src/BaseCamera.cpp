@@ -409,6 +409,11 @@ void BaseCamera::ExportSensorProducts() {
   const sensor_output::ColorMatrixFit fit = sensor_output::FitSensorToXYZ(
       sensor_, IlluminantD65(), "D65");
   sensor_output::WriteColorMatrix(base + "_sensor_to_xyz.json", fit);
+
+  // 5. Display-ready sRGB, obtained by pushing the demosaiced sensorRGB
+  //    through that matrix. The only output that leaves sensor space.
+  sensor_output::WriteDemosaicedSRGB(base + "_srgb.png", image_width_,
+                                     image_height_, dn, sensor_, fit);
 }
 
 void BaseCamera::ExportView() {

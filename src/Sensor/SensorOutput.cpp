@@ -4,6 +4,7 @@
 #include <cstring>
 #include <fstream>
 
+#include "../../extern/stb_image_write.h"
 #include "../../extern/tinyexr.h"
 
 namespace sensor_output {
@@ -124,23 +125,22 @@ bool WriteBayerRaw(const std::string& pgm_path, const std::string& exr_path,
   return ok;
 }
 
-bool WriteDemosaiced(const std::string& path, int width, int height,
-                     const std::vector<FP_PRECISION>& dn,
-                     const SensorModel& sensor) {
+void Demosaic(int width, int height, const std::vector<FP_PRECISION>& dn,
+              const SensorModel& sensor, std::vector<FP_PRECISION> rgb[3]) {
   const size_t pixel_count = static_cast<size_t>(width) * height;
-  std::vector<std::vector<float>> planes(3);
-  for (auto& p : planes) p.assign(pixel_count, 0.0f);
+  for (int c = 0; c < 3; c++) rgb[c].assign(pixel_count, 0.0);
 
-  // Bilinear: for each output pixel and channel, average the neighbours within
-  // a 2-pixel radius that actually carry that channel. Deliberately simple --
-  // this output exists to eyeball the mosaic, not to be a demosaic study.
+  // For each output pixel and channel, take the pixel's own value if the CFA
+  // put that colour there, otherwise average the neighbours that carry it.
+  // Deliberately simple -- this exists to make the mosaic viewable, not to be a
+  // demosaic study.
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       const size_t index = static_cast<size_t>(y) * width + x;
       for (int c = 0; c < 3; c++) {
         const SensorChannel want = static_cast<SensorChannel>(c);
         if (sensor.ChannelAt(x, y) == want) {
-          planes[c][index] = static_cast<float>(dn[index]);
+          rgb[c][index] = dn[index];
           continue;
         }
         FP_PRECISION sum = 0.0;
@@ -154,12 +154,63 @@ bool WriteDemosaiced(const std::string& path, int width, int height,
             count++;
           }
         }
-        planes[c][index] = count > 0 ? static_cast<float>(sum / count) : 0.0f;
+        rgb[c][index] = count > 0 ? sum / count : 0.0;
       }
     }
   }
+}
 
+bool WriteDemosaiced(const std::string& path, int width, int height,
+                     const std::vector<FP_PRECISION>& dn,
+                     const SensorModel& sensor) {
+  std::vector<FP_PRECISION> rgb[3];
+  Demosaic(width, height, dn, sensor, rgb);
+  std::vector<std::vector<float>> planes(3);
+  for (int c = 0; c < 3; c++) {
+    planes[c].resize(rgb[c].size());
+    for (size_t i = 0; i < rgb[c].size(); i++) planes[c][i] = static_cast<float>(rgb[c][i]);
+  }
   return WriteMultiChannelEXR(path, width, height, {"R", "G", "B"}, planes);
+}
+
+bool WriteDemosaicedSRGB(const std::string& path, int width, int height,
+                         const std::vector<FP_PRECISION>& dn,
+                         const SensorModel& sensor, const ColorMatrixFit& fit) {
+  const size_t pixel_count = static_cast<size_t>(width) * height;
+  std::vector<FP_PRECISION> rgb[3];
+  Demosaic(width, height, dn, sensor, rgb);
+
+  // sensorRGB -> XYZ -> linear sRGB, per pixel.
+  std::vector<FP_PRECISION> lin(pixel_count * 3, 0.0);
+  for (size_t i = 0; i < pixel_count; i++) {
+    const FP_PRECISION sr = rgb[0][i], sg = rgb[1][i], sb = rgb[2][i];
+    const FP_PRECISION X = fit.m[0][0]*sr + fit.m[0][1]*sg + fit.m[0][2]*sb;
+    const FP_PRECISION Y = fit.m[1][0]*sr + fit.m[1][1]*sg + fit.m[1][2]*sb;
+    const FP_PRECISION Z = fit.m[2][0]*sr + fit.m[2][1]*sg + fit.m[2][2]*sb;
+    const Vec3f c = XYZToLinearSRGB(X, Y, Z);
+    lin[i*3+0] = c.x; lin[i*3+1] = c.y; lin[i*3+2] = c.z;
+  }
+
+  // Exposure from a high percentile, so one hot pixel cannot darken everything.
+  std::vector<FP_PRECISION> lum;
+  lum.reserve(pixel_count);
+  for (size_t i = 0; i < pixel_count; i++) {
+    lum.push_back(std::max({lin[i*3+0], lin[i*3+1], lin[i*3+2]}));
+  }
+  std::sort(lum.begin(), lum.end());
+  FP_PRECISION white = lum.empty() ? 1.0 : lum[static_cast<size_t>(lum.size()*0.995)];
+  if (!(white > 1e-12)) white = 1.0;
+
+  std::vector<unsigned char> out(pixel_count * 3);
+  for (size_t i = 0; i < pixel_count * 3; i++) {
+    FP_PRECISION v = lin[i] / white;
+    v = std::min(std::max(v, static_cast<FP_PRECISION>(0.0)), static_cast<FP_PRECISION>(1.0));
+    // sRGB transfer function (not a plain 2.2 gamma).
+    const FP_PRECISION e = (v <= 0.0031308) ? (12.92 * v)
+                                            : (1.055 * std::pow(v, 1.0/2.4) - 0.055);
+    out[i] = static_cast<unsigned char>(std::lround(e * 255.0));
+  }
+  return stbi_write_png(path.c_str(), width, height, 3, out.data(), width*3) != 0;
 }
 
 ColorMatrixFit FitSensorToXYZ(const SensorModel& sensor,
