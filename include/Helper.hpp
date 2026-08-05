@@ -122,6 +122,22 @@ inline void BuildOrthonormalBasis(const Vec3f& n, Vec3f& tangent, Vec3f& bitange
 const Mat4x4f IDENTITY_MATRIX = {
     {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
 
+// Bounds-checked texture-coordinate lookup.
+//
+// A mesh can legitimately have a texture assigned while its geometry carries no
+// UVs at all -- a position-only or position+normal ply, for instance. The tex
+// coord array is then EMPTY, and indexing it because "this mesh has a texture"
+// reads out of bounds and segfaults. Falling back to (0,0) keeps such a mesh
+// renderable (flat texture lookup) instead of crashing the whole render.
+inline Vec2f TexCoordOrZero(const std::vector<Vec2f>& tex_coords,
+                            long long index, bool has_textures) {
+  if (!has_textures) return Vec2f{0, 0};
+  if (index < 0 || index >= static_cast<long long>(tex_coords.size())) {
+    return Vec2f{0, 0};
+  }
+  return tex_coords[static_cast<size_t>(index)];
+}
+
 // Repeat-wrap an index into [0, extent). Unlike a bare `%` this copes with
 // negative inputs (C++ keeps the sign of the dividend) and a zero extent.
 inline int WrapIndex(int v, int extent) {

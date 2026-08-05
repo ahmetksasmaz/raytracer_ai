@@ -26,6 +26,15 @@ namespace ply_reader{
       0},
   };
 
+  PlyProperty vert_props_n[6] = {
+      {const_cast<char*>("x"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithNormal, x), 0, 0, 0, 0},
+      {const_cast<char*>("y"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithNormal, y), 0, 0, 0, 0},
+      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithNormal, z), 0, 0, 0, 0},
+      {const_cast<char*>("nx"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithNormal, nx), 0, 0, 0, 0},
+      {const_cast<char*>("ny"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithNormal, ny), 0, 0, 0, 0},
+      {const_cast<char*>("nz"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithNormal, nz), 0, 0, 0, 0},
+  };
+
   PlyProperty vert_props_uv[5] = {
       {const_cast<char*>("x"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, x), 0, 0, 0, 0},
       {const_cast<char*>("y"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, y), 0, 0, 0, 0},
@@ -34,13 +43,23 @@ namespace ply_reader{
       {const_cast<char*>("v"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUV, v), 0, 0, 0, 0},
   };
 
+  // The normal components were previously all registered under the name "z".
+  // ply_get_property looks a property up BY NAME within the file's declared
+  // list (find_property in ply.cpp), so three requests named "z" all resolve
+  // to the same underlying file property and each overwrites the previous
+  // registration's destination offset -- the last call wins. That silently
+  // redirected the real Z coordinate into the nz field, left the actual
+  // z/nx/ny struct members at 0, and dropped every vertex's Z position for
+  // any 8-property (x y z nx ny nz u v) ply file. Normals are otherwise
+  // unused downstream (shading normals are computed per-face), so this was a
+  // pure geometry-corruption bug rather than a lighting one.
   PlyProperty vert_props_uvn[8] = {
       {const_cast<char*>("x"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, x), 0, 0, 0, 0},
       {const_cast<char*>("y"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, y), 0, 0, 0, 0},
       {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, z), 0, 0, 0, 0},
-      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, nx), 0, 0, 0, 0},
-      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, ny), 0, 0, 0, 0},
-      {const_cast<char*>("z"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, nz), 0, 0, 0, 0},
+      {const_cast<char*>("nx"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, nx), 0, 0, 0, 0},
+      {const_cast<char*>("ny"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, ny), 0, 0, 0, 0},
+      {const_cast<char*>("nz"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, nz), 0, 0, 0, 0},
       {const_cast<char*>("u"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, u), 0, 0, 0, 0},
       {const_cast<char*>("v"), PLY_FLOAT, PLY_FLOAT, offsetof(VertexWithUVN, v), 0, 0, 0, 0},
   };
@@ -841,8 +860,23 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
 
       }
 
-      camera.max_recursion_depth = cam.contains("MaxRecursionDepth") ? std::stoi(cam["MaxRecursionDepth"].get<std::string>()) : 1;
-      camera.min_recursion_depth = cam.contains("MinRecursionDepth") ? std::stoi(cam["MinRecursionDepth"].get<std::string>()) : 0;
+      // Recursion depth may be declared per camera OR once at the Scene level,
+      // and most of the historical scene corpus uses the Scene level. Reading
+      // only the camera silently fell back to depth 1, which means no secondary
+      // rays at all -- every mirror, glass and conductor surface rendered pure
+      // black while the scene looked otherwise correct.
+      camera.max_recursion_depth =
+          cam.contains("MaxRecursionDepth")
+              ? std::stoi(cam["MaxRecursionDepth"].get<std::string>())
+              : (json_data.contains("MaxRecursionDepth")
+                     ? std::stoi(json_data["MaxRecursionDepth"].get<std::string>())
+                     : 1);
+      camera.min_recursion_depth =
+          cam.contains("MinRecursionDepth")
+              ? std::stoi(cam["MinRecursionDepth"].get<std::string>())
+              : (json_data.contains("MinRecursionDepth")
+                     ? std::stoi(json_data["MinRecursionDepth"].get<std::string>())
+                     : 0);
       if(cam.contains("Renderer")){
         if(cam["Renderer"].get<std::string>() == "PathTracing"){
           camera.path_tracing_enabled = true;
@@ -1452,7 +1486,14 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     }
   }
   // Parse VertexData
-  if (json_data.contains("VertexData")) {
+  //
+  // contains() is not enough: a scene may declare the key with a null value
+  // (e.g. "TexCoordData": null for a scene whose geometry all comes from ply
+  // files). Indexing null yields null, and asking null for a string threw an
+  // uncaught nlohmann type_error that aborted the whole render.
+  if (json_data.contains("VertexData") && json_data["VertexData"].is_object() &&
+      json_data["VertexData"].contains("_data") &&
+      json_data["VertexData"]["_data"].is_string()) {
     auto vertex_datas = json_data["VertexData"]["_data"].get<std::string>();
     std::stringstream ss(vertex_datas);
     while (ss.peek() != EOF) {
@@ -1462,7 +1503,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     }
   }
   // Parse TexCoordData
-  if (json_data.contains("TexCoordData")) {
+  if (json_data.contains("TexCoordData") && json_data["TexCoordData"].is_object() &&
+      json_data["TexCoordData"].contains("_data") &&
+      json_data["TexCoordData"]["_data"].is_string()) {
     auto tex_coord_datas = json_data["TexCoordData"]["_data"].get<std::string>();
     std::stringstream ss(tex_coord_datas);
     while (ss.peek() != EOF) {

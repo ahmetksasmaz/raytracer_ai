@@ -29,14 +29,26 @@ namespace ply_reader{
     float x, y, z;
     float u, v;
   } VertexWithUV;
-  
+
+  // Position + normal, no texture coordinates: 6 properties (x y z nx ny nz).
+  // A common export format (e.g. VCGLIB/MeshLab) that the reader previously
+  // had no case for, so files like this fell through every branch, the vertex
+  // element was silently never consumed, and the face element that followed
+  // was read starting at the wrong file offset -- misinterpreting raw vertex
+  // bytes as face data and then indexing an empty vertex array.
+  typedef struct VertexWithNormal {
+    float x, y, z;
+    float nx, ny, nz;
+  } VertexWithNormal;
+
   typedef struct VertexWithUVN {
     float x, y, z;
     float nx, ny, nz;
     float u, v;
   } VertexWithUVN;
-  
+
   extern PlyProperty vert_props[3];
+  extern PlyProperty vert_props_n[6];
   extern PlyProperty vert_props_uv[5];
   extern PlyProperty vert_props_uvn[8];
   extern PlyProperty face_props[1];
