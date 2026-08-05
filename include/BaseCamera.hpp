@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <memory>
 
 #include "../extern/parser.h"
@@ -37,7 +38,8 @@ class BaseCamera {
       const SamplingAlgorithm aperture_sampling = SamplingAlgorithm::kBest,
       const ApertureType aperture_type = ApertureType::kDefault);
   virtual ~BaseCamera() {
-    delete[] image_sampled_data_;
+    delete[] accumulator_;
+    delete[] spectral_image_;
     delete[] image_data_;
   };
 
@@ -45,13 +47,27 @@ class BaseCamera {
 
   virtual void UpdatePixelValue(const Vec2i& pixel_coordinate,
                                 const Vec3f& pixel_value);
-  virtual void UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                       const Spectrum& pixel_value,
-                                       const int sample_index,
-                                       const Vec2f& diff);
 
-  Vec5f* GetImageSampledDataReference() { return image_sampled_data_; };
+  // Adds one sample to the film.
+  //
+  // The sample is splatted into the 3x3 neighbourhood with its reconstruction
+  // weight rather than stored. The previous design kept every individual sample
+  // (width x height x samples-per-pixel), which is unusable once radiance is
+  // spectral: 800x800 at 1000 spp and 31 bands would be nearly 200 GB. Film
+  // memory is now independent of sample count.
+  //
+  // Splats cross the 32x32 tile boundaries each thread owns, so accumulation is
+  // atomic.
+  virtual void SplatSample(const Vec2i& pixel_coordinate,
+                           const Spectrum& pixel_value, const Vec2f& diff);
+
+  // Divides the accumulated film by its weights, producing both the spectral
+  // image and the conventional linear-sRGB image. Call once per camera after
+  // tracing completes.
+  void ResolveAccumulator();
+
   Vec3f* GetImageDataReference() { return image_data_; };
+  const Spectrum* GetSpectralImage() const { return spectral_image_; };
 
   void ApplyToneMappings();
   void ExportView();
@@ -96,6 +112,11 @@ class BaseCamera {
   const std::unique_ptr<STBExporter> ldr_exporter_;
   const std::unique_ptr<EXRExporter> hdr_exporter_;
 
-  Vec5f* image_sampled_data_;
-  Vec3f* image_data_;
+  // width * height * (kSpectralBands + 1): the per-pixel band sums followed by
+  // the summed reconstruction weight.
+  std::atomic<FP_PRECISION>* accumulator_;
+  static constexpr int kAccumStride = kSpectralBands + 1;
+
+  Spectrum* spectral_image_;  // resolved, sensor-independent
+  Vec3f* image_data_;         // resolved, linear sRGB, conventional output
 };

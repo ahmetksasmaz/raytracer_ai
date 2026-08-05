@@ -43,11 +43,6 @@ Scene::Scene(const std::string &filename)
 
   area_light_sampling_algorithm_ = uniform_random_2d;
 
-  filtering_algorithm_ = std::bind(
-      &Scene::ExtendedGaussianFilterAlgorithm, this, std::placeholders::_1,
-      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
-      std::placeholders::_5);
-
   LoadScene();
   timer.AddTimeLog(Section::kPreprocessScene, Event::kStart);
   PreprocessScene();
@@ -612,11 +607,11 @@ void Scene::Render() {
     timer.AddTimeLog(Section::kRenderScene, Event::kStart, camera_index);
     scheduling_algorithm_(camera, camera_index);
 
+    // Reconstruction already happened during tracing: samples were splatted
+    // into the film with their filter weights. This just normalises by the
+    // accumulated weight, producing the spectral image and the sRGB image.
     timer.AddTimeLog(Section::kFiltering, Event::kStart, camera_index);
-    filtering_algorithm_(camera->GetImageSampledDataReference(),
-                         camera->image_width_, camera->image_height_,
-                         camera->mem_num_samples_,
-                         camera->GetImageDataReference());
+    camera->ResolveAccumulator();
     timer.AddTimeLog(Section::kFiltering, Event::kEnd, camera_index);
 
     timer.AddTimeLog(Section::kToneMapping, Event::kStart, camera_index);
