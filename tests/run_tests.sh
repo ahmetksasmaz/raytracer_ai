@@ -178,6 +178,39 @@ needs tonemap-ldr furnace_ldr
 check tonemap-ldr "LDR output honours Tonemap -- flat 1.0 must map to 108" -- \
   --expect-constant "$OUT/furnace_ldr.png" 108 --tol 0.01 --max-dev 1
 
+# --- Spectral core -----------------------------------------------------------
+# Reference-data and colour-maths checks that no rendered image can catch: a
+# mistyped digit in the CIE tables or an illuminant produces a perfectly
+# plausible picture and a quietly biased white-balance result.
+
+if [ -z "$FILTER" ] || [[ "spectral-selfcheck" == *"$FILTER"* ]]; then
+  printf "%-22s %s\n" "spectral-selfcheck" "CIE tables, illuminant chromaticities, uplift identities"
+  if [ -x "$ROOT/spectraltest" ]; then
+    if "$ROOT/spectraltest" | sed 's/^/    /'; then
+      echo "    -> PASS"; PASS=$((PASS + 1))
+    else
+      echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("spectral-selfcheck")
+    fi
+  else
+    echo "    spectraltest not built (make spectraltest)"
+    echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("spectral-selfcheck")
+  fi
+  echo
+else
+  SKIP=$((SKIP + 1))
+fi
+
+# Same geometry and reflectance, different illuminant SPD. These MUST differ --
+# if they match, the illuminant data is not reaching the render.
+needs illuminant-discrimination illuminant_d65 illuminant_a
+check illuminant-discrimination "D65 vs illuminant A -- renders must differ" -- \
+  --expect-differ "$OUT/illuminant_a.exr" "$OUT/illuminant_d65.exr" --tol 0.02
+
+# A reflectance with no RGB equivalent: narrow band around 550 nm under D65.
+needs spectral-reflectance spectral_narrowband
+check spectral-reflectance "narrow-band 550nm reflectance must render green" -- \
+  --expect-channel-max "$OUT/spectral_narrowband.exr" g
+
 # --- Summary -----------------------------------------------------------------
 
 echo "=============================================="

@@ -229,6 +229,27 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  if (mode == "--expect-channel-max") {
+    // Asserts which colour channel dominates. Used to check that a spectral
+    // reflectance actually produces the colour its spectrum implies.
+    if (argc < 4) return Usage();
+    const std::string want = argv[3];
+    const Stats s = ComputeStats(a);
+    PrintStats(argv[2], a, s);
+    const double r = s.mean_r, g = s.mean_g, b = s.mean_b;
+    const bool ok = (want == "r" && r > g && r > b) ||
+                    (want == "g" && g > r && g > b) ||
+                    (want == "b" && b > r && b > g);
+    std::printf("channel means r=%.6f g=%.6f b=%.6f, expected '%s' largest\n", r,
+                g, b, want.c_str());
+    if (!ok) {
+      std::printf("FAIL: '%s' is not the dominant channel\n", want.c_str());
+      return 1;
+    }
+    std::printf("PASS\n");
+    return 0;
+  }
+
   if (mode == "--argmax") {
     // Locates the brightest sample. Useful for tracking down single-pixel
     // fireflies, which a mean-based assertion reports but cannot place.
@@ -319,7 +340,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  if (mode == "--compare" || mode == "--ratio" || mode == "--expect-ratio") {
+  if (mode == "--compare" || mode == "--ratio" || mode == "--expect-ratio" || mode == "--expect-differ") {
     if (argc < 4) return Usage();
     Image b;
     if (!LoadImage(argv[3], b)) return 2;
@@ -333,6 +354,25 @@ int main(int argc, char** argv) {
     if (mode == "--ratio") {
       const double ratio = sb.mean > 1e-12 ? sa.mean / sb.mean : 0.0;
       std::printf("ratio(mean a / mean b) = %.8f\n", ratio);
+      return 0;
+    }
+
+    if (mode == "--expect-differ") {
+      // The inverse of --compare: asserts two renders are meaningfully
+      // DIFFERENT. Used where a feature is only doing its job if it changes the
+      // image, e.g. rendering the same scene under two different illuminants.
+      const double min_diff = ArgTol(argc, argv, 0.05);
+      const double mean_rel =
+          sb.mean > 1e-9 ? std::fabs(sa.mean - sb.mean) / sb.mean : 0.0;
+      std::printf("mean_rel_diff=%.4f required>=%.4f\n", mean_rel, min_diff);
+      if (mean_rel < min_diff) {
+        std::printf(
+            "FAIL: images are too similar (%.4f) -- the feature under test "
+            "appears to have no effect\n",
+            mean_rel);
+        return 1;
+      }
+      std::printf("PASS\n");
       return 0;
     }
 

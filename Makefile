@@ -25,7 +25,12 @@ release:
 imgdiff: tools/imgdiff.cpp
 	g++ -std=c++17 -O2 -w tools/imgdiff.cpp -o imgdiff
 
-test: release imgdiff
+# Self-checks for the spectral core: CIE tables, illuminant chromaticities and
+# the colour-conversion identities the rendering tests depend on.
+spectraltest: tools/spectraltest.cpp include/Spectrum.hpp include/SpectralData.hpp
+	g++ -std=c++17 -O2 -w tools/spectraltest.cpp -o spectraltest
+
+test: release imgdiff spectraltest
 	./tests/run_tests.sh
 
 debug:
@@ -35,4 +40,4 @@ profile:
 	g++ $(INCLUDES) $(SOURCES) -o raytracer_profile -std=c++17 -O2 -g -march=native -ffast-math -w
 
 clean:
-	rm -f raytracer raytracer_debug raytracer_profile imgdiff
+	rm -f raytracer raytracer_debug raytracer_profile imgdiff spectraltest

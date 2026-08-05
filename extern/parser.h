@@ -151,6 +151,18 @@ struct Vec5f {
   FP_PRECISION x, y, z, w, t;
 };
 
+// A spectrum supplied directly by a scene file, as either a named standard
+// illuminant or an explicit (wavelength, value) table. When nothing is set the
+// loader falls back to uplifting the corresponding RGB value, so existing
+// scenes are unaffected.
+struct RawSpectrumData {
+  std::string illuminant;                 // e.g. "D65"; empty when unused
+  FP_PRECISION scale = 1.0;
+  std::vector<FP_PRECISION> wavelengths;  // ascending, nanometres
+  std::vector<FP_PRECISION> values;
+  bool IsSet() const { return !illuminant.empty() || !values.empty(); }
+};
+
 struct RawToneMapping {
   RawToneMappingAlgorithm algorithm;
   FP_PRECISION key = 0.18;
@@ -191,12 +203,14 @@ struct RawCamera {
 struct RawPointLight {
   Vec3f position;
   Vec3f intensity;
+  RawSpectrumData intensity_spectrum;
   std::string transformations = "";
 };
 
 struct RawAreaLight {
   Vec3f position;
   Vec3f radiance;
+  RawSpectrumData radiance_spectrum;
   Vec3f normal;
   FP_PRECISION size;
   std::string transformations = "";
@@ -205,12 +219,14 @@ struct RawAreaLight {
 struct RawDirectionalLight {
   Vec3f direction;
   Vec3f radiance;
+  RawSpectrumData radiance_spectrum;
 };
 
 struct RawSpotLight {
   Vec3f position;
   Vec3f direction;
   Vec3f intensity;
+  RawSpectrumData intensity_spectrum;
   FP_PRECISION coverage_angle;
   FP_PRECISION falloff_angle;
 };
@@ -227,6 +243,8 @@ struct RawMaterial {
   Vec3f ambient;
   Vec3f diffuse;
   Vec3f specular;
+  RawSpectrumData diffuse_spectrum;
+  RawSpectrumData specular_spectrum;
   Vec3f mirror;
   Vec3f absorption_coefficient;
   FP_PRECISION refraction_index;
@@ -266,6 +284,7 @@ struct RawLightMesh {
   std::string transformations = "";
   Vec3f motion_blur = {0, 0, 0};
   Vec3f radiance;
+  RawSpectrumData radiance_spectrum;
 };
 
 struct RawMeshInstance {
@@ -306,6 +325,7 @@ struct RawLightSphere {
   std::string transformations = "";
   Vec3f motion_blur = {0, 0, 0};
   Vec3f radiance;
+  RawSpectrumData radiance_spectrum;
 };
 
 struct RawPlane {

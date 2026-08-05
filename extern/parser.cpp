@@ -678,6 +678,45 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
   }
 }
 
+
+namespace {
+
+// Reads a scene-supplied spectrum. Accepts either a bare illuminant name
+//   "RadianceSpectrum": "D65"
+// or an object form
+//   "RadianceSpectrum": {"_illuminant": "D65", "_scale": "5"}
+//   "RadianceSpectrum": {"_data": "400 0.04 410 0.05 ...", "_scale": "1"}
+// Returns an unset RawSpectrumData when the key is absent, in which case the
+// loader falls back to uplifting the RGB value.
+parser::RawSpectrumData ParseSpectrumData(const nlohmann::json &parent,
+                                          const std::string &key) {
+  parser::RawSpectrumData out;
+  if (!parent.contains(key)) return out;
+  const auto &node = parent[key];
+
+  if (node.is_string()) {
+    out.illuminant = node.get<std::string>();
+    return out;
+  }
+  if (node.contains("_illuminant")) {
+    out.illuminant = node["_illuminant"].get<std::string>();
+  }
+  if (node.contains("_scale")) {
+    out.scale = std::stod(node["_scale"].get<std::string>());
+  }
+  if (node.contains("_data")) {
+    std::stringstream ss(node["_data"].get<std::string>());
+    FP_PRECISION wavelength, value;
+    while (ss >> wavelength >> value) {
+      out.wavelengths.push_back(wavelength);
+      out.values.push_back(value);
+    }
+  }
+  return out;
+}
+
+}  // namespace
+
 void parser::RawScene::loadFromJSON(const std::string &filepath) {
   std::ifstream file(filepath);
   if (!file.is_open()) {
@@ -870,6 +909,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         ss_pos >> point_light.position.x >> point_light.position.y >> point_light.position.z;
         std::stringstream ss_inten(inten);
         ss_inten >> point_light.intensity.x >> point_light.intensity.y >> point_light.intensity.z;
+        point_light.intensity_spectrum = ParseSpectrumData(light, "IntensitySpectrum");
         point_lights.push_back(point_light);
       }
     }
@@ -899,6 +939,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         area_light.size = (FP_PRECISION)(std::stof(light["Size"].get<std::string>()));
         std::stringstream ss_rad(radiance);
         ss_rad >> area_light.radiance.x >> area_light.radiance.y >> area_light.radiance.z;
+        area_light.radiance_spectrum = ParseSpectrumData(light, "RadianceSpectrum");
         area_lights.push_back(area_light);
       }
     }
@@ -923,6 +964,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         ss_dir >> directional_light.direction.x >> directional_light.direction.y >> directional_light.direction.z;
         std::stringstream ss_rad(radiance);
         ss_rad >> directional_light.radiance.x >> directional_light.radiance.y >> directional_light.radiance.z;
+        directional_light.radiance_spectrum = ParseSpectrumData(light, "RadianceSpectrum");
         directional_lights.push_back(directional_light);
       }
     }
@@ -950,6 +992,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         ss_dir >> spot_light.direction.x >> spot_light.direction.y >> spot_light.direction.z;
         std::stringstream ss_rad(intensity);
         ss_rad >> spot_light.intensity.x >> spot_light.intensity.y >> spot_light.intensity.z;
+        spot_light.intensity_spectrum = ParseSpectrumData(light, "IntensitySpectrum");
         spot_light.coverage_angle = (FP_PRECISION)(std::stof(light["CoverageAngle"].get<std::string>()));
         spot_light.falloff_angle = (FP_PRECISION)(std::stof(light["FalloffAngle"].get<std::string>()));
         spot_lights.push_back(spot_light);
@@ -1162,6 +1205,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       else{
         material.absorption_index = -1.0f;
       }
+      material.diffuse_spectrum = ParseSpectrumData(material_obj, "DiffuseSpectrum");
+      material.specular_spectrum = ParseSpectrumData(material_obj, "SpecularSpectrum");
+
       material.phong_exponent = material_obj.contains("PhongExponent") ? std::stof(material_obj["PhongExponent"].get<std::string>()) : 0.0f;
       material.roughness = material_obj.contains("Roughness") ? std::stof(material_obj["Roughness"].get<std::string>()) : 0.0f;
       
@@ -1545,6 +1591,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         std::stringstream ss(radiance);
         ss >> mesh.radiance.x >> mesh.radiance.y >> mesh.radiance.z;
       }
+      {
+        mesh.radiance_spectrum = ParseSpectrumData(obj, "RadianceSpectrum");
+      }
       light_meshes.push_back(mesh);
     }
     
@@ -1614,6 +1663,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         auto radiance = s["Radiance"].get<std::string>();
         std::stringstream ss(radiance);
         ss >> sphere.radiance.x >> sphere.radiance.y >> sphere.radiance.z;
+      }
+      {
+        sphere.radiance_spectrum = ParseSpectrumData(s, "RadianceSpectrum");
       }
       light_spheres.push_back(sphere);
     }
