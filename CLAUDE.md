@@ -164,6 +164,9 @@ Writes four products alongside `<base>.exr`:
 2. `<base>_raw.pgm` + `_raw.exr` — RAW Bayer mosaic in sensorRGB digital numbers (16-bit PGM because stb only writes 8-bit PNG).
 3. `<base>_demosaiced.exr` — bilinear, still sensor space.
 4. `<base>_sensor_to_xyz.json` — least-squares 3×3 plus its residual. The residual is part of the result: a sensor failing the Luther condition cannot be corrected exactly by any 3×3.
+5. `<base>_srgb.png` — demosaiced sensorRGB pushed through that matrix to XYZ, then to sRGB with the proper transfer function (not a plain 2.2 gamma). Exposure normalised on the 99.5th percentile so one hot pixel can't darken the frame. The **only** output that leaves sensor space; compute on the others.
+
+`tests/scenes/hyperspectral_box.json` is the reference example: five explicit spectral reflectances under three spectrally distinct emitters (D65, illuminant A, a narrowband LED), captured through a modelled CMOS sensor. Two of its spheres are a **metameric pair** — same CIE XYZ under D65 to 0.07%, 6.0% apart under illuminant A — which is the thing an RGB renderer structurally cannot represent.
 
 **Default CFA filters are Gaussians, not measured curves**, and the ColorChecker training set is uplifted sRGB. Both are fine for wiring up a pipeline and wrong for research conclusions — supply measured data via the spectral syntax.
 
