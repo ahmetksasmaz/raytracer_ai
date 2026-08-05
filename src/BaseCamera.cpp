@@ -284,19 +284,25 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
 }
 
 void BaseCamera::UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                         const Vec3f& pixel_value,
+                                         const Spectrum& pixel_value,
                                          const int sample_index,
                                          const Vec2f& diff) {
-  Vec3f clamped_value = pixel_value;
-  if (sample_max_val_ > 0.0f) {
-    clamped_value.x = std::min(pixel_value.x, sample_max_val_);
-    clamped_value.y = std::min(pixel_value.y, sample_max_val_);
-    clamped_value.z = std::min(pixel_value.z, sample_max_val_);
-  }
+  // Firefly clamping happens per band, which is the spectrally meaningful
+  // operation, before the spectrum is collapsed.
+  //
+  // The collapse to linear sRGB happens HERE only because the sample store is
+  // still per-sample RGB. Phase 3 replaces that store with a spectral
+  // accumulation buffer and moves the collapse to the output stage, which is
+  // what the sensor pipeline needs; keeping it here for now leaves the rest of
+  // the image path untouched while the core conversion lands.
+  Spectrum clamped = pixel_value;
+  clamped.ClampMaxInPlace(sample_max_val_);
+  const Vec3f rgb = SpectrumToLinearSRGB(clamped);
+
   image_sampled_data_[(pixel_coordinate.y * image_width_ + pixel_coordinate.x) *
                           mem_num_samples_ +
                       sample_index] =
-      Vec5f{clamped_value.x, clamped_value.y, clamped_value.z, diff.x, diff.y};
+      Vec5f{rgb.x, rgb.y, rgb.z, diff.x, diff.y};
 }
 
 void BaseCamera::UpdatePixelValue(const Vec2i& pixel_coordinate,

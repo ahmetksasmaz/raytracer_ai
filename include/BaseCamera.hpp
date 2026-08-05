@@ -5,6 +5,7 @@
 #include "STBExporter.hpp"
 #include "EXRExporter.hpp"
 #include "Configuration.hpp"
+#include "Spectrum.hpp"
 #include "Helper.hpp"
 #include "Ray.hpp"
 #include "BaseToneMapping.hpp"
@@ -45,7 +46,7 @@ class BaseCamera {
   virtual void UpdatePixelValue(const Vec2i& pixel_coordinate,
                                 const Vec3f& pixel_value);
   virtual void UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                       const Vec3f& pixel_value,
+                                       const Spectrum& pixel_value,
                                        const int sample_index,
                                        const Vec2f& diff);
 

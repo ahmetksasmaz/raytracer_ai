@@ -8,7 +8,7 @@ class LightSphereObject : public BaseObject, public ObjectLightSource {
  public:
   LightSphereObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
                const Vec3f& center, const FP_PRECISION radius, const Vec3f motion_blur,
-               const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip, Vec3f radiance)
+               const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip, Spectrum radiance)
       : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip), ObjectLightSource(radiance),
         center_(center),
         radius_(radius) {};

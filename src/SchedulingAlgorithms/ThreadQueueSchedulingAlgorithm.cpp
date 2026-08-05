@@ -52,7 +52,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
           for (int x = start_x; x < end_x; ++x) {
             std::vector<Ray> rays = camera->GenerateRay({x, y});
             for (int ray_index = 0; ray_index < static_cast<int>(rays.size()); ray_index++) {
-              const Vec3f pixel_value =
+              const Spectrum pixel_value =
                   camera->path_tracing_enabled_ ?
                   path_tracing_algorithm_(rays[ray_index], nullptr, 0, path_tracer_settings, PathState{})
                   : ray_tracing_algorithm_(

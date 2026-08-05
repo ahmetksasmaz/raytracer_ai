@@ -5,8 +5,8 @@
 class ObjectLightSource : public BaseLightSource
 {
 public:
-  ObjectLightSource( const Vec3f &radiance)
-      : BaseLightSource(Vec3f{0, 0, 0}), radiance_(radiance) {}
+  ObjectLightSource( const Spectrum &radiance)
+      : BaseLightSource(Spectrum()), radiance_(radiance) {}
 
   // Draws a point on the emitter as seen from intersection_point and returns the
   // SOLID-ANGLE pdf of having drawn it. Implementations must obtain that pdf by
@@ -25,6 +25,6 @@ public:
                                      const Vec3f& light_point,
                                      const Vec3f& light_normal) const = 0;
 
-  const Vec3f radiance_;
+  const Spectrum radiance_;
   FP_PRECISION total_area_;
 };

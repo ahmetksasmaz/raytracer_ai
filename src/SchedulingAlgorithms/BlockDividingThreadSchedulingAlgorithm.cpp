@@ -59,7 +59,7 @@ void Scene::BlockDivideThreadSchedulingAlgorithm(
         std::vector<Ray> rays =
             camera->GenerateRay({index.first, index.second});
         for (int ray_index = 0; ray_index < rays.size(); ray_index++) {
-          const Vec3f pixel_value =
+          const Spectrum pixel_value =
         camera->path_tracing_enabled_ ?
         path_tracing_algorithm_(rays[ray_index], nullptr, 0, path_tracer_settings, PathState{})
             : ray_tracing_algorithm_(

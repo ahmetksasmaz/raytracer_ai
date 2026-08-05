@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../extern/parser.h"
+#include "Spectrum.hpp"
 #include "Helper.hpp"
 #include "BaseBRDF.hpp"
 #include <cmath>
@@ -10,7 +11,7 @@ class TorranceSparrow : public BaseBRDF {
  public:
     TorranceSparrow(const FP_PRECISION exponent, const bool kd_fresnel)
         : BaseBRDF(exponent, false), kd_fresnel_(kd_fresnel) {}
-    Vec3f Evaluate(const Vec3f &ray_coming_direction, const Vec3f &light_coming_direction, const Vec3f &normal, const Vec3f &kd, const Vec3f &ks, FP_PRECISION refraction_index, FP_PRECISION absorption_index) const override {
+    Spectrum Evaluate(const Vec3f &ray_coming_direction, const Vec3f &light_coming_direction, const Vec3f &normal, const Spectrum &kd, const Spectrum &ks, FP_PRECISION refraction_index, FP_PRECISION absorption_index) const override {
         Vec3f half_vector = normalize(ray_coming_direction + light_coming_direction);
         FP_PRECISION NdotH = std::max((FP_PRECISION)0.0, dot(normal, half_vector));
         FP_PRECISION d_alpha = ((exponent_+2.0) * std::pow(NdotH, exponent_)) /(2.0 * M_PI);

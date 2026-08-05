@@ -11,7 +11,7 @@ LightMeshObject::LightMeshObject(std::shared_ptr<BaseMaterial> material, std::ve
                        const std::vector<Vec2f>& raw_tex_coord_data,
                         const long long vertex_offset, const long long tex_coord_offset,
                        const Vec3f motion_blur, const Mat4x4f& transform_matrix,
-                       RawScalingFlip scaling_flip, Vec3f radiance)
+                       RawScalingFlip scaling_flip, Spectrum radiance)
     : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip), ObjectLightSource(radiance) {
   for (const auto& raw_face : raw_face_data) {
     triangle_objects_.push_back(
@@ -30,7 +30,7 @@ LightMeshObject::LightMeshObject(std::shared_ptr<BaseMaterial> material, std::ve
 LightMeshObject::LightMeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::shared_ptr<BaseTextureMap>> textures,
                        const std::string& ply_filename, const long long vertex_offset, const long long tex_coord_offset, const Vec3f motion_blur,
                        const Mat4x4f& transform_matrix,
-                       RawScalingFlip scaling_flip, Vec3f radiance)
+                       RawScalingFlip scaling_flip, Spectrum radiance)
     : BaseObject(material, textures, motion_blur, transform_matrix, scaling_flip), ObjectLightSource(radiance) {
   int nelems;
   char** elem_names;

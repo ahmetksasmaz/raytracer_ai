@@ -8,6 +8,7 @@
 #include <cctype>
 
 #include "../extern/parser.h"
+#include "Spectrum.hpp"
 #include "AmbientLightSource.hpp"
 #include "AreaLightSource.hpp"
 #include "BaseCamera.hpp"
@@ -67,7 +68,7 @@ struct PathTracerSettings{
 // possible through a delta reflection) or MIS is on, in which case both
 // strategies contribute under balance-heuristic weights.
 struct PathState {
-    Vec3f throughput = {1.0, 1.0, 1.0};
+    Spectrum throughput = Spectrum::Constant(1.0);
     // Solid-angle pdf with which the previous vertex generated this ray.
     FP_PRECISION prev_bsdf_pdf = 0.0;
     // Camera rays behave like specular bounces: nothing sampled a light to reach
@@ -99,7 +100,7 @@ class Scene {
 
   const std::string filename_;
 
-  Vec3i background_color_;
+  Spectrum background_color_;
   std::shared_ptr<BaseTextureMap> background_texture_map_ = nullptr;
   FP_PRECISION shadow_ray_epsilon_;
 
@@ -123,9 +124,9 @@ class Scene {
 
   std::function<void(const std::shared_ptr<BaseCamera>, int)>
       scheduling_algorithm_;
-  std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, int)>
+  std::function<Spectrum(Ray &, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
-  std::function<Vec3f(Ray &, const std::shared_ptr<BaseObject>, int, const PathTracerSettings&, const PathState&)>
+  std::function<Spectrum(Ray &, const std::shared_ptr<BaseObject>, int, const PathTracerSettings&, const PathState&)>
       path_tracing_algorithm_;
   std::function<void(Vec5f *, int, int, int, Vec3f *)> filtering_algorithm_;
   std::function<void(Vec3f *, int, int, std::vector<unsigned char> &)>
@@ -133,19 +134,19 @@ class Scene {
 
   std::function<std::vector<Vec2f>(int)> area_light_sampling_algorithm_;
 
-  Vec3f DefaultRayTracingAlgorithm(
+  Spectrum DefaultRayTracingAlgorithm(
       Ray &ray,
       const std::shared_ptr<BaseObject> inside_object_ptr,
       int, int);
-  Vec3f RecursiveRayTracingAlgorithm(
+  Spectrum RecursiveRayTracingAlgorithm(
       Ray &ray,
       const std::shared_ptr<BaseObject> inside_object_ptr,
       int remaining_recursion, int max_recursion);
-  Vec3f RecursiveBRDFRayTracingAlgorithm(
+  Spectrum RecursiveBRDFRayTracingAlgorithm(
       Ray &ray,
       const std::shared_ptr<BaseObject> inside_object_ptr,
       int remaining_recursion, int max_recursion);
-    Vec3f RecursiveBRDFPathTracingAlgorithm(
+    Spectrum RecursiveBRDFPathTracingAlgorithm(
       Ray &ray,
       const std::shared_ptr<BaseObject> inside_object_ptr,
       int current_recursion, const PathTracerSettings& settings, const PathState& state = PathState{});

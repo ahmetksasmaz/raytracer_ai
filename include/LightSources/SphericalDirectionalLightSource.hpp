@@ -2,13 +2,14 @@
 
 #include "BaseLightSource.hpp"
 #include "../extern/parser.h"
+#include "Spectrum.hpp"
 #include "BaseImage.hpp"
 
 class SphericalDirectionalLightSource : public BaseLightSource
 {
 public:
   SphericalDirectionalLightSource(RawEnvironmentMapType type, std::shared_ptr<BaseImage> image, RawEnvironmentMapSampler sampler)
-      : BaseLightSource({0,0,0}), type_(type), image_(image), sampler_(sampler) {}
+      : BaseLightSource(Spectrum()), type_(type), image_(image), sampler_(sampler) {}
 
   Vec3f GetIntensity(const Vec3f& surface_normal, Vec3f& direction, bool no_sample = false) const
   {
