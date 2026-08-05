@@ -141,6 +141,34 @@ Keys: `IntensitySpectrum` (point/spot), `RadianceSpectrum` (area/directional/Lig
 
 The ColorChecker table in `SpectralData.hpp` is **published sRGB, not measured spectra**. It is fine for wiring up a pipeline but not for research conclusions: an uplifted spectrum is one of infinitely many metamers, and distinguishing metamers is the point of a spectral study. Supply measured reflectances via `DiffuseSpectrum` for real work.
 
+## Camera sensor simulation
+
+Declared per camera under `"Sensor"`. Absent means no sensor simulation and the conventional image path only.
+
+```json
+"Sensor": {
+  "_pattern": "RGGB",              // or BGGR / GRBG / GBRG; unknown = hard error
+  "ExposureTime": "1e-4", "PixelPitch": "3.45e-6", "FNumber": "2.8",
+  "FullWell": "60000", "Gain": "16.0", "BitDepth": "12",
+  "ReadNoise": "2.0", "DarkCurrent": "5.0",
+  "NoiseSources": "Shot Read Dark",           // "None" for a noise-free reference
+  "QuantumEfficiency": {"_data": "400 0.3 550 0.6 700 0.4"},
+  "FilterRed": {"_data": "..."}, "FilterGreen": {...}, "FilterBlue": {...}
+}
+```
+
+Chain: spectral radiance → photons (`L·A·Ω·t·λ/hc`, Ω = π/4N²) → electrons (QE × CFA for the pixel's Bayer channel, integrated over λ) → Poisson shot + Poisson dark + Gaussian read → full-well clamp → gain → quantise. The λ/hc factor is why this needs the spectral core.
+
+Writes four products alongside `<base>.exr`:
+1. `<base>_spectral.exr` — **sensor-independent** N-band cube at the sensor plane, channels named `0400nm`…. One render replays through any sensor.
+2. `<base>_raw.pgm` + `_raw.exr` — RAW Bayer mosaic in sensorRGB digital numbers (16-bit PGM because stb only writes 8-bit PNG).
+3. `<base>_demosaiced.exr` — bilinear, still sensor space.
+4. `<base>_sensor_to_xyz.json` — least-squares 3×3 plus its residual. The residual is part of the result: a sensor failing the Luther condition cannot be corrected exactly by any 3×3.
+
+**Default CFA filters are Gaussians, not measured curves**, and the ColorChecker training set is uplifted sRGB. Both are fine for wiring up a pipeline and wrong for research conclusions — supply measured data via the spectral syntax.
+
+Two testing traps worth remembering: whole-image variance on a mosaic measures the *mosaic pattern*, not noise (compute it within a Bayer parity class), and an over-exposed sensor pegs every parity at full well so CFA differences vanish — both cost real debugging time here.
+
 ## Path tracer invariants
 
 These are load-bearing; breaking one produces a plausible-looking but wrong image rather than a crash.
