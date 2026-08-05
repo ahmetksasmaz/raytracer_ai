@@ -2,6 +2,31 @@
 
 #include "Timer.hpp"
 
+namespace {
+
+// Turns a scene-supplied spectrum into a Spectrum, falling back to uplifting
+// the RGB value when the scene did not supply one.
+//
+// An unknown illuminant name is a hard error rather than a warning: silently
+// rendering under the wrong illuminant would corrupt a white-balance study in a
+// way that is invisible in the output.
+Spectrum ResolveSpectrum(const RawSpectrumData &raw, const Vec3f &rgb_fallback) {
+  if (!raw.illuminant.empty()) {
+    Spectrum illuminant;
+    if (!IlluminantByName(raw.illuminant, illuminant)) {
+      throw std::runtime_error("Unknown illuminant '" + raw.illuminant +
+                               "'. Known names: D65, A, E.");
+    }
+    return illuminant * raw.scale;
+  }
+  if (!raw.values.empty()) {
+    return ResampleSpectrum(raw.wavelengths, raw.values) * raw.scale;
+  }
+  return UpliftRGB(rgb_fallback);
+}
+
+}  // namespace
+
 Scene::Scene(const std::string &filename)
     : filename_(filename) {
   ray_tracing_algorithm_ = std::bind(
@@ -76,7 +101,7 @@ void Scene::LoadScene() {
         raw_scene.scalings, raw_scene.rotations, raw_scene.composites);
     
     point_lights_.push_back(std::make_shared<PointLightSource>(
-        transform_matrix * raw_point_light.position, UpliftRGB(raw_point_light.intensity)));
+        transform_matrix * raw_point_light.position, ResolveSpectrum(raw_point_light.intensity_spectrum, raw_point_light.intensity)));
   }
   for (const auto &raw_area_light : raw_scene.area_lights) {
     RawScalingFlip scaling_flip{false, false, false};
@@ -87,19 +112,19 @@ void Scene::LoadScene() {
     Vec3f transformed_second_position = transform_matrix * (raw_area_light.position + raw_area_light.normal);
     Vec3f transformed_normal = normalize(transformed_second_position - transformed_position);
     area_lights_.push_back(std::make_shared<AreaLightSource>(
-        transformed_position, UpliftRGB(raw_area_light.radiance), transformed_normal,
+        transformed_position, ResolveSpectrum(raw_area_light.radiance_spectrum, raw_area_light.radiance), transformed_normal,
         raw_area_light.size));
   }
 
   for (const auto &raw_directional_light : raw_scene.directional_lights) {
     directional_lights_.push_back(std::make_shared<DirectionalLightSource>(
-        raw_directional_light.direction, UpliftRGB(raw_directional_light.radiance)));
+        raw_directional_light.direction, ResolveSpectrum(raw_directional_light.radiance_spectrum, raw_directional_light.radiance)));
   }
 
   for (const auto &raw_spot_light : raw_scene.spot_lights) {
     spot_lights_.push_back(std::make_shared<SpotLightSource>(
         raw_spot_light.position, raw_spot_light.direction,
-        UpliftRGB(raw_spot_light.intensity), raw_spot_light.coverage_angle,
+        ResolveSpectrum(raw_spot_light.intensity_spectrum, raw_spot_light.intensity), raw_spot_light.coverage_angle,
         raw_spot_light.falloff_angle));
   }
 
@@ -244,21 +269,21 @@ void Scene::LoadScene() {
       case RawMaterialType::kDefault:
         materials_.push_back(std::make_shared<BaseMaterial>(
             raw_material.brdf_id < 0 ? make_default_brdf(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
-            UpliftRGB(raw_material.ambient), UpliftRGB(raw_material.diffuse), UpliftRGB(raw_material.specular),
+            UpliftRGB(raw_material.ambient), ResolveSpectrum(raw_material.diffuse_spectrum, raw_material.diffuse), ResolveSpectrum(raw_material.specular_spectrum, raw_material.specular),
             raw_material.phong_exponent, raw_material.roughness, raw_material.refraction_index, raw_material.absorption_index));
         break;
 
       case RawMaterialType::kMirror:
         materials_.push_back(std::make_shared<MirrorMaterial>(
             raw_material.brdf_id < 0 ? make_default_brdf(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
-            UpliftRGB(raw_material.ambient), UpliftRGB(raw_material.diffuse), UpliftRGB(raw_material.specular),
+            UpliftRGB(raw_material.ambient), ResolveSpectrum(raw_material.diffuse_spectrum, raw_material.diffuse), ResolveSpectrum(raw_material.specular_spectrum, raw_material.specular),
             raw_material.phong_exponent, raw_material.roughness,
             UpliftRGB(raw_material.mirror), raw_material.refraction_index, raw_material.absorption_index));
         break;
       case RawMaterialType::kConductor:
         materials_.push_back(std::make_shared<ConductorMaterial>(
             raw_material.brdf_id < 0 ? make_default_brdf(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
-            UpliftRGB(raw_material.ambient), UpliftRGB(raw_material.diffuse), UpliftRGB(raw_material.specular),
+            UpliftRGB(raw_material.ambient), ResolveSpectrum(raw_material.diffuse_spectrum, raw_material.diffuse), ResolveSpectrum(raw_material.specular_spectrum, raw_material.specular),
             raw_material.phong_exponent, raw_material.roughness,
             UpliftRGB(raw_material.mirror), raw_material.refraction_index,
             raw_material.absorption_index));
@@ -266,7 +291,7 @@ void Scene::LoadScene() {
       case RawMaterialType::kDielectric:
         materials_.push_back(std::make_shared<DielectricMaterial>(
             raw_material.brdf_id < 0 ? make_default_brdf(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
-            UpliftRGB(raw_material.ambient), UpliftRGB(raw_material.diffuse), UpliftRGB(raw_material.specular),
+            UpliftRGB(raw_material.ambient), ResolveSpectrum(raw_material.diffuse_spectrum, raw_material.diffuse), ResolveSpectrum(raw_material.specular_spectrum, raw_material.specular),
             raw_material.phong_exponent, raw_material.roughness,
             UpliftRGB(raw_material.mirror), UpliftRGB(raw_material.absorption_coefficient),
             raw_material.refraction_index));
@@ -344,7 +369,7 @@ void Scene::LoadScene() {
                 materials_[raw_sphere.material_id - 1], textures,
                 raw_scene.vertex_data[raw_sphere.center_vertex_id - 1],
                 raw_sphere.radius, raw_sphere.motion_blur, transform_matrix,
-                scaling_flip, UpliftRGB(raw_sphere.radiance)));
+                scaling_flip, ResolveSpectrum(raw_sphere.radiance_spectrum, raw_sphere.radiance)));
     light_objects_.push_back(objects_.back());
   }
 
@@ -437,13 +462,13 @@ void Scene::LoadScene() {
               std::make_shared<LightMeshObject>(
                   materials_[raw_mesh.material_id - 1], textures, raw_mesh.ply_filepath,
                   raw_mesh.vertex_offset, raw_mesh.tex_coord_offset,
-                  raw_mesh.motion_blur, transform_matrix, scaling_flip, UpliftRGB(raw_mesh.radiance)));
+                  raw_mesh.motion_blur, transform_matrix, scaling_flip, ResolveSpectrum(raw_mesh.radiance_spectrum, raw_mesh.radiance)));
     } else {
       objects_.push_back(
               std::make_shared<LightMeshObject>(
                   materials_[raw_mesh.material_id - 1], textures, raw_mesh.faces,
                   raw_scene.vertex_data, raw_scene.tex_coord_data, raw_mesh.vertex_offset, raw_mesh.tex_coord_offset, raw_mesh.motion_blur, transform_matrix,
-                  scaling_flip, UpliftRGB(raw_mesh.radiance)));
+                  scaling_flip, ResolveSpectrum(raw_mesh.radiance_spectrum, raw_mesh.radiance)));
     }
     light_objects_.push_back(objects_.back());
   }

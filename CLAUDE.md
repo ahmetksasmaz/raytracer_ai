@@ -117,6 +117,26 @@ An object's `Transformations` string is space-separated refs like `"t1 s2 r1 c3"
 - `MeshInstance`: `_baseMeshId`, optional `_resetTransform` ("true" = ignore base transform), `Material`, `Textures`.
 - `Plane`: `Point` (vertex id), `Normal`. Infinite; outside the BVH.
 
+## Spectral core
+
+Radiance, reflectance and emission are `Spectrum` (31 bands, 400-700nm @ 10nm, `include/Spectrum.hpp`). Geometry stays `Vec3f`. Image textures also stay `Vec3f` — `GetColorAt` doubles as the normal-map accessor — and are uplifted where they modulate a reflectance.
+
+`kSpectralBands` is a real knob: all reference data lives in `include/SpectralData.hpp` at its own master resolution (380-780nm @ 10nm) and is resampled at start-up. Verified at 16, 31 and 61 bands.
+
+Two invariants keep neutral scenes bit-stable across the RGB→spectral conversion, and both are asserted by `./spectraltest`:
+- Smits' white basis is replaced with an exactly flat curve (also the more correct choice — a neutral grey *is* a wavelength-flat reflectance), so neutral RGB round-trips through `UpliftRGB` exactly.
+- `SpectrumToLinearSRGB` divides by a flat spectrum's RGB — a von Kries adaptation from equal-energy white E to the sRGB white — pinning flat unit spectrum to exactly (1,1,1).
+
+**Scene syntax.** Any radiometric quantity accepts a spectral override, which takes precedence over the RGB key; without one the RGB is uplifted, so old scenes are unaffected:
+```json
+"RadianceSpectrum": "D65"
+"RadianceSpectrum": {"_illuminant": "D65", "_scale": "5"}
+"DiffuseSpectrum":  {"_data": "400 0.04 550 0.9 700 0.05"}
+```
+Keys: `IntensitySpectrum` (point/spot), `RadianceSpectrum` (area/directional/LightMesh/LightSphere), `DiffuseSpectrum` / `SpecularSpectrum` (materials). Illuminants: `D65`, `A`, `E`. An unknown name is a **hard error** — silently rendering under the wrong illuminant would corrupt a white-balance study invisibly.
+
+The ColorChecker table in `SpectralData.hpp` is **published sRGB, not measured spectra**. It is fine for wiring up a pipeline but not for research conclusions: an uplifted spectrum is one of infinitely many metamers, and distinguishing metamers is the point of a spectral study. Supply measured reflectances via `DiffuseSpectrum` for real work.
+
 ## Path tracer invariants
 
 These are load-bearing; breaking one produces a plausible-looking but wrong image rather than a crash.
