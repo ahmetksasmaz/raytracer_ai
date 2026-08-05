@@ -3,28 +3,74 @@
 
 #include "Scene.hpp"
 
+namespace {
+
+// Beer-Lambert attenuation over a segment travelled inside a dielectric.
+Vec3f ApplyBeerLambert(const Vec3f &radiance,
+                       const std::shared_ptr<BaseObject> &medium,
+                       FP_PRECISION distance) {
+    auto *dielectric = dynamic_cast<DielectricMaterial *>(medium->material_.get());
+    if (!dielectric) return radiance;
+
+    const Vec3f sigma = dielectric->absorption_coefficient_;
+    // The parser stores -1 when AbsorptionCoefficient is absent. Feeding that
+    // to exp(-sigma * d) would AMPLIFY the radiance exponentially, so treat any
+    // negative component as "no absorption specified".
+    if (sigma.x < 0.0 || sigma.y < 0.0 || sigma.z < 0.0) return radiance;
+
+    return Vec3f{radiance.x * std::exp(-sigma.x * distance),
+                 radiance.y * std::exp(-sigma.y * distance),
+                 radiance.z * std::exp(-sigma.z * distance)};
+}
+
+}  // namespace
+
 Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     Ray &ray,
     const std::shared_ptr<BaseObject> inside_object_ptr,
-    int current_recursion, const PathTracerSettings& settings, Vec3f throughput)
+    int current_recursion, const PathTracerSettings& settings, const PathState& state)
 {
     current_recursion++;
-    Vec3f total_light_value = {0, 0, 0};
-    
+
+    // Two accumulators, deliberately kept apart. Analytic lights (point, area,
+    // spot, directional, environment) are gathered exactly once per vertex,
+    // while indirect light and next-event estimation are gathered once per
+    // splitting sample. Only the second is divided by sample_count at the end --
+    // dividing a single analytic evaluation by the splitting factor is what made
+    // SplittingFactor darken direct lighting in proportion to itself.
+    Vec3f analytic_light_value = {0, 0, 0};
+    Vec3f sampled_light_value = {0, 0, 0};
+
     const int sample_count = (current_recursion == 1) ? settings.splitting_factor : 1;
-    
+
     const int HARD_MAX_DEPTH = 32;
     if (current_recursion > HARD_MAX_DEPTH) {
         return {0, 0, 0};
     }
-    
+
+    // Russian roulette. Killing a path with probability 1-p is only unbiased if
+    // the survivors are scaled by 1/p to carry the energy of the ones that were
+    // killed. Without that compensation the estimator loses energy at every
+    // bounce and the whole image drifts dark.
+    FP_PRECISION rr_scale = 1.0;
     if (settings.russian_roulette_enabled && current_recursion > settings.min_recursion_depth) {
-        const FP_PRECISION max_throughput = std::max({throughput.x, throughput.y, throughput.z});
-        const FP_PRECISION rr_probability = std::min(max_throughput, static_cast<FP_PRECISION>(0.95));
+        const FP_PRECISION max_throughput = std::max({state.throughput.x, state.throughput.y, state.throughput.z});
+        if (!(max_throughput > 0.0)) {
+            return {0, 0, 0};  // path carries no energy; nothing to estimate
+        }
+        // Floor the probability so 1/p cannot explode on a near-black path.
+        const FP_PRECISION rr_probability =
+            std::min(std::max(max_throughput, static_cast<FP_PRECISION>(0.05)),
+                     static_cast<FP_PRECISION>(0.95));
         if (FastRandom() > rr_probability) {
             return {0, 0, 0};
         }
+        rr_scale = 1.0 / rr_probability;
     }
+
+    // Throughput as seen by any child of this vertex, already carrying the
+    // roulette compensation.
+    const Vec3f throughput = state.throughput * rr_scale;
 
     // STEP : CHECK FOR INTERSECTION
     FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
@@ -37,22 +83,9 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     std::shared_ptr<BaseObject> hit_object_ptr = nullptr;
 
     if (inside_object_ptr == nullptr) {
-        int hit_index = bvh_.Intersect(ray, objects_, t_hit, hit_normal, hit_tex_coords,
-                                    hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, false);
-        if (hit_index >= 0) {
-            hit_object_ptr = objects_[hit_index];
-        }
-
-        for (const auto &plane : plane_objects_) {
-            auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
-            FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
-            Vec3f normal;
-            if (plane_casted->IntersectPlane(ray, temp_hit, normal) && t_hit > temp_hit) {
-                t_hit = temp_hit;
-                hit_object_ptr = plane;
-                hit_normal = normal;
-            }
-        }
+        hit_object_ptr = IntersectScene(ray, t_hit, hit_normal, hit_tex_coords,
+                                        hit_u_vector, hit_v_vector,
+                                        hit_tangent_vector, hit_bitangent_vector);
     } else {
         hit_object_ptr = std::const_pointer_cast<BaseObject>(inside_object_ptr);
         inside_object_ptr->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, false);
@@ -78,6 +111,56 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                     static_cast<FP_PRECISION>(background_color_.z)};
         }
         return {0, 0, 0};
+    }
+
+    // STEP : EMITTED RADIANCE
+    // An emitter terminates the path. Whether this path is entitled to add the
+    // emission depends on whether some other strategy already accounted for it.
+    {
+        auto emitter = std::dynamic_pointer_cast<ObjectLightSource>(hit_object_ptr);
+        if (emitter) {
+            // Emitters are one-sided; the back face radiates nothing.
+            if (dot(ray.direction_, hit_normal) > 0) {
+                return {0, 0, 0};
+            }
+
+            // Either nothing else is sampling lights, or this ray arrived
+            // through a specular bounce -- next-event estimation cannot aim
+            // through a delta reflection, so no one else can have counted it.
+            if (!settings.nee_enabled || state.prev_specular) {
+                return emitter->radiance_ * rr_scale;
+            }
+
+            if (settings.mis_balance_enabled) {
+                // Balance heuristic for the BSDF-sampling strategy. Both pdfs
+                // describe THIS direction: prev_bsdf_pdf is the density with
+                // which the previous vertex generated this very ray, and
+                // light_pdf is the density with which light sampling would have
+                // produced the same direction from that same vertex
+                // (ray.origin_ IS the previous shading point).
+                const Vec3f emitter_point = ray.origin_ + ray.direction_ * t_hit;
+                const FP_PRECISION light_pdf = LightSamplingPdf(
+                    hit_object_ptr, ray.origin_, emitter_point, hit_normal);
+                const FP_PRECISION denominator = state.prev_bsdf_pdf + light_pdf;
+                const FP_PRECISION weight =
+                    denominator > 1e-9 ? state.prev_bsdf_pdf / denominator : 1.0;
+                return emitter->radiance_ * weight * rr_scale;
+            }
+
+            // NEE alone owns direct lighting. Adding emission here as well is
+            // exactly the double count that makes NEE renders read ~2x bright.
+            return {0, 0, 0};
+        }
+    }
+
+    // Shade double-sided. A triangle wound away from the ray would otherwise
+    // have every cosine term evaluate to zero and render black, which is a
+    // constant hazard with imported geometry. Emitters are excluded on purpose:
+    // one-sidedness is meaningful for them, and the NEE and MIS pdfs are built
+    // on their geometric orientation.
+    if (dot(ray.direction_, hit_normal) > 0 &&
+        !std::dynamic_pointer_cast<ObjectLightSource>(hit_object_ptr)) {
+        hit_normal = -hit_normal;
     }
 
     // STEP : FIND PROPERTIES OF OBJECT AND APPLY TEXTURES
@@ -193,14 +276,20 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         DielectricMaterial *dielectric_ptr = dynamic_cast<DielectricMaterial *>(material_ptr.get());
 
         if (mirror_ptr || conductor_ptr || dielectric_ptr) {
+            // Every branch below is a delta (specular) scattering event, so
+            // children are told prev_specular = true: next-event estimation
+            // cannot sample a light through a mirror direction, which means the
+            // BSDF path must be allowed to pick up emission on its own.
+            Vec3f specular_value = {0, 0, 0};
             Vec3f reflection_direction = ray.direction_ - 2 * dot(ray.direction_, distorted_normal) * distorted_normal;
             Ray reflection_ray = {ray.pixel_, intersection_point, reflection_direction, ray.diff_, ray.time_};
 
             if (mirror_ptr) {
                 Vec3f new_throughput = hadamard(throughput, mirror_ptr->mirror_);
-                Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr, 
-                                                                            current_recursion, settings, new_throughput);
-                total_light_value += hadamard(reflection_color, mirror_ptr->mirror_);
+                Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
+                                                                            current_recursion, settings,
+                                                                            PathState{new_throughput, 0.0, true});
+                specular_value += hadamard(reflection_color, mirror_ptr->mirror_);
             } else if (conductor_ptr) {
                 FP_PRECISION n2 = conductor_ptr->refraction_index_;
                 FP_PRECISION k2 = conductor_ptr->absorption_index_;
@@ -214,9 +303,10 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                 
                 Vec3f conductor_factor = conductor_ptr->mirror_ * fresnel;
                 Vec3f new_throughput = hadamard(throughput, conductor_factor);
-                Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr, 
-                                                                            current_recursion, settings, new_throughput);
-                total_light_value += hadamard(reflection_color, conductor_factor);
+                Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
+                                                                            current_recursion, settings,
+                                                                            PathState{new_throughput, 0.0, true});
+                specular_value += hadamard(reflection_color, conductor_factor);
             } else {
                 FP_PRECISION n1 = inside_object_ptr ? dielectric_ptr->refraction_index_ : 1.0f;
                 FP_PRECISION n2 = inside_object_ptr ? 1.0f : dielectric_ptr->refraction_index_;
@@ -234,32 +324,40 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                     Ray refraction_ray = {ray.pixel_, intersection_point - 2 * shadow_ray_epsilon_ * distorted_normal, 
                                           refraction_direction, ray.diff_, ray.time_};
                     
-                    Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr, 
-                                                current_recursion, settings, throughput * fresnel_r);
-                    Vec3f refraction_color = RecursiveBRDFPathTracingAlgorithm(refraction_ray, 
+                    Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
+                                                current_recursion, settings,
+                                                PathState{throughput * fresnel_r, 0.0, true});
+                    Vec3f refraction_color = RecursiveBRDFPathTracingAlgorithm(refraction_ray,
                                                 inside_object_ptr ? nullptr : hit_object_ptr,
-                                                current_recursion, settings, throughput * fresnel_t);
-                    
-                    total_light_value += reflection_color * fresnel_r;
-                    total_light_value += refraction_color * fresnel_t;
+                                                current_recursion, settings,
+                                                PathState{throughput * fresnel_t, 0.0, true});
+
+                    specular_value += reflection_color * fresnel_r;
+                    specular_value += refraction_color * fresnel_t;
                 } else {
-                    Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr, 
-                                                                                current_recursion, settings, throughput);
-                    total_light_value += reflection_color;
+                    Vec3f reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
+                                                                                current_recursion, settings,
+                                                                                PathState{throughput, 0.0, true});
+                    specular_value += reflection_color;
                 }
             }
-            return total_light_value;
+
+            // Beer-Lambert over the segment just travelled through the medium.
+            // This MUST happen before returning: previously the absorption code
+            // sat after this unconditional return, so it only ever ran once
+            // recursion was exhausted and the value it scaled was already zero.
+            // AbsorptionCoefficient therefore did nothing at all.
+            if (inside_object_ptr) {
+                specular_value = ApplyBeerLambert(specular_value, inside_object_ptr, t_hit);
+            }
+            return specular_value * rr_scale;
         }
     }
-                
+
     // STEP : HANDLE INSIDE HIT
+    // Reached only when recursion is exhausted inside a dielectric.
     if (inside_object_ptr) {
-        auto inside_casted = std::dynamic_pointer_cast<BaseObject>(inside_object_ptr);
-        Vec3f absorption = dynamic_cast<DielectricMaterial *>(inside_casted->material_.get())->absorption_coefficient_;
-        total_light_value.x *= exp(-absorption.x * t_hit);
-        total_light_value.y *= exp(-absorption.y * t_hit);
-        total_light_value.z *= exp(-absorption.z * t_hit);
-        return total_light_value;
+        return ApplyBeerLambert(analytic_light_value, inside_object_ptr, t_hit) * rr_scale;
     }
 
     FP_PRECISION shadow_hit;
@@ -267,20 +365,19 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
     Vec3f shadow_normal, shadow_tangent, shadow_bitangent;
     Vec2f shadow_u, shadow_v;
     
+    // max_dist is shortened slightly by callers that aim at a light so the light
+    // itself is not treated as its own occluder.
     auto ShadowCheck = [&](const Vec3f& direction, FP_PRECISION max_dist) -> bool {
         Ray shadow_ray{ray.pixel_, intersection_point, direction, ray.diff_, ray.time_};
         shadow_hit = max_dist;
-        return bvh_.Intersect(shadow_ray, objects_, shadow_hit, shadow_normal, shadow_tex_coords, 
-                              shadow_u, shadow_v, shadow_tangent, shadow_bitangent, false, true) >= 0;
+        return IntersectScene(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords,
+                              shadow_u, shadow_v, shadow_tangent, shadow_bitangent,
+                              true) != nullptr;
     };
 
-    auto light_obj = std::dynamic_pointer_cast<ObjectLightSource>(hit_object_ptr);
-    if (light_obj) {
-        if (dot(ray.direction_, hit_normal) > 0) {
-            return Vec3f{0, 0, 0};
-        }
-        return light_obj->radiance_;
-    }
+    // (Emitted radiance is handled up front, before shading -- see STEP :
+    // EMITTED RADIANCE. It has to be gated on how the path arrived here, which
+    // is information only the caller has.)
 
     if (spherical_directional_light_) {
         Vec3f direction;
@@ -288,7 +385,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         if (!ShadowCheck(direction, std::numeric_limits<FP_PRECISION>::max())) {
             Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, direction, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
-            total_light_value += hadamard(env_radiance, brdf) * std::max(0.0, dot(hit_normal, direction));
+            analytic_light_value += hadamard(env_radiance, brdf) * std::max(0.0, dot(hit_normal, direction));
         }
     }
     
@@ -300,7 +397,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         if (!ShadowCheck(light_dir, dist)) {
             Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
-            total_light_value += hadamard(point_light->intensity_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) / dist_sq;
+            analytic_light_value += hadamard(point_light->intensity_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) / dist_sq;
         }
     }
     
@@ -317,8 +414,9 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
             Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             Vec3f light_normal = FastNormalize(area_light->normal_);
-            total_light_value += hadamard(area_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) * 
-                                 area_light->size_ * area_light->size_ * dot(-light_normal, light_dir) / dist_sq;
+            // Clamp the light-side cosine too -- see the ray tracer for why.
+            analytic_light_value += hadamard(area_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) *
+                                 area_light->size_ * area_light->size_ * std::max(0.0, dot(-light_normal, light_dir)) / dist_sq;
         }
     }
     
@@ -339,7 +437,7 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
                 }
                 Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                             material_ptr->refraction_index_, material_ptr->absorption_index_);
-                total_light_value += hadamard(spot_light->intensity_ * attenuation / (dist * dist), brdf) * 
+                analytic_light_value += hadamard(spot_light->intensity_ * attenuation / (dist * dist), brdf) * 
                                      std::max(0.0, dot(hit_normal, light_dir));
             }
         }
@@ -350,145 +448,137 @@ Vec3f Scene::RecursiveBRDFPathTracingAlgorithm(
         if (!ShadowCheck(light_dir, std::numeric_limits<FP_PRECISION>::max())) {
             Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
-            total_light_value += hadamard(dir_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir));
+            analytic_light_value += hadamard(dir_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir));
         }
     }
 
-    // PATH TRACING - Indirect illumination
+    // STEP : INDIRECT ILLUMINATION AND NEXT-EVENT ESTIMATION
+    //
+    // Each iteration draws one BSDF direction and, when NEE is on, one explicit
+    // light sample. The two are separate estimators of the same quantity, so
+    // when MIS is enabled each is weighted by the balance heuristic; when it is
+    // not, exactly one of them is allowed to carry direct lighting (NEE if
+    // present, otherwise the BSDF path picking up emission at the emitter).
     if (can_recurse) {
         Vec3f tangent, bitangent;
         BuildOrthonormalBasis(hit_normal, tangent, bitangent);
-        
+
         for (int i = 0; i < sample_count; i++) {
+            // --- BSDF / hemisphere strategy ---------------------------------
             FP_PRECISION theta, phi, indirect_pdf;
-            
             if (settings.importance_sampling_enabled) {
                 cosine_hemisphere_sample(theta, phi, indirect_pdf);
             } else {
                 uniform_hemisphere_sample(theta, phi, indirect_pdf);
             }
 
-            FP_PRECISION sin_theta = std::sin(theta);
-            FP_PRECISION cos_theta = std::cos(theta);
-            Vec3f sample_dir = FastNormalize(tangent * (sin_theta * std::cos(phi)) + 
-                                              bitangent * (sin_theta * std::sin(phi)) + 
-                                              hit_normal * cos_theta);
-            Ray sample_ray = {ray.pixel_, intersection_point, sample_dir, ray.diff_, ray.time_};
-            
-            Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, sample_dir, hit_normal, KD, KS, 
-                                                        material_ptr->refraction_index_, material_ptr->absorption_index_);
-            FP_PRECISION cos_term = std::max(static_cast<FP_PRECISION>(0.0), dot(hit_normal, sample_dir));
-            
-            if (!std::isfinite(indirect_pdf) || indirect_pdf <= 1e-6) {
+            if (!std::isfinite(indirect_pdf) || indirect_pdf <= 1e-9) {
                 continue;
             }
-            
-            Vec3f new_throughput = hadamard(throughput, brdf) * cos_term / indirect_pdf;
-            
-            Vec3f sample_color = RecursiveBRDFPathTracingAlgorithm(sample_ray, inside_object_ptr, 
-                                                                    current_recursion, settings, new_throughput);
+
+            const FP_PRECISION sin_theta = std::sin(theta);
+            const FP_PRECISION cos_theta = std::cos(theta);
+            const Vec3f sample_dir = FastNormalize(tangent * (sin_theta * std::cos(phi)) +
+                                                   bitangent * (sin_theta * std::sin(phi)) +
+                                                   hit_normal * cos_theta);
+            Ray sample_ray = {ray.pixel_, intersection_point, sample_dir, ray.diff_, ray.time_};
+
+            const Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, sample_dir, hit_normal, KD, KS,
+                                                             material_ptr->refraction_index_, material_ptr->absorption_index_);
+            const FP_PRECISION cos_term = std::max(static_cast<FP_PRECISION>(0.0), dot(hit_normal, sample_dir));
+
+            // The child needs the pdf that produced its ray so that, if it lands
+            // on an emitter, it can form the MIS weight there. This is why the
+            // weight is applied at the emitter and not here: applying it to the
+            // whole recursive return would also scale the indirect light coming
+            // back from deeper bounces, which MIS has no business touching.
+            const Vec3f new_throughput = hadamard(throughput, brdf) * cos_term / indirect_pdf;
+            const PathState child_state{new_throughput, indirect_pdf, false};
+
+            Vec3f sample_color = RecursiveBRDFPathTracingAlgorithm(sample_ray, inside_object_ptr,
+                                                                   current_recursion, settings, child_state);
             Vec3f indirect_value = hadamard(sample_color, brdf) * cos_term / indirect_pdf;
-            
+
             if (!std::isfinite(indirect_value.x)) indirect_value.x = 0;
             if (!std::isfinite(indirect_value.y)) indirect_value.y = 0;
             if (!std::isfinite(indirect_value.z)) indirect_value.z = 0;
-            
+
             if (settings.sample_max_val > 0) {
                 indirect_value.x = std::min(indirect_value.x, settings.sample_max_val);
                 indirect_value.y = std::min(indirect_value.y, settings.sample_max_val);
                 indirect_value.z = std::min(indirect_value.z, settings.sample_max_val);
             }
 
-            Vec3f direct_value = {0, 0, 0};
-            if (settings.nee_enabled && !light_objects_.empty()) {
-                int light_idx = FastRandomInteger(light_objects_.size());
-                auto light_obj_casted = std::dynamic_pointer_cast<ObjectLightSource>(light_objects_[light_idx]);
-                if (light_obj_casted) {
-                    Vec3f sample_point, sample_normal;
-                    FP_PRECISION light_pdf;
-                    
-                    light_obj_casted->Sample(intersection_point, sample_point, sample_normal, light_pdf);
-                    light_pdf /= static_cast<FP_PRECISION>(light_objects_.size());
-                    
-                    if (std::isfinite(light_pdf) && light_pdf > 1e-6) {
-                        Vec3f light_dir = normalize(sample_point - intersection_point);
-                        FP_PRECISION light_dist = norm(sample_point - intersection_point);
-                        if (!ShadowCheck(light_dir, light_dist)) {
-                            Vec3f light_brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
-                                                                              material_ptr->refraction_index_, material_ptr->absorption_index_);
-                            direct_value = hadamard(light_obj_casted->radiance_, light_brdf) * 
-                                           std::max(0.0, dot(hit_normal, light_dir)) / light_pdf;
-                        }
-                    }
-                }
+            sampled_light_value += indirect_value;
+
+            // --- Light-sampling strategy (next-event estimation) ------------
+            if (!settings.nee_enabled || light_objects_.empty()) {
+                continue;
             }
-            
+
+            const int light_index = FastRandomInteger(static_cast<int>(light_objects_.size()));
+            const std::shared_ptr<BaseObject> &light_object = light_objects_[light_index];
+            auto emitter = std::dynamic_pointer_cast<ObjectLightSource>(light_object);
+            if (!emitter) continue;
+
+            Vec3f light_point, light_normal;
+            FP_PRECISION emitter_pdf = 0.0;
+            emitter->Sample(intersection_point, light_point, light_normal, emitter_pdf);
+            if (!std::isfinite(emitter_pdf) || emitter_pdf <= 1e-9) continue;
+
+            // Fold in the 1/N chance of having chosen this emitter. The MIS
+            // weight below must see the SAME combined pdf, which is why both go
+            // through LightSamplingPdf rather than applying 1/N by hand here.
+            const FP_PRECISION light_pdf =
+                emitter_pdf / static_cast<FP_PRECISION>(light_objects_.size());
+
+            const Vec3f light_dir = normalize(light_point - intersection_point);
+            const FP_PRECISION light_dist = norm(light_point - intersection_point);
+            // Shorten slightly: the emitter is in the BVH, so a shadow ray aimed
+            // exactly at it can register the light as its own occluder and
+            // speckle the result.
+            if (ShadowCheck(light_dir, light_dist * (1.0 - 1e-4))) continue;
+
+            const Vec3f light_brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS,
+                                                                   material_ptr->refraction_index_, material_ptr->absorption_index_);
+            const FP_PRECISION light_cos = std::max(static_cast<FP_PRECISION>(0.0), dot(hit_normal, light_dir));
+            Vec3f direct_value = hadamard(emitter->radiance_, light_brdf) * light_cos / light_pdf;
+
+            if (settings.mis_balance_enabled) {
+                // Balance heuristic for the light-sampling strategy, evaluated
+                // for the direction that was actually sampled here.
+                const FP_PRECISION bsdf_pdf_for_light_dir =
+                    hemisphere_pdf(light_cos, settings.importance_sampling_enabled);
+                const FP_PRECISION denominator = light_pdf + bsdf_pdf_for_light_dir;
+                direct_value = denominator > 1e-9
+                                   ? direct_value * (light_pdf / denominator)
+                                   : direct_value;
+            }
+
             if (!std::isfinite(direct_value.x)) direct_value.x = 0;
             if (!std::isfinite(direct_value.y)) direct_value.y = 0;
             if (!std::isfinite(direct_value.z)) direct_value.z = 0;
-            
+
             if (settings.sample_max_val > 0) {
                 direct_value.x = std::min(direct_value.x, settings.sample_max_val);
                 direct_value.y = std::min(direct_value.y, settings.sample_max_val);
                 direct_value.z = std::min(direct_value.z, settings.sample_max_val);
             }
 
-            if (settings.mis_balance_enabled) {
-                FP_PRECISION light_hit = std::numeric_limits<FP_PRECISION>::max();
-                Vec3f light_normal;
-                Vec2f light_tex;
-                Vec3f light_tan, light_bitan;
-                Vec2f light_uv_u, light_uv_v;
-                std::shared_ptr<BaseObject> light_hit_obj = nullptr;
-                
-                for (const auto& light_object : light_objects_) {
-                    FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
-                    Vec3f temp_normal;
-                    if (light_object->Intersect(sample_ray, temp_hit, temp_normal, light_tex, light_uv_u, light_uv_v, 
-                                                light_tan, light_bitan, false) && light_hit > temp_hit) {
-                        light_hit = temp_hit;
-                        light_hit_obj = light_object;
-                        light_normal = temp_normal;
-                    }
-                }
-                
-                bool hit_light_frontface = light_hit_obj && !ShadowCheck(sample_dir, light_hit);
-                
-                if (hit_light_frontface) {
-                    auto hit_light = std::dynamic_pointer_cast<ObjectLightSource>(light_hit_obj);
-                    if (hit_light) {
-                        Vec3f sp, sn;
-                        FP_PRECISION light_pdf;
-                        hit_light->Sample(intersection_point, sp, sn, light_pdf);
-                        
-                        FP_PRECISION weight_sum = indirect_pdf + light_pdf;
-                        if (std::isfinite(weight_sum) && weight_sum > 1e-6) {
-                            total_light_value += indirect_value * (indirect_pdf / weight_sum);
-                            total_light_value += direct_value * (light_pdf / weight_sum);
-                        } else {
-                            total_light_value += indirect_value;
-                            total_light_value += direct_value;
-                        }
-                    } else {
-                        total_light_value += indirect_value;
-                        total_light_value += direct_value;
-                    }
-                } else {
-                    total_light_value += indirect_value;
-                    total_light_value += direct_value;
-                }
-            } else {
-                total_light_value += indirect_value;
-                total_light_value += direct_value;
-            }
+            sampled_light_value += direct_value;
         }
     }
 
-    Vec3f result = total_light_value / static_cast<FP_PRECISION>(sample_count);
-    
+    // Analytic lights were evaluated once; the sampled terms were evaluated
+    // sample_count times. Only the latter is averaged.
+    Vec3f result = analytic_light_value +
+                   sampled_light_value / static_cast<FP_PRECISION>(sample_count);
+
+    result = result * rr_scale;
+
     if (!std::isfinite(result.x)) result.x = 0;
     if (!std::isfinite(result.y)) result.y = 0;
     if (!std::isfinite(result.z)) result.z = 0;
-    
+
     return result;
 }

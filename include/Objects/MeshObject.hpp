@@ -17,7 +17,7 @@ class MeshObject : public BaseObject {
              const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip);
 
   bool Intersect(
-      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords,  Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
+      const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords,  Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
       bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 
@@ -26,6 +26,12 @@ class MeshObject : public BaseObject {
   void Preprocess(bool transform_enabled = true) override;
 
   std::vector<std::shared_ptr<TriangleObject>> triangle_objects_;
-  
+
+  // Object-space bounds, before this mesh's own transform is applied.
+  // MeshInstanceObject needs these: an instance applies its own transform to the
+  // base geometry, so it has to start from the untransformed corners.
+  Vec3f local_min_point_;
+  Vec3f local_max_point_;
+
   ArrayBVH triangle_bvh_;
 };

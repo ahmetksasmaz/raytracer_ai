@@ -14,7 +14,7 @@ MeshInstanceObject::MeshInstanceObject(std::shared_ptr<BaseMaterial> material, s
       mesh_object_(mesh_object) {};
 
 bool MeshInstanceObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
+    const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -43,10 +43,6 @@ bool MeshInstanceObject::Intersect(
     Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
-    Vec3f normalized_diff = normalize(diff);
-    ray.direction_.x = normalized_diff.x;
-    ray.direction_.y = normalized_diff.y;
-    ray.direction_.z = normalized_diff.z;
     intersection_normal = normalize(transform_matrix_ ^ temp_intersection_normal);
   }
 
@@ -54,11 +50,13 @@ bool MeshInstanceObject::Intersect(
 }
 
 void MeshInstanceObject::Preprocess(bool) {
-    Vec3f min_point = mesh_object_->min_point_;
-    Vec3f max_point = mesh_object_->max_point_;
-
-    min_point = mesh_object_->inverse_transform_matrix_ * min_point;
-    max_point = mesh_object_->inverse_transform_matrix_ * max_point;
+    // Start from the base mesh's OBJECT-space bounds. The previous code took the
+    // base's world-space min/max and pushed just those two points through the
+    // base's inverse transform -- but corners of an axis-aligned box do not map
+    // to corners of the inverse box under rotation, so the recovered bounds were
+    // wrong and parts of a rotated instance were culled away.
+    Vec3f min_point = mesh_object_->local_min_point_;
+    Vec3f max_point = mesh_object_->local_max_point_;
 
     FP_PRECISION x_min = min_point.x;
     FP_PRECISION y_min = min_point.y;

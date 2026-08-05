@@ -1,6 +1,8 @@
 #include "Scene.hpp"
 
-static constexpr FP_PRECISION kGaussianKernelSigma = 0.1f;
+// In pixels -- see ExtendedGaussianFilterAlgorithm.cpp for why 0.1 was far too
+// narrow to be usable.
+static constexpr FP_PRECISION kGaussianKernelSigma = 0.5;
 static constexpr int kGaussianKernelSize = 3;
 
 void Scene::GaussianFilterAlgorithm(Vec5f* image_sampled_data, int image_width,
@@ -14,7 +16,11 @@ void Scene::GaussianFilterAlgorithm(Vec5f* image_sampled_data, int image_width,
         Vec5f packet = image_sampled_data[(i * image_width + j) * sample + k];
         Vec3f pixel_value = Vec3f{packet.x, packet.y, packet.z};
         Vec2f diff = Vec2f{packet.w, packet.t};
-        FP_PRECISION weight = gaussian_kernel_weight(diff, kGaussianKernelSigma);
+        // Centre the in-pixel offset; this filter only ever looks at the pixel's
+        // own samples, so there is no neighbour offset to add.
+        const Vec2f centered_offset{diff.x - 0.5, diff.y - 0.5};
+        FP_PRECISION weight =
+            gaussian_kernel_weight(centered_offset, kGaussianKernelSigma);
         sum_of_weights += weight;
         sum += pixel_value * weight;
       }

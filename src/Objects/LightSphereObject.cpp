@@ -3,11 +3,13 @@
 #include <cmath>
 
 bool LightSphereObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool, bool) const {
+    const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool, bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
-    Vec3f transformed_ray_direction =
-      normalize(inverse_transpose_transform_matrix_ * ray.direction_);
+  // See SphereObject::Intersect -- directions use the inverse's linear part,
+  // not the inverse-transpose (which is the normal transform).
+  Vec3f transformed_ray_direction =
+      normalize(inverse_transform_matrix_ ^ ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
@@ -31,10 +33,6 @@ bool LightSphereObject::Intersect(
       Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
       Vec3f diff = global_point - ray.origin_;
       t_hit = norm(diff);
-      Vec3f normalized_diff = normalize(diff);
-      ray.direction_.x = normalized_diff.x;
-      ray.direction_.y = normalized_diff.y;
-      ray.direction_.z = normalized_diff.z;
       intersection_normal = approximated_normal;
 
       FP_PRECISION x = local_point.x - center_.x;
@@ -116,71 +114,70 @@ void LightSphereObject::Preprocess(bool) {
     InitializeSelf(min_point, max_point);
 }
 
+// Uniform sampling of the cone that this sphere subtends from the shading point.
+//
+// Done entirely in WORLD space. The previous version built the cone in object
+// space and returned an object-space solid-angle pdf, then transformed the
+// direction out to world space -- so under any scaling the pdf described a
+// different cone than the one actually sampled.
 void LightSphereObject::Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const {
-  Vec3f local_intersection_point =
-      inverse_transform_matrix_ * (intersection_point - motion_blur_);
-  Vec3f direction_to_center = normalize(center_ - local_intersection_point);
-  FP_PRECISION distance_to_center =
-      norm(center_ - local_intersection_point);
-  FP_PRECISION sin_theta_max = radius_ / distance_to_center;
-  if(radius_ > distance_to_center){
-      sin_theta_max = 1.0 - 1e-4;
-  }
-  FP_PRECISION cos_theta_max = sqrt(1 - sin_theta_max * sin_theta_max);
-  FP_PRECISION r1 = FastRandom();
-  FP_PRECISION r2 = FastRandom();
-  FP_PRECISION theta = acos(1 - r1 + r1 * cos_theta_max);
-  FP_PRECISION phi = 2 * M_PI * r2;
-  // Find orthonormal basis
-  Vec3f normal_prime = direction_to_center;
-  int min_index = 0;
-  FP_PRECISION min_value = std::abs(direction_to_center.x);
-  if (std::abs(direction_to_center.y) < min_value)
-  {
-      min_value = std::abs(direction_to_center.y);
-      min_index = 1;
-  }
-  if (std::abs(direction_to_center.z) < min_value)
-  {
-      min_value = std::abs(direction_to_center.z);
-      min_index = 2;
-  }
-  switch (min_index)
-  {
-      case 0:
-          normal_prime = Vec3f{0.0f, direction_to_center.z, -direction_to_center.y};
-          break;
-      case 1:
-          normal_prime = Vec3f{direction_to_center.z, 0.0f, -direction_to_center.x};
-          break;
-      case 2:
-          normal_prime = Vec3f{direction_to_center.y, -direction_to_center.x, 0.0f};
-          break;
-  }
+  pdf = 0.0;
 
-  Vec3f tangent = normalize(cross(normal_prime, direction_to_center));
-  Vec3f bitangent = cross(direction_to_center, tangent);
+  const Vec3f center = WorldCenter();
+  const FP_PRECISION radius = WorldRadius();
+  const Vec3f to_center = center - intersection_point;
+  const FP_PRECISION distance = norm(to_center);
 
-  Vec3f direction_to_sample_normal = normalize(tangent * (std::sin(theta) * std::cos(phi)) +
-    bitangent * (std::sin(theta) * std::sin(phi)) +
-    direction_to_center * std::cos(theta));
-  
-  Vec3f local_target_point  = local_intersection_point + direction_to_sample_normal;
-  Vec3f global_target_point = transform_matrix_ * local_target_point + motion_blur_;
-  Vec3f global_direction_to_sample_point = normalize(global_target_point - intersection_point);
-  Ray sample_ray{Vec2i{0,0}, intersection_point, global_direction_to_sample_point, Vec2f{0,0}, 0.0f};
-  FP_PRECISION t_hit = std::numeric_limits<FP_PRECISION>::max();
-  Vec3f intersection_normal;
-  Vec2f tex_coords;
-  Vec2f hit_u_vector;
-  Vec2f hit_v_vector;
-  Intersect(sample_ray, t_hit, intersection_normal, tex_coords, hit_u_vector, hit_v_vector, tangent, bitangent, false, false);
-  
-  sample_point = sample_ray.origin_ + t_hit * sample_ray.direction_;
-  sample_normal = intersection_normal;
-  FP_PRECISION one_minus_cos = std::max(1 - cos_theta_max, static_cast<FP_PRECISION>(1e-6));
-  pdf = 1 / (2 * M_PI * one_minus_cos);
-  if (!std::isfinite(pdf) || pdf <= 0) {
-    pdf = 0;
-  }
+  // A shading point inside the emitter does not see a cone at all.
+  if (distance <= radius || distance < 1e-9) return;
+
+  const Vec3f w = to_center / distance;
+  const FP_PRECISION sin_theta_max = radius / distance;
+  const FP_PRECISION cos_theta_max =
+      std::sqrt(std::max(static_cast<FP_PRECISION>(0.0),
+                         1.0 - sin_theta_max * sin_theta_max));
+
+  const FP_PRECISION cos_theta = 1.0 - FastRandom() * (1.0 - cos_theta_max);
+  const FP_PRECISION sin_theta =
+      std::sqrt(std::max(static_cast<FP_PRECISION>(0.0), 1.0 - cos_theta * cos_theta));
+  const FP_PRECISION phi = 2.0 * M_PI * FastRandom();
+
+  Vec3f u, v;
+  BuildOrthonormalBasis(w, u, v);
+  const Vec3f direction = FastNormalize(u * (sin_theta * std::cos(phi)) +
+                                        v * (sin_theta * std::sin(phi)) +
+                                        w * cos_theta);
+
+  // Closest intersection of that direction with the sphere, solved directly.
+  // The old code called Intersect() and ignored its return value, so a grazing
+  // miss left t_hit at its sentinel and placed the sample point at ~1e308.
+  const Vec3f oc = intersection_point - center;
+  const FP_PRECISION b = dot(oc, direction);
+  const FP_PRECISION c = dot(oc, oc) - radius * radius;
+  const FP_PRECISION discriminant = std::max(static_cast<FP_PRECISION>(0.0), b * b - c);
+  const FP_PRECISION t = -b - std::sqrt(discriminant);
+  if (t <= 1e-9 || !std::isfinite(t)) return;
+
+  sample_point = intersection_point + direction * t;
+  sample_normal = FastNormalize(sample_point - center);
+  pdf = PdfSolidAngle(intersection_point, sample_point, sample_normal);
+}
+
+FP_PRECISION LightSphereObject::PdfSolidAngle(const Vec3f& reference_point,
+                                              const Vec3f&, const Vec3f&) const {
+  // Uniform over the subtended cone, so the density depends only on the solid
+  // angle of that cone -- the particular point on the sphere does not matter.
+  const FP_PRECISION radius = WorldRadius();
+  const FP_PRECISION distance = norm(WorldCenter() - reference_point);
+  if (distance <= radius || distance < 1e-9) return 0.0;
+
+  const FP_PRECISION sin_theta_max = radius / distance;
+  const FP_PRECISION cos_theta_max =
+      std::sqrt(std::max(static_cast<FP_PRECISION>(0.0),
+                         1.0 - sin_theta_max * sin_theta_max));
+  const FP_PRECISION solid_angle = 2.0 * M_PI * (1.0 - cos_theta_max);
+  if (solid_angle <= 1e-12) return 0.0;
+
+  const FP_PRECISION pdf = 1.0 / solid_angle;
+  return std::isfinite(pdf) && pdf > 0.0 ? pdf : 0.0;
 }

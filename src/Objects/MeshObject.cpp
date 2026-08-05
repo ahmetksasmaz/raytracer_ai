@@ -163,7 +163,7 @@ MeshObject::MeshObject(std::shared_ptr<BaseMaterial> material, std::vector<std::
 }
 
 bool MeshObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
+    const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -192,10 +192,6 @@ bool MeshObject::Intersect(
     Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
-    Vec3f normalized_diff = normalize(diff);
-    ray.direction_.x = normalized_diff.x;
-    ray.direction_.y = normalized_diff.y;
-    ray.direction_.z = normalized_diff.z;
 
     intersection_normal = normalize(transform_matrix_ ^ temp_intersection_normal);
   }
@@ -207,9 +203,12 @@ void MeshObject::Preprocess(bool) {
   FP_PRECISION x_min = std::numeric_limits<FP_PRECISION>::max();
   FP_PRECISION y_min = std::numeric_limits<FP_PRECISION>::max();
   FP_PRECISION z_min = std::numeric_limits<FP_PRECISION>::max();
-  FP_PRECISION x_max = std::numeric_limits<FP_PRECISION>::min();
-  FP_PRECISION y_max = std::numeric_limits<FP_PRECISION>::min();
-  FP_PRECISION z_max = std::numeric_limits<FP_PRECISION>::min();
+  // lowest(), not min(): for a floating point type min() is the smallest
+  // POSITIVE normal value, so seeding with it stretched the box out to the
+  // origin for any mesh living entirely in negative coordinates.
+  FP_PRECISION x_max = std::numeric_limits<FP_PRECISION>::lowest();
+  FP_PRECISION y_max = std::numeric_limits<FP_PRECISION>::lowest();
+  FP_PRECISION z_max = std::numeric_limits<FP_PRECISION>::lowest();
 
   for (const auto& triangle_object : triangle_objects_) {
     triangle_object->Preprocess(false);
@@ -221,6 +220,9 @@ void MeshObject::Preprocess(bool) {
     y_max = std::max(y_max, triangle_object->max_point_.y);
     z_max = std::max(z_max, triangle_object->max_point_.z);
   }
+    local_min_point_ = Vec3f{x_min, y_min, z_min};
+    local_max_point_ = Vec3f{x_max, y_max, z_max};
+
     Vec3f p0 = Vec3f{x_min, y_min, z_min};
     Vec3f p1 = Vec3f{x_max, y_min, z_min};
     Vec3f p2 = Vec3f{x_min, y_max, z_min};

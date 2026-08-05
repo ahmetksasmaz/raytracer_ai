@@ -29,8 +29,16 @@ class BaseObject : public std::enable_shared_from_this<BaseObject> {
     max_point_ = max_point;
   }
 
+  // t_hit is a distance along the ray, measured in world space. Implementations
+  // intersect in object space and convert back via
+  // t_hit = |transform * local_point - ray.origin|, which is a valid parameter
+  // for the original ray as long as ray.direction_ is unit length (every ray in
+  // the renderer is). Implementations used to also overwrite ray.direction_
+  // with the normalized hit vector; that was a no-op compensating for a wrong
+  // direction transform in SphereObject, and taking a mutable Ray& forced the
+  // BVH to copy a Ray per primitive test.
   virtual bool Intersect(
-      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
+      const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
       bool backface_culling = true, bool stop_at_any_hit = false) const = 0;
 
   std::shared_ptr<BaseMaterial> material_;

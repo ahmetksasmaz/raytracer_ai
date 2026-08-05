@@ -1,0 +1,55 @@
+{
+  "__comment": "PLANE OCCLUSION, part 2 of 2. Identical to plane_shadow except the infinite Plane is replaced by a 100x100 quad mesh at the same height and orientation. Mesh geometry is in the BVH and therefore does occlude, so this is the reference for what plane_shadow must look like.",
+  "Scene": {
+    "BackgroundColor": "0 0 0",
+    "ShadowRayEpsilon": "0.001",
+    "Cameras": {
+      "Camera": {
+        "_id": "1",
+        "_type": "lookAt",
+        "Position": "0 -0.5 4",
+        "GazePoint": "0 -0.5 0",
+        "Up": "0 1 0",
+        "FovY": "40",
+        "NearDistance": "1",
+        "ImageResolution": "64 64",
+        "NumSamples": "1",
+        "MaxRecursionDepth": "1",
+        "ImageName": "quad_shadow.exr"
+      }
+    },
+    "Lights": {
+      "PointLight": {
+        "_id": "1",
+        "Position": "0 6 0",
+        "Intensity": "200 200 200"
+      }
+    },
+    "Materials": {
+      "Material": {
+        "_id": "1",
+        "AmbientReflectance": "0 0 0",
+        "DiffuseReflectance": "0.8 0.8 0.8",
+        "SpecularReflectance": "0 0 0"
+      }
+    },
+    "VertexData": {
+      "_data": "0 -0.5 0 -50 1 -50 50 1 -50 50 1 50 -50 1 50"
+    },
+    "Objects": {
+      "Sphere": {
+        "_id": "1",
+        "Material": "1",
+        "Center": "1",
+        "Radius": "0.6"
+      },
+      "Mesh": {
+        "_id": "2",
+        "Material": "1",
+        "Faces": {
+          "_data": "2 5 4 2 4 3"
+        }
+      }
+    }
+  }
+}

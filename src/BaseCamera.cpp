@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 BaseCamera::BaseCamera(
@@ -32,7 +33,7 @@ BaseCamera::BaseCamera(
       mem_num_samples_(num_samples ? num_samples : 1),
       focus_distance_(focus_distance),
       aperture_size_(aperture_size),
-      aperture_type_(ApertureType::kDefault),
+      aperture_type_(aperture_type),
       max_recursion_depth_(max_recursion_depth),
       min_recursion_depth_(min_recursion_depth),
       path_tracing_enabled_(path_tracing_enabled),
@@ -253,6 +254,15 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
     }
   } else {
     std::vector<Vec2f> samples = pixel_sampling_algorithm_(num_samples_);
+    // The sample buffer is sized for exactly mem_num_samples_ entries per pixel,
+    // so a sampler returning more would overrun it. Every 2D sampler in
+    // Helper.hpp promises exactly num_samples; this catches a violation loudly
+    // instead of corrupting the heap.
+    if (samples.size() > num_samples_) {
+      throw std::runtime_error(
+          "pixel sampler returned more samples than requested -- see the "
+          "sampler contract in Helper.hpp");
+    }
     for (int i = 0; i < samples.size(); i++) {
       FP_PRECISION su = (pixel_coordinate.x + samples[i].x) * (r_ - l_) / image_width_;
       FP_PRECISION sv =
@@ -326,7 +336,25 @@ void BaseCamera::ExportView() {
         base_filename + tonemapping->GetFilename(), image_width_, image_height_, tonemapping->GetTonemappedImageDataReference().data());
     }
   }
+  else if (!tone_mappings_.empty()) {
+    // The camera asked for tone mapping and the output is LDR. Previously the
+    // tone mapped result was computed and then thrown away here, and the raw
+    // radiance was clamped to 0-255 instead -- so a path traced scene written to
+    // .png ignored its own Tonemap block entirely.
+    if (tone_mappings_.size() > 1) {
+      std::cerr << "Warning: " << tone_mappings_.size()
+                << " tone mappings declared but '" << image_name_
+                << "' is a single LDR image; using the first. Write to .exr to "
+                   "get one file per tone mapping."
+                << std::endl;
+    }
+    ldr_exporter_->Export(
+        image_name_, image_width_, image_height_,
+        tone_mappings_.front()->GetTonemappedImageDataReference().data());
+  }
   else{
+    // No tone mapping requested: keep the historical behaviour of clamping raw
+    // values, which is what LDR ray traced scenes are authored against.
     unsigned char * image_data_uchar = new unsigned char[image_width_ * image_height_ * 3];
 
     for(int i = 0; i < image_width_ * image_height_; i++){

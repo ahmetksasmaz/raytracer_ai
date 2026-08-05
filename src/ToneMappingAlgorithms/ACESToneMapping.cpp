@@ -46,22 +46,7 @@ void ACESToneMapping::ApplyToneMapping(Vec3f* image_data){
         }
     }
     
-    for(int i = 0; i < width_ * height_; i++){
-        FP_PRECISION r = image_data[i].x;
-        FP_PRECISION g = image_data[i].y;
-        FP_PRECISION b = image_data[i].z;
-        FP_PRECISION L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        FP_PRECISION r_coeff = r / L;
-        FP_PRECISION g_coeff = g / L;
-        FP_PRECISION b_coeff = b / L;
-        FP_PRECISION saturated_r = Lw[i] * pow(r_coeff, saturation_);
-        FP_PRECISION saturated_g = Lw[i] * pow(g_coeff, saturation_);
-        FP_PRECISION saturated_b = Lw[i] * pow(b_coeff, saturation_);
-        FP_PRECISION gamma_corrected_r = 255 * pow(std::min(std::max(saturated_r, 0.0), 1.0), 1.0 / gamma_);
-        FP_PRECISION gamma_corrected_g = 255 * pow(std::min(std::max(saturated_g, 0.0), 1.0), 1.0 / gamma_);
-        FP_PRECISION gamma_corrected_b = 255 * pow(std::min(std::max(saturated_b, 0.0), 1.0), 1.0 / gamma_);
-        tonemapped_image_data_[i * 3 + 0] = (unsigned char)(gamma_corrected_r);
-        tonemapped_image_data_[i * 3 + 1] = (unsigned char)(gamma_corrected_g);
-        tonemapped_image_data_[i * 3 + 2] = (unsigned char)(gamma_corrected_b);
+    for (int i = 0; i < width_ * height_; i++) {
+        WriteTonemappedPixel(i, image_data[i], Lw[i]);
     }
 }

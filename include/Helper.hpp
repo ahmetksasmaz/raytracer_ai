@@ -53,17 +53,14 @@ inline int FastRandomInteger(int max) {
   return ThreadLocalRandomNumberGenerator.NextInteger(max);
 }
 
+// The old implementation guarded the bit-hack branch with
+// `#if FP_PRECISION == double`, which compares two identifiers the preprocessor
+// does not know -- both evaluate to 0, so the condition was always true and the
+// bit-hack was dead code. It would have been undefined behaviour on a double
+// anyway (it type-puns through int), and on any modern target rsqrt in hardware
+// beats it. Kept as a named function because call sites read better with it.
 inline FP_PRECISION FastInverseSquareRoot(FP_PRECISION x) {
-#if FP_PRECISION == double
   return 1.0 / std::sqrt(x);
-#else
-  float xhalf = 0.5f * x;
-  int i = *(int*)&x;
-  i = 0x5f3759df - (i >> 1);
-  x = *(float*)&i;
-  x = x * (1.5f - xhalf * x * x);
-  return x;
-#endif
 }
 
 inline Vec3f FastNormalize(Vec3f a) {
@@ -86,6 +83,14 @@ inline void BuildOrthonormalBasis(const Vec3f& n, Vec3f& tangent, Vec3f& bitange
 
 const Mat4x4f IDENTITY_MATRIX = {
     {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
+
+// Repeat-wrap an index into [0, extent). Unlike a bare `%` this copes with
+// negative inputs (C++ keeps the sign of the dividend) and a zero extent.
+inline int WrapIndex(int v, int extent) {
+  if (extent <= 0) return 0;
+  const int r = v % extent;
+  return r < 0 ? r + extent : r;
+}
 
 inline Vec3f cross(Vec3f a, Vec3f b) {
   return Vec3f{a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z,
@@ -436,10 +441,15 @@ inline Mat4x4f parse_transformation(std::string transformation_text,
   return result;
 }
 
+// Fisher-Yates. The index has to be drawn from the REMAINING range [i, size);
+// drawing from the whole range every time produces a non-uniform permutation,
+// which biases the stratification the samplers below are built to provide.
 template <typename T>
 inline void shuffle(std::vector<T>& samples) {
-  for (size_t i = 0; i < samples.size(); i++) {
-    size_t j = FastRandomInteger(static_cast<int>(samples.size()));
+  if (samples.size() < 2) return;
+  for (size_t i = 0; i + 1 < samples.size(); i++) {
+    const size_t remaining = samples.size() - i;
+    const size_t j = i + static_cast<size_t>(FastRandomInteger(static_cast<int>(remaining)));
     std::swap(samples[i], samples[j]);
   }
 }
@@ -454,12 +464,21 @@ inline std::vector<FP_PRECISION> uniform_1d(int num_samples) {
   return samples;
 }
 
+// CONTRACT: every 2D sampler returns exactly num_samples samples.
+//
+// uniform_2d, jittered_2d and uniform_random_2d used to return num_samples
+// SQUARED. Nothing broke only because the camera is wired to Hammersley, which
+// returns num_samples -- switching that one line would have written n^2 samples
+// into an n-slot buffer. The grid samplers now stratify over a ceil(sqrt(n))
+// grid and hand back exactly n.
 inline std::vector<Vec2f> uniform_2d(int num_samples) {
   std::vector<Vec2f> samples;
-  samples.reserve(num_samples * num_samples);
-  for (int i = 0; i < num_samples; i++) {
-    for (int j = 0; j < num_samples; j++) {
-      samples.push_back(Vec2f{(FP_PRECISION)i / num_samples, (FP_PRECISION)j / num_samples});
+  if (num_samples <= 0) return samples;
+  samples.reserve(num_samples);
+  const int side = static_cast<int>(std::ceil(std::sqrt((double)num_samples)));
+  for (int i = 0; i < side && (int)samples.size() < num_samples; i++) {
+    for (int j = 0; j < side && (int)samples.size() < num_samples; j++) {
+      samples.push_back(Vec2f{(FP_PRECISION)i / side, (FP_PRECISION)j / side});
     }
   }
   shuffle(samples);
@@ -478,14 +497,12 @@ inline std::vector<FP_PRECISION> uniform_random_1d(int num_samples) {
 
 inline std::vector<Vec2f> uniform_random_2d(int num_samples) {
   std::vector<Vec2f> samples;
-  samples.reserve(num_samples * num_samples);
+  if (num_samples <= 0) return samples;
+  samples.reserve(num_samples);
   for (int i = 0; i < num_samples; i++) {
-    for (int j = 0; j < num_samples; j++) {
-      samples.push_back(Vec2f{FastRandom(), FastRandom()});
-    }
+    samples.push_back(Vec2f{FastRandom(), FastRandom()});
   }
-  shuffle(samples);
-  return samples;
+  return samples;  // already independent; shuffling adds nothing
 }
 
 inline std::vector<FP_PRECISION> jittered_1d(int num_samples) {
@@ -500,11 +517,13 @@ inline std::vector<FP_PRECISION> jittered_1d(int num_samples) {
 
 inline std::vector<Vec2f> jittered_2d(int num_samples) {
   std::vector<Vec2f> samples;
-  samples.reserve(num_samples * num_samples);
-  for (int i = 0; i < num_samples; i++) {
-    for (int j = 0; j < num_samples; j++) {
-      samples.push_back(Vec2f{(i + FastRandom()) / num_samples,
-                              (j + FastRandom()) / num_samples});
+  if (num_samples <= 0) return samples;
+  samples.reserve(num_samples);
+  const int side = static_cast<int>(std::ceil(std::sqrt((double)num_samples)));
+  for (int i = 0; i < side && (int)samples.size() < num_samples; i++) {
+    for (int j = 0; j < side && (int)samples.size() < num_samples; j++) {
+      samples.push_back(Vec2f{(i + FastRandom()) / side,
+                              (j + FastRandom()) / side});
     }
   }
   shuffle(samples);
@@ -513,9 +532,10 @@ inline std::vector<Vec2f> jittered_2d(int num_samples) {
 
 inline std::vector<Vec2f> multi_jittered_2d(int num_samples) {
   std::vector<Vec2f> samples;
-  int n = static_cast<int>(sqrt(num_samples));
-  samples.reserve(n * n);
-  FP_PRECISION subcell_width = 1.0 / num_samples;
+  if (num_samples <= 0) return samples;
+  samples.reserve(num_samples);
+  const int n = std::max(1, static_cast<int>(std::sqrt((double)num_samples)));
+  const FP_PRECISION subcell_width = 1.0 / (n * n);
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       samples.push_back(
@@ -523,6 +543,11 @@ inline std::vector<Vec2f> multi_jittered_2d(int num_samples) {
                 (j * n + i + FastRandom()) * subcell_width});
     }
   }
+  // n*n rarely equals num_samples exactly; top up so the contract holds.
+  while ((int)samples.size() < num_samples) {
+    samples.push_back(Vec2f{FastRandom(), FastRandom()});
+  }
+  samples.resize(num_samples);
   shuffle(samples);
   return samples;
 }
@@ -564,15 +589,30 @@ inline std::vector<Vec2f> halton_2d(int num_samples) {
   return samples;
 }
 
-inline FP_PRECISION gaussian_kernel_weight(Vec2f diff, FP_PRECISION sigma) {
-  FP_PRECISION x_centered = diff.x - 0.5;
-  FP_PRECISION y_centered = diff.y - 0.5;
+// Gaussian reconstruction weight for a sample sitting `centered_offset` PIXELS
+// away from the centre of the pixel being reconstructed.
+//
+// The offset arrives already centred. This function used to subtract 0.5
+// internally, which is only correct for a sample inside the pixel itself -- a
+// sample from a neighbouring pixel needs that neighbour's integer offset added
+// as well, and the caller is the only one that knows it.
+inline FP_PRECISION gaussian_kernel_weight(Vec2f centered_offset, FP_PRECISION sigma) {
+  const FP_PRECISION exponent =
+      -(centered_offset.x * centered_offset.x + centered_offset.y * centered_offset.y) /
+      (2 * sigma * sigma);
+  return std::exp(exponent) / (2 * M_PI * sigma * sigma);
+}
 
-  FP_PRECISION exponent = -(x_centered * x_centered + y_centered * y_centered) /
-                   (2 * sigma * sigma);
-  FP_PRECISION weight = std::exp(exponent) / (2 * M_PI * sigma * sigma);
-
-  return weight;
+// Solid-angle pdf of the hemisphere sampler currently in use.
+//
+// This is the SINGLE SOURCE OF TRUTH for that pdf. The sampling routines below
+// return it, and MIS weighting recomputes it for directions that were NOT drawn
+// this way (a light-sampled direction still needs "what would the BSDF strategy
+// have given this?"). If the two ever drift apart, MIS produces wrong weights
+// silently -- no crash, no NaN, just a subtly wrong image. Hence one formula.
+inline FP_PRECISION hemisphere_pdf(FP_PRECISION cos_theta, bool importance_sampling) {
+  if (cos_theta <= 0.0) return 0.0;
+  return importance_sampling ? cos_theta / M_PI : 1.0 / (2.0 * M_PI);
 }
 
 inline void uniform_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP_PRECISION& pdf) {
@@ -581,7 +621,7 @@ inline void uniform_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP
 
   theta = std::acos(u1);
   phi = 2 * M_PI * u2;
-  pdf = 1.0 / (2.0 * M_PI);
+  pdf = hemisphere_pdf(std::cos(theta), false);
 }
 
 inline void cosine_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP_PRECISION& pdf) {
@@ -590,6 +630,7 @@ inline void cosine_hemisphere_sample(FP_PRECISION& theta, FP_PRECISION& phi, FP_
 
   theta = std::asin(std::sqrt(u1));
   phi = 2 * M_PI * u2;
-  FP_PRECISION cos_theta = std::cos(theta);
-  pdf = std::max(cos_theta, static_cast<FP_PRECISION>(1e-6)) / M_PI;
+  // No clamping here: the pdf must match hemisphere_pdf exactly. Callers skip
+  // samples whose pdf is degenerate.
+  pdf = hemisphere_pdf(std::cos(theta), true);
 }

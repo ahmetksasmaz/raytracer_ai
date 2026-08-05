@@ -18,11 +18,15 @@ class LightMeshObject : public BaseObject, public ObjectLightSource {
              const Mat4x4f& transform_matrix, RawScalingFlip scaling_flip, Vec3f radiance);
 
   bool Intersect(
-      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords,  Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
+      const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords,  Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
       bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 
   virtual void Sample(const Vec3f& intersection_point, Vec3f &sample_point, Vec3f& sample_normal, FP_PRECISION &pdf) const override;
+
+  virtual FP_PRECISION PdfSolidAngle(const Vec3f& reference_point,
+                                     const Vec3f& light_point,
+                                     const Vec3f& light_normal) const override;
 
   virtual ~LightMeshObject() = default;
 

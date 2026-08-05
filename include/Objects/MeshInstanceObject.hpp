@@ -12,7 +12,7 @@ class MeshInstanceObject : public BaseObject {
                      RawScalingFlip scaling_flip);
 
   bool Intersect(
-      Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, 
+      const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, 
       Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling = true,
       bool stop_at_any_hit = false) const override;
 

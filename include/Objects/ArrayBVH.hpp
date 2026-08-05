@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <memory>
 #include <limits>
+#include <stdexcept>
 #include "../extern/parser.h"
 #include "Ray.hpp"
 #include "Helper.hpp"
@@ -192,9 +193,7 @@ int ArrayBVH::Intersect(const Ray& ray,
                 Vec2f temp_tex_coords, temp_u, temp_v;
                 Vec3f temp_tangent, temp_bitangent;
                 
-                Ray ray_copy = ray;
-                
-                if (primitives[primary_index]->Intersect(ray_copy, temp_t, temp_normal, temp_tex_coords,
+                if (primitives[primary_index]->Intersect(ray, temp_t, temp_normal, temp_tex_coords,
                                                     temp_u, temp_v, temp_tangent, temp_bitangent,
                                                     backface_culling, stop_at_any_hit)) {
                     if (temp_t < t_hit) {
@@ -214,10 +213,17 @@ int ArrayBVH::Intersect(const Ray& ray,
                 }
             }
         } else {
-            if (stack_pointer + 2 <= STACK_SIZE) {
-                stack[stack_pointer++] = node.RightChild();
-                stack[stack_pointer++] = node.LeftChild();
+            // Median splitting keeps depth at about log2(N), so 128 is far more
+            // than any real scene needs. Silently dropping both children on
+            // overflow would corrupt every subsequent intersection instead of
+            // reporting a problem, so fail loudly if it ever happens.
+            if (stack_pointer + 2 > STACK_SIZE) {
+                throw std::runtime_error(
+                    "ArrayBVH: traversal stack overflow -- BVH is deeper than "
+                    "STACK_SIZE, intersections would be silently missed");
             }
+            stack[stack_pointer++] = node.RightChild();
+            stack[stack_pointer++] = node.LeftChild();
         }
     }
     
