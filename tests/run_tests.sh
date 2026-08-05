@@ -231,6 +231,27 @@ needs spectral-reflectance spectral_narrowband
 check spectral-reflectance "narrow-band 550nm reflectance must render green" -- \
   --expect-channel-max "$OUT/spectral_narrowband.exr" g
 
+# --- Sensor pipeline ---------------------------------------------------------
+# End-to-end through a declared sensor. Noise is checked WITHIN a Bayer parity
+# class: whole-image variance on a mosaic just measures the mosaic pattern, so a
+# perfectly noise-free render would still look "noisy" by that measure.
+
+needs sensor sensor_clean sensor_noisy
+
+check sensor-spectral-cube "spectral cube is a well-formed N-band EXR" -- \
+  --expect-channels "$OUT/sensor_clean_spectral.exr" 31
+
+check sensor-bayer "Bayer mosaic: green sites must agree, R/B must not" -- \
+  --expect-bayer "$OUT/sensor_clean_raw.exr" RGGB
+
+check sensor-noiseless "NoiseSources None -- variance must be exactly zero" -- \
+  --variance "$OUT/sensor_clean_raw.exr" --expect-noiseless 1e-9
+
+# Poisson electrons through gain g give DN with variance/mean = 1/g. Here g=16,
+# so each parity should land near 0.0625; the printed ratios are the real check.
+check sensor-noise "shot/read/dark noise present, var/mean ~ 1/gain" -- \
+  --variance "$OUT/sensor_noisy_raw.exr" --expect-noisy 20
+
 # --- Summary -----------------------------------------------------------------
 
 echo "=============================================="

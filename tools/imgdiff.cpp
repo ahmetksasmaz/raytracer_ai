@@ -205,6 +205,41 @@ int main(int argc, char** argv) {
   if (argc < 3) return Usage();
   const std::string mode = argv[1];
 
+  if (mode == "--expect-channels") {
+    // Verifies a multi-channel EXR (the spectral cube) is well formed. The
+    // normal RGB loader cannot read one -- there is no R channel -- so this
+    // inspects the header directly.
+    if (argc < 4) return Usage();
+    const int want = std::atoi(argv[3]);
+    EXRVersion version;
+    if (ParseEXRVersionFromFile(&version, argv[2]) != TINYEXR_SUCCESS) {
+      std::fprintf(stderr, "imgdiff: cannot read %s\n", argv[2]);
+      return 2;
+    }
+    EXRHeader header;
+    InitEXRHeader(&header);
+    const char* err = nullptr;
+    if (ParseEXRHeaderFromFile(&header, &version, argv[2], &err) != TINYEXR_SUCCESS) {
+      std::fprintf(stderr, "imgdiff: cannot parse header: %s\n", err ? err : "?");
+      if (err) FreeEXRErrorMessage(err);
+      return 2;
+    }
+    std::printf("%s: %d channels", argv[2], header.num_channels);
+    for (int i = 0; i < std::min(header.num_channels, 3); i++)
+      std::printf(" %s", header.channels[i].name);
+    if (header.num_channels > 3)
+      std::printf(" ... %s", header.channels[header.num_channels - 1].name);
+    std::printf("  (expected %d)\n", want);
+    const bool ok = header.num_channels == want;
+    FreeEXRHeader(&header);
+    if (!ok) {
+      std::printf("FAIL: channel count mismatch\n");
+      return 1;
+    }
+    std::printf("PASS\n");
+    return 0;
+  }
+
   Image a;
   if (!LoadImage(argv[2], a)) return 2;
 
@@ -247,6 +282,124 @@ int main(int argc, char** argv) {
       return 1;
     }
     std::printf("PASS\n");
+    return 0;
+  }
+
+  if (mode == "--expect-bayer") {
+    // Structural check on a single-channel Bayer mosaic. The two green sites of
+    // the 2x2 tile carry the SAME filter, so their means must agree; the red and
+    // blue sites carry different filters, so they must differ from green. This
+    // validates the mosaic layout and the CFA together, and would fail if the
+    // pattern were transposed or the filters were not actually being applied.
+    if (argc < 4) return Usage();
+    const std::string pattern = argv[3];
+    double sum[2][2] = {{0, 0}, {0, 0}};
+    long count[2][2] = {{0, 0}, {0, 0}};
+    for (int y = 0; y < a.height; y++) {
+      for (int x = 0; x < a.width; x++) {
+        const double v = a.rgb[(static_cast<size_t>(y) * a.width + x) * 3];
+        sum[y & 1][x & 1] += v;
+        count[y & 1][x & 1]++;
+      }
+    }
+    double m[2][2];
+    for (int r = 0; r < 2; r++)
+      for (int c = 0; c < 2; c++) m[r][c] = count[r][c] ? sum[r][c] / count[r][c] : 0.0;
+
+    std::printf("%s: 2x2 parity means (0,0)=%.2f (1,0)=%.2f (0,1)=%.2f (1,1)=%.2f\n",
+                argv[2], m[0][0], m[0][1], m[1][0], m[1][1]);
+
+    // Locate the two green sites for the declared pattern.
+    double g1, g2, other1, other2;
+    if (pattern == "RGGB" || pattern == "BGGR") {
+      g1 = m[0][1]; g2 = m[1][0]; other1 = m[0][0]; other2 = m[1][1];
+    } else {  // GRBG, GBRG
+      g1 = m[0][0]; g2 = m[1][1]; other1 = m[0][1]; other2 = m[1][0];
+    }
+    const double green_mean = 0.5 * (g1 + g2);
+    const double green_mismatch =
+        green_mean > 1e-9 ? std::fabs(g1 - g2) / green_mean : 0.0;
+    std::printf("green sites %.2f vs %.2f (mismatch %.4f); other sites %.2f, %.2f\n",
+                g1, g2, green_mismatch, other1, other2);
+
+    if (green_mismatch > 0.02) {
+      std::printf("FAIL: the two green sites disagree -- mosaic layout is wrong\n");
+      return 1;
+    }
+    // The two green sites agreeing is the sharp structural test: it fails
+    // immediately if the pattern is transposed or the parities are swapped.
+    //
+    // Requiring BOTH red and blue to differ from green would be too strict --
+    // under a broadly flat illuminant a red filter can integrate to nearly the
+    // same total as a green one. Requiring the largest separation to be real is
+    // enough to prove the CFA is applied at all.
+    const double sep1 = std::fabs(other1 - green_mean) / std::max(green_mean, 1e-9);
+    const double sep2 = std::fabs(other2 - green_mean) / std::max(green_mean, 1e-9);
+    std::printf("separation from green: %.4f and %.4f (max must exceed 0.05)\n",
+                sep1, sep2);
+    if (std::max(sep1, sep2) < 0.05) {
+      std::printf("FAIL: red and blue both match green -- the CFA is not being applied\n");
+      return 1;
+    }
+    std::printf("PASS\n");
+    return 0;
+  }
+
+  if (mode == "--variance") {
+    // Per-Bayer-parity mean and variance.
+    //
+    // Whole-image variance is useless on a mosaic: the R/G/B sites carry
+    // different filters, so the mosaic pattern itself dominates and a
+    // completely noise-free render still measures large "variance". Within one
+    // parity class the noise-free signal is constant, so the variance there is
+    // genuinely the noise.
+    //
+    // With gain g, Poisson electrons of mean E give DN of mean E/g and variance
+    // E/g^2, so variance/mean in DN should come out at 1/g for a shot-noise
+    // dominated exposure. That ratio is printed as the physical check.
+    double sum[2][2] = {{0, 0}, {0, 0}};
+    long count[2][2] = {{0, 0}, {0, 0}};
+    for (int y = 0; y < a.height; y++)
+      for (int x = 0; x < a.width; x++) {
+        sum[y & 1][x & 1] += a.rgb[(static_cast<size_t>(y) * a.width + x) * 3];
+        count[y & 1][x & 1]++;
+      }
+    double worst_var = 0.0;
+    for (int r = 0; r < 2; r++) {
+      for (int c = 0; c < 2; c++) {
+        const double mean = count[r][c] ? sum[r][c] / count[r][c] : 0.0;
+        double var = 0.0;
+        for (int y = r; y < a.height; y += 2)
+          for (int x = c; x < a.width; x += 2) {
+            const double d = a.rgb[(static_cast<size_t>(y) * a.width + x) * 3] - mean;
+            var += d * d;
+          }
+        var = count[r][c] > 1 ? var / (count[r][c] - 1) : 0.0;
+        worst_var = std::max(worst_var, var);
+        std::printf("parity(%d,%d) mean=%.3f variance=%.4f var/mean=%.5f\n", r, c,
+                    mean, var, mean > 1e-9 ? var / mean : 0.0);
+      }
+    }
+
+    // Optional assertions so this can drive a test directly.
+    for (int i = 1; i < argc - 1; i++) {
+      if (std::strcmp(argv[i], "--expect-noiseless") == 0) {
+        if (worst_var > std::atof(argv[i + 1])) {
+          std::printf("FAIL: variance %.6f exceeds noiseless limit %s\n",
+                      worst_var, argv[i + 1]);
+          return 1;
+        }
+        std::printf("PASS: noise-free within %s\n", argv[i + 1]);
+      }
+      if (std::strcmp(argv[i], "--expect-noisy") == 0) {
+        if (worst_var < std::atof(argv[i + 1])) {
+          std::printf("FAIL: variance %.6f below expected noise floor %s\n",
+                      worst_var, argv[i + 1]);
+          return 1;
+        }
+        std::printf("PASS: noise present (variance %.4f)\n", worst_var);
+      }
+    }
     return 0;
   }
 

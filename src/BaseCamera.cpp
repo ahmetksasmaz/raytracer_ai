@@ -1,5 +1,7 @@
 #include "BaseCamera.hpp"
 
+#include "SensorOutput.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
@@ -373,7 +375,45 @@ void BaseCamera::ApplyToneMappings() {
   }
 }
 
+void BaseCamera::ExportSensorProducts() {
+  if (!has_sensor_) return;
+
+  const size_t pixel_count = static_cast<size_t>(image_width_) * image_height_;
+  const std::string base = image_name_.substr(0, image_name_.find_last_of("."));
+
+  // 1. Sensor-INDEPENDENT spectral radiance at the sensor plane, written before
+  //    the light meets the sensor. This is what lets one render be replayed
+  //    through any number of different sensors without re-rendering.
+  sensor_output::WriteSpectralCube(base + "_spectral.exr", image_width_,
+                                   image_height_, spectral_image_);
+
+  // 2. Mosaic the spectral image through this sensor.
+  std::vector<FP_PRECISION> dn(pixel_count);
+  for (int y = 0; y < image_height_; y++) {
+    for (int x = 0; x < image_width_; x++) {
+      const size_t i = static_cast<size_t>(y) * image_width_ + x;
+      const FP_PRECISION electrons = sensor_.ElectronsAt(spectral_image_[i], x, y);
+      dn[i] = sensor_.ElectronsToDN(electrons);
+    }
+  }
+  sensor_output::WriteBayerRaw(base + "_raw.pgm", base + "_raw.exr",
+                               image_width_, image_height_, dn,
+                               sensor_.bit_depth);
+
+  // 3. Demosaiced, still in sensor space.
+  sensor_output::WriteDemosaiced(base + "_demosaiced.exr", image_width_,
+                                 image_height_, dn, sensor_);
+
+  // 4. The 3x3 that takes sensorRGB to CIE XYZ, fitted from this sensor's own
+  //    spectral sensitivities.
+  const sensor_output::ColorMatrixFit fit = sensor_output::FitSensorToXYZ(
+      sensor_, IlluminantD65(), "D65");
+  sensor_output::WriteColorMatrix(base + "_sensor_to_xyz.json", fit);
+}
+
 void BaseCamera::ExportView() {
+  ExportSensorProducts();
+
   std::string extension = image_name_.substr(image_name_.find_last_of(".") + 1);
   std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 

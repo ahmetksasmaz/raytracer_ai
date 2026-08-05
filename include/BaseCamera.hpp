@@ -67,6 +67,9 @@ class BaseCamera {
   // tracing completes.
   void ResolveAccumulator();
 
+  // Writes the four sensor products. No-op when no sensor is declared.
+  void ExportSensorProducts();
+
   Vec3f* GetImageDataReference() { return image_data_; };
   const Spectrum* GetSpectralImage() const { return spectral_image_; };
 
