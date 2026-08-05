@@ -64,9 +64,14 @@ BaseCamera::BaseCamera(
           (u_ * l_))),
           ldr_exporter_(std::make_unique<STBExporter>()),
           hdr_exporter_(std::make_unique<EXRExporter>()) {
-  image_data_ = new Vec3f[image_width_ * image_height_];
-  image_sampled_data_ =
-      new Vec5f[image_height_ * image_width_ * mem_num_samples_];
+  const size_t pixel_count = static_cast<size_t>(image_width_) * image_height_;
+  image_data_ = new Vec3f[pixel_count];
+  spectral_image_ = new Spectrum[pixel_count];
+  // Film size no longer depends on samples per pixel.
+  accumulator_ = new std::atomic<FP_PRECISION>[pixel_count * kAccumStride];
+  for (size_t i = 0; i < pixel_count * kAccumStride; i++) {
+    accumulator_[i].store(0.0, std::memory_order_relaxed);
+  }
   switch (time_sampling) {
     case SamplingAlgorithm::kUniform:
       time_sampling_algorithm_ = uniform_1d;
@@ -283,26 +288,77 @@ std::vector<Ray> BaseCamera::GenerateRay(const Vec2i& pixel_coordinate) const {
   return rays;
 }
 
-void BaseCamera::UpdateSampledPixelValue(const Vec2i& pixel_coordinate,
-                                         const Spectrum& pixel_value,
-                                         const int sample_index,
-                                         const Vec2f& diff) {
-  // Firefly clamping happens per band, which is the spectrally meaningful
-  // operation, before the spectrum is collapsed.
-  //
-  // The collapse to linear sRGB happens HERE only because the sample store is
-  // still per-sample RGB. Phase 3 replaces that store with a spectral
-  // accumulation buffer and moves the collapse to the output stage, which is
-  // what the sensor pipeline needs; keeping it here for now leaves the rest of
-  // the image path untouched while the core conversion lands.
+namespace {
+
+// C++17 has no atomic<double>::fetch_add, so accumulate with a CAS loop.
+// std::atomic<double> is lock-free on this target, and contention is confined
+// to the one-pixel border where a splat crosses into a neighbouring thread's
+// tile.
+inline void AtomicAdd(std::atomic<FP_PRECISION>& target, FP_PRECISION value) {
+  FP_PRECISION current = target.load(std::memory_order_relaxed);
+  while (!target.compare_exchange_weak(current, current + value,
+                                       std::memory_order_relaxed,
+                                       std::memory_order_relaxed)) {
+  }
+}
+
+// Reconstruction filter width, in pixels. See the note in Helper.hpp: at the
+// original 0.1 a sample a third of a pixel off centre was weighted ten thousand
+// times less than one at the centre, so most traced rays contributed nothing.
+constexpr FP_PRECISION kReconstructionSigma = 0.5;
+constexpr int kReconstructionRadius = 1;
+
+}  // namespace
+
+void BaseCamera::SplatSample(const Vec2i& pixel_coordinate,
+                             const Spectrum& pixel_value, const Vec2f& diff) {
+  // Firefly clamping is per band, which is the spectrally meaningful operation.
   Spectrum clamped = pixel_value;
   clamped.ClampMaxInPlace(sample_max_val_);
-  const Vec3f rgb = SpectrumToLinearSRGB(clamped);
 
-  image_sampled_data_[(pixel_coordinate.y * image_width_ + pixel_coordinate.x) *
-                          mem_num_samples_ +
-                      sample_index] =
-      Vec5f{rgb.x, rgb.y, rgb.z, diff.x, diff.y};
+  // The sample lies at (pixel + diff) in pixel units. Its offset from the
+  // centre of a neighbouring pixel (pixel + d) is therefore diff - 0.5 - d.
+  for (int dy = -kReconstructionRadius; dy <= kReconstructionRadius; dy++) {
+    const int py = pixel_coordinate.y + dy;
+    if (py < 0 || py >= image_height_) continue;
+    for (int dx = -kReconstructionRadius; dx <= kReconstructionRadius; dx++) {
+      const int px = pixel_coordinate.x + dx;
+      if (px < 0 || px >= image_width_) continue;
+
+      const Vec2f offset{diff.x - 0.5 - dx, diff.y - 0.5 - dy};
+      const FP_PRECISION weight =
+          gaussian_kernel_weight(offset, kReconstructionSigma);
+      if (!(weight > 0.0)) continue;
+
+      const size_t base =
+          (static_cast<size_t>(py) * image_width_ + px) * kAccumStride;
+      for (int band = 0; band < kSpectralBands; band++) {
+        AtomicAdd(accumulator_[base + band], clamped[band] * weight);
+      }
+      AtomicAdd(accumulator_[base + kSpectralBands], weight);
+    }
+  }
+}
+
+void BaseCamera::ResolveAccumulator() {
+  const size_t pixel_count = static_cast<size_t>(image_width_) * image_height_;
+  for (size_t i = 0; i < pixel_count; i++) {
+    const size_t base = i * kAccumStride;
+    const FP_PRECISION weight =
+        accumulator_[base + kSpectralBands].load(std::memory_order_relaxed);
+
+    Spectrum resolved;
+    if (weight > 0.0) {
+      for (int band = 0; band < kSpectralBands; band++) {
+        resolved[band] =
+            accumulator_[base + band].load(std::memory_order_relaxed) / weight;
+      }
+    }
+    resolved.SanitizeInPlace();
+
+    spectral_image_[i] = resolved;
+    image_data_[i] = SpectrumToLinearSRGB(resolved);
+  }
 }
 
 void BaseCamera::UpdatePixelValue(const Vec2i& pixel_coordinate,

@@ -65,9 +65,7 @@ void Scene::BlockDivideThreadSchedulingAlgorithm(
             : ray_tracing_algorithm_(
               rays[ray_index], nullptr, camera->max_recursion_depth_,
               camera->max_recursion_depth_);
-          camera->UpdateSampledPixelValue({index.first, index.second},
-                                          pixel_value, ray_index,
-                                          rays[ray_index].diff_);
+          camera->SplatSample({index.first, index.second}, pixel_value, rays[ray_index].diff_);
         }
       }
     });

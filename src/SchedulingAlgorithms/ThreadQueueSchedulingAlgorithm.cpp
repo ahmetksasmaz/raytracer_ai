@@ -58,8 +58,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
                   : ray_tracing_algorithm_(
                       rays[ray_index], nullptr, camera->max_recursion_depth_,
                       camera->max_recursion_depth_);
-              camera->UpdateSampledPixelValue({x, y}, pixel_value, ray_index,
-                                              rays[ray_index].diff_);
+              camera->SplatSample({x, y}, pixel_value, rays[ray_index].diff_);
             }
             completed_pixels.fetch_add(1);
           }

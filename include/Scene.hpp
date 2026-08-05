@@ -128,7 +128,6 @@ class Scene {
       ray_tracing_algorithm_;
   std::function<Spectrum(Ray &, const std::shared_ptr<BaseObject>, int, const PathTracerSettings&, const PathState&)>
       path_tracing_algorithm_;
-  std::function<void(Vec5f *, int, int, int, Vec3f *)> filtering_algorithm_;
   std::function<void(Vec3f *, int, int, std::vector<unsigned char> &)>
       tone_mapping_algorithm_;
 
@@ -173,12 +172,4 @@ class Scene {
   void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                       int camera_index);
 
-  void AveragingFilterAlgorithm(Vec5f *image_sampled_data, int image_width,
-                                int image_height, int sample,
-                                Vec3f *image_data);
-  void GaussianFilterAlgorithm(Vec5f *image_sampled_data, int image_width,
-                               int image_height, int sample, Vec3f *image_data);
-  void ExtendedGaussianFilterAlgorithm(Vec5f *image_sampled_data,
-                                       int image_width, int image_height,
-                                       int sample, Vec3f *image_data);
 };

@@ -24,8 +24,7 @@ void Scene::NonThreadSchedulingAlgorithm(
             : ray_tracing_algorithm_(
               rays[ray_index], nullptr, camera->max_recursion_depth_,
               camera->max_recursion_depth_);
-        camera->UpdateSampledPixelValue({x, y}, pixel_value, ray_index,
-                                        rays[ray_index].diff_);
+        camera->SplatSample({x, y}, pixel_value, rays[ray_index].diff_);
       }
     }
   }
