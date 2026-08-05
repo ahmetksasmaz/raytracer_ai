@@ -118,6 +118,10 @@ Spectrum Scene::RecursiveBRDFRayTracingAlgorithm(
                      inv.m[1][0] * pijdj_small.x + inv.m[1][1] * pijdj_small.y};
     }
 
+    // Bump and normal mapping below replace hit_normal outright. Keep the
+    // geometric normal so the perturbed one can be checked against it.
+    const Vec3f geometric_normal = hit_normal;
+
     // Apply textures
     for (const auto &texture : textures) {
         Vec3f texture_value = texture->GetColorAt(hit_tex_coords, hit_point, result_di, result_dj);
@@ -152,6 +156,16 @@ Spectrum Scene::RecursiveBRDFRayTracingAlgorithm(
             Vec3f dqdv = hit_bitangent_vector + (v_value * bump_coeff * hit_normal);
             hit_normal = normalize(cross(dqdv, dqdu));
         }
+    }
+
+    // A perturbed shading normal must stay on the same side as the surface it
+    // belongs to. Bump mapping builds its normal from a cross product whose
+    // handedness depends on the tangent frame, and normal mapping goes through
+    // a TBN basis that can be mirrored, so either can come out inverted. When
+    // that happens every cosine term evaluates to zero and the surface renders
+    // black -- which is exactly what the bump-mapped scenes did.
+    if (dot(hit_normal, geometric_normal) < 0.0) {
+        hit_normal = -hit_normal;
     }
 
     Vec3f intersection_point = hit_point + hit_normal * shadow_ray_epsilon_;
