@@ -758,7 +758,11 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
       std::stringstream ss_img_res(img_res);
       ss_img_res >> camera.image_width >> camera.image_height;
       camera.image_name = cam["ImageName"].get<std::string>();
-      camera.num_samples = cam.contains("NumSamples") ? std::stoi(cam["NumSamples"].get<std::string>()) : 0;
+      // Default 1, not 0: a camera with zero samples generates no rays at all,
+      // leaving the (uninitialised) image buffer untouched and the filter
+      // dividing by a zero weight sum.
+      camera.num_samples = cam.contains("NumSamples") ? std::stoi(cam["NumSamples"].get<std::string>()) : 1;
+      if (camera.num_samples < 1) camera.num_samples = 1;
       camera.focus_distance = cam.contains("FocusDistance") ? std::stof(cam["FocusDistance"].get<std::string>()) : 0;
       camera.aperture_size = cam.contains("ApertureSize") ? std::stof(cam["ApertureSize"].get<std::string>()) : 0;
       camera.left_handed = cam.contains("_handedness") ? cam["_handedness"].get<std::string>() == "left" : false;
@@ -1249,6 +1253,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
           }
         }
         
+        texture_map.degamma = tm.contains("_degamma") ? tm["_degamma"].get<std::string>() == "true" : false;
         texture_map.normalizer = tm.contains("Normalizer") ? std::stof(tm["Normalizer"].get<std::string>()) : 255.0f;
         texture_map.bump_factor = tm.contains("BumpFactor") ? std::stof(tm["BumpFactor"].get<std::string>()) : 1.0f;
         texture_map.noise_scale = tm.contains("NoiseScale") ? std::stof(tm["NoiseScale"].get<std::string>()) : 1.0f;

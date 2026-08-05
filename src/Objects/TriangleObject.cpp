@@ -1,7 +1,7 @@
 #include "TriangleObject.hpp"
 
 bool TriangleObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
+    const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
@@ -18,6 +18,14 @@ bool TriangleObject::Intersect(
   Vec3f edge2 = v2_ - v0_;
   Vec3f ray_cross_e2 = cross(transformed_ray.direction_, edge2);
   FP_PRECISION det = dot(edge1, ray_cross_e2);
+
+  // Reject degenerate triangles and rays parallel to the triangle plane before
+  // dividing. Previously the division went ahead and the resulting NaNs were
+  // relied on to fail the barycentric range tests -- which only works while the
+  // compiler preserves IEEE NaN comparison semantics.
+  if (std::abs(det) < 1e-12) {
+    return false;
+  }
 
   FP_PRECISION inv_det = 1.0 / det;
   Vec3f s = transformed_ray.origin_ - v0_;
@@ -45,10 +53,6 @@ bool TriangleObject::Intersect(
         transform_matrix_ * local_point_destination + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
-    Vec3f normalized_diff = normalize(diff);
-    ray.direction_.x = normalized_diff.x;
-    ray.direction_.y = normalized_diff.y;
-    ray.direction_.z = normalized_diff.z;
     intersection_normal = normalize(global_point_destination - global_point);
 
     // Calculate texture coordinates
@@ -66,20 +70,30 @@ bool TriangleObject::Intersect(
     Mat2x2f uv_matrix = Mat2x2f{{{hit_u_vector.x, hit_u_vector.y},
                                      {hit_v_vector.x, hit_v_vector.y}}};
     FP_PRECISION det_uv = uv_matrix.m[0][0] * uv_matrix.m[1][1] - uv_matrix.m[0][1] * uv_matrix.m[1][0];
-    Mat2x2f inv_uv_matrix;
-    inv_uv_matrix.m[0][0] = uv_matrix.m[1][1] / det_uv;
-    inv_uv_matrix.m[0][1] = -uv_matrix.m[0][1] / det_uv;
-    inv_uv_matrix.m[1][0] = -uv_matrix.m[1][0] / det_uv;
-    inv_uv_matrix.m[1][1] = uv_matrix.m[0][0] / det_uv;
-    tangent_vector = Vec3f{
-        inv_uv_matrix.m[0][0] * edge1.x + inv_uv_matrix.m[0][1] * edge2.x,
-        inv_uv_matrix.m[0][0] * edge1.y + inv_uv_matrix.m[0][1] * edge2.y,
-        inv_uv_matrix.m[0][0] * edge1.z + inv_uv_matrix.m[0][1] * edge2.z};
-    bitangent_vector = Vec3f{
-        inv_uv_matrix.m[1][0] * edge1.x + inv_uv_matrix.m[1][1] * edge2.x,
-        inv_uv_matrix.m[1][0] * edge1.y + inv_uv_matrix.m[1][1] * edge2.y,
-        inv_uv_matrix.m[1][0] * edge1.z + inv_uv_matrix.m[1][1] * edge2.z};
-  
+    if (std::abs(det_uv) < 1e-12) {
+      // Degenerate UV parametrisation -- the usual case is a mesh with no
+      // texture coordinates at all, where every tex coord is (0,0). Dividing by
+      // this determinant yields NaN tangents that then poison the shading
+      // normal and the ray differentials. Any orthonormal basis around the
+      // geometric normal is a valid substitute, since without UVs there is no
+      // meaningful tangent direction to preserve.
+      BuildOrthonormalBasis(normal_, tangent_vector, bitangent_vector);
+    } else {
+      Mat2x2f inv_uv_matrix;
+      inv_uv_matrix.m[0][0] = uv_matrix.m[1][1] / det_uv;
+      inv_uv_matrix.m[0][1] = -uv_matrix.m[0][1] / det_uv;
+      inv_uv_matrix.m[1][0] = -uv_matrix.m[1][0] / det_uv;
+      inv_uv_matrix.m[1][1] = uv_matrix.m[0][0] / det_uv;
+      tangent_vector = Vec3f{
+          inv_uv_matrix.m[0][0] * edge1.x + inv_uv_matrix.m[0][1] * edge2.x,
+          inv_uv_matrix.m[0][0] * edge1.y + inv_uv_matrix.m[0][1] * edge2.y,
+          inv_uv_matrix.m[0][0] * edge1.z + inv_uv_matrix.m[0][1] * edge2.z};
+      bitangent_vector = Vec3f{
+          inv_uv_matrix.m[1][0] * edge1.x + inv_uv_matrix.m[1][1] * edge2.x,
+          inv_uv_matrix.m[1][0] * edge1.y + inv_uv_matrix.m[1][1] * edge2.y,
+          inv_uv_matrix.m[1][0] * edge1.z + inv_uv_matrix.m[1][1] * edge2.z};
+    }
+
     tangent_vector = transform_matrix_ ^ tangent_vector;
     bitangent_vector = transform_matrix_ ^ bitangent_vector;
 

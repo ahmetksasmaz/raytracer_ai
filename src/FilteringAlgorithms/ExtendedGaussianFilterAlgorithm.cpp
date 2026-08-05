@@ -1,6 +1,12 @@
 #include "Scene.hpp"
 
-static constexpr FP_PRECISION kGaussianKernelSigma = 0.1f;
+// Sigma is in PIXELS. At the previous value of 0.1 a sample only 0.3 px from the
+// pixel centre was weighted about ten thousand times less than one exactly at
+// the centre, so nearly every ray that was traced and paid for contributed
+// essentially nothing, and the 3x3 neighbourhood contributed nothing at all.
+// Around half a pixel is the usual choice: wide enough to actually use the
+// samples, narrow enough not to visibly blur.
+static constexpr FP_PRECISION kGaussianKernelSigma = 0.5;
 static constexpr int kGaussianKernelSize = 3;
 
 void Scene::ExtendedGaussianFilterAlgorithm(Vec5f* image_sampled_data,
@@ -24,10 +30,17 @@ void Scene::ExtendedGaussianFilterAlgorithm(Vec5f* image_sampled_data,
                                    k];
             Vec3f pixel_value = Vec3f{packet.x, packet.y, packet.z};
             Vec2f diff = Vec2f{packet.w, packet.t};
-            FP_PRECISION weight = gaussian_kernel_weight(
-                (diff + Vec2f{FP_PRECISION(a), FP_PRECISION(b)}) /
-                    static_cast<FP_PRECISION>(kGaussianKernelSize),
-                kGaussianKernelSigma);
+            // diff is the sample's position within its own pixel, in [0,1).
+            // Subtracting 0.5 centres it on that pixel, and adding the integer
+            // neighbour offset places it relative to the pixel being
+            // reconstructed. diff.x runs along columns (b), diff.y along rows
+            // (a). The old expression divided the whole thing by the kernel
+            // size, which shrank the neighbour offsets to a third of a pixel
+            // and left the centring wrong.
+            const Vec2f centered_offset{diff.x - 0.5 + static_cast<FP_PRECISION>(b),
+                                        diff.y - 0.5 + static_cast<FP_PRECISION>(a)};
+            FP_PRECISION weight =
+                gaussian_kernel_weight(centered_offset, kGaussianKernelSigma);
             sum_of_weights += weight;
             sum += pixel_value * weight;
           }

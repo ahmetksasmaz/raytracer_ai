@@ -1,0 +1,31 @@
+{
+  "__comment": "MULTI-BOUNCE TRANSPORT EQUIVALENCE (nee). A closed diffuse box (albedo 0.6) with an emissive ceiling panel and a sphere inside, so light genuinely bounces several times. cornell_brute, cornell_nee and cornell_mis must all converge to the same mean. Unlike the furnace this DOES detect MIS weighting errors: in a furnace both strategies share one expectation and the weights sum to one, so bias cancels no matter how wrong the weights are. Here a weight applied to the whole recursive return also scales deeper indirect light, which is a real bias.",
+  "Scene": {
+    "BackgroundColor": "0 0 0",
+    "ShadowRayEpsilon": "0.001",
+    "Cameras": {
+      "Camera": {
+        "_id": "1", "_type": "lookAt",
+        "Position": "0 0 1.6", "GazePoint": "0 0 -1", "Up": "0 1 0",
+        "FovY": "60", "NearDistance": "1",
+        "ImageResolution": "48 48", "NumSamples": "120",
+        "MaxRecursionDepth": "6",
+        "Renderer": "PathTracing", "RendererParams": "ImportanceSampling NextEventEstimation",
+        "ImageName": "cornell_nee.exr"
+      }
+    },
+    "BRDFs": { "ModifiedBlinnPhong": { "_id": "1", "_normalized": "true", "Exponent": "1" } },
+    "Materials": {
+      "Material": [
+        { "_id": "1", "AmbientReflectance": "0 0 0", "DiffuseReflectance": "0 0 0", "SpecularReflectance": "0 0 0" },
+        { "_id": "2", "_BRDF": "1", "AmbientReflectance": "0 0 0", "DiffuseReflectance": "0.6 0.6 0.6", "SpecularReflectance": "0 0 0" }
+      ]
+    },
+    "VertexData": { "_data": "-2 -2 -2 2 -2 -2 2 2 -2 -2 2 -2 -2 -2 2 2 -2 2 2 2 2 -2 2 2 -1.2 1.9 -1.2 1.2 1.9 -1.2 1.2 1.9 1.2 -1.2 1.9 1.2 0 -1.2 -0.5" },
+    "Objects": {
+      "Mesh":      { "_id": "1", "Material": "2", "Faces": { "_data": "1 2 3 1 3 4 5 8 7 5 7 6 1 4 8 1 8 5 2 6 7 2 7 3 1 5 6 1 6 2 4 3 7 4 7 8" } },
+      "LightMesh": { "_id": "2", "Material": "1", "Radiance": "5 5 5", "Faces": { "_data": "9 10 11 9 11 12" } },
+      "Sphere":    { "_id": "3", "Material": "2", "Center": "13", "Radius": "0.7" }
+    }
+  }
+}

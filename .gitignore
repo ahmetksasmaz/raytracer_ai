@@ -38,3 +38,11 @@ build/*
 *.xml
 *.ply
 hw*/*
+# generated test renders
+tests/out/
+
+# build artifacts from the test harness
+imgdiff
+raytracer_debug
+raytracer_profile
+*.dSYM/

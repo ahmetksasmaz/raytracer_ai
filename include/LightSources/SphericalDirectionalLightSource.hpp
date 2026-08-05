@@ -75,9 +75,18 @@ public:
     }
     else if (type_ == kProbe)
     {
-      FP_PRECISION r = (acos(-direction.z)) / (M_PI * sqrt(direction.x * direction.x + direction.y * direction.y));
-      u = (r*direction.x + 1.0) / 2.0;
-      v = (-r*direction.y + 1.0) / 2.0;
+      // Straight down the +/-z axis the denominator vanishes and r is 0/0. That
+      // direction maps to the centre of the probe image, so substitute it
+      // directly rather than casting a NaN to an image index.
+      const FP_PRECISION radial = sqrt(direction.x * direction.x + direction.y * direction.y);
+      if (radial < 1e-9) {
+        u = 0.5;
+        v = 0.5;
+      } else {
+        FP_PRECISION r = acos(-direction.z) / (M_PI * radial);
+        u = (r*direction.x + 1.0) / 2.0;
+        v = (-r*direction.y + 1.0) / 2.0;
+      }
     }
 
     int x = static_cast<int>(u * image_->width_);

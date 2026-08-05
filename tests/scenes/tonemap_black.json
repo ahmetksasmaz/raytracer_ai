@@ -1,0 +1,64 @@
+{
+  "__comment": "TONE MAPPER BLACK PIXELS. Every pixel in this scene is exactly zero (the only object sits behind the camera and is never hit). A correct tone mapper maps black to black, so all three LDR outputs must be black. Filmic and ACES divide each channel by luminance with no guard for L == 0, and casting the resulting NaN to unsigned char is undefined behaviour. On arm64 with -ffast-math this currently happens to come out black, because max/min compile to fmax/fmin which return the non-NaN operand -- so this is a REGRESSION GUARD, not a failing test. It is expected to start failing as soon as the NaN-related compiler flags change, which is exactly when the missing guard starts to matter.",
+  "Scene": {
+    "BackgroundColor": "0 0 0",
+    "ShadowRayEpsilon": "0.001",
+    "Cameras": {
+      "Camera": {
+        "_id": "1",
+        "_type": "lookAt",
+        "Position": "0 0 5",
+        "GazePoint": "0 0 10",
+        "Up": "0 1 0",
+        "FovY": "40",
+        "NearDistance": "1",
+        "ImageResolution": "32 32",
+        "NumSamples": "1",
+        "MaxRecursionDepth": "1",
+        "ImageName": "tonemap_black.exr",
+        "Tonemap": [
+          {
+            "TMO": "Photographic",
+            "TMOOptions": "0.18 0",
+            "Saturation": "1.0",
+            "Gamma": "2.2",
+            "Extension": "_photographic.png"
+          },
+          {
+            "TMO": "Filmic",
+            "TMOOptions": "0.18 0",
+            "Saturation": "1.0",
+            "Gamma": "2.2",
+            "Extension": "_filmic.png"
+          },
+          {
+            "TMO": "ACES",
+            "TMOOptions": "0.18 0",
+            "Saturation": "1.0",
+            "Gamma": "2.2",
+            "Extension": "_aces.png"
+          }
+        ]
+      }
+    },
+    "Materials": {
+      "Material": {
+        "_id": "1",
+        "AmbientReflectance": "0 0 0",
+        "DiffuseReflectance": "0.8 0.8 0.8",
+        "SpecularReflectance": "0 0 0"
+      }
+    },
+    "VertexData": {
+      "_data": "0 0 0"
+    },
+    "Objects": {
+      "Sphere": {
+        "_id": "1",
+        "Material": "1",
+        "Center": "1",
+        "Radius": "0.5"
+      }
+    }
+  }
+}

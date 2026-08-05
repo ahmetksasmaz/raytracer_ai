@@ -1,0 +1,50 @@
+{
+  "__comment": "AREA LIGHT BACK FACE. A sphere sitting ABOVE an area light whose emitting side faces DOWN, away from the sphere. The sphere must receive zero from this light. The surface-side cosine is clamped in the code but the light-side cosine is not, so an unclamped implementation produces NEGATIVE radiance here. Assertion is simply that no sample is below zero.",
+  "Scene": {
+    "BackgroundColor": "0 0 0",
+    "ShadowRayEpsilon": "0.001",
+    "Cameras": {
+      "Camera": {
+        "_id": "1",
+        "_type": "lookAt",
+        "Position": "0 4 5",
+        "GazePoint": "0 4 0",
+        "Up": "0 1 0",
+        "FovY": "40",
+        "NearDistance": "1",
+        "ImageResolution": "64 64",
+        "NumSamples": "16",
+        "MaxRecursionDepth": "1",
+        "ImageName": "area_light_back.exr"
+      }
+    },
+    "Lights": {
+      "AreaLight": {
+        "_id": "1",
+        "Position": "0 2 0",
+        "Normal": "0 -1 0",
+        "Size": "1",
+        "Radiance": "20 20 20"
+      }
+    },
+    "Materials": {
+      "Material": {
+        "_id": "1",
+        "AmbientReflectance": "0 0 0",
+        "DiffuseReflectance": "0.8 0.8 0.8",
+        "SpecularReflectance": "0 0 0"
+      }
+    },
+    "VertexData": {
+      "_data": "0 4 0"
+    },
+    "Objects": {
+      "Sphere": {
+        "_id": "1",
+        "Material": "1",
+        "Center": "1",
+        "Radius": "1"
+      }
+    }
+  }
+}

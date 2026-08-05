@@ -164,7 +164,7 @@ LightMeshObject::LightMeshObject(std::shared_ptr<BaseMaterial> material, std::ve
 }
 
 bool LightMeshObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
+    const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool backface_culling,
     bool stop_at_any_hit) const {
   bool hit = false;
 
@@ -193,10 +193,6 @@ bool LightMeshObject::Intersect(
     Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
     Vec3f diff = global_point - ray.origin_;
     t_hit = norm(diff);
-    Vec3f normalized_diff = normalize(diff);
-    ray.direction_.x = normalized_diff.x;
-    ray.direction_.y = normalized_diff.y;
-    ray.direction_.z = normalized_diff.z;
 
     intersection_normal = normalize(transform_matrix_ ^ temp_intersection_normal);
   }
@@ -316,11 +312,28 @@ void LightMeshObject::Sample(const Vec3f& intersection_point, Vec3f &sample_poin
 
   sample_point = transform_matrix_ * (u * v0 + v * v1 + w * v2) + motion_blur_;
   sample_normal = normalize(transform_matrix_ ^ triangle_object->normal_);
-  FP_PRECISION area = std::max(norm(cross(transformed_v1 - transformed_v0, transformed_v2 - transformed_v0)) * 0.5, static_cast<FP_PRECISION>(1e-10));
-  FP_PRECISION dot_product = std::max(static_cast<FP_PRECISION>(1e-6), static_cast<FP_PRECISION>(dot(sample_normal, normalize(intersection_point - sample_point))));
-  FP_PRECISION dist2 = norm2(sample_point - intersection_point);
-  pdf = (dot_product <= 1e-6) ? 0 : cdf_pdf_[triangle_index].second * dist2 / (area * dot_product);
-  if (!std::isfinite(pdf) || pdf <= 0) {
-    pdf = 0;
-  }
+  // Delegate rather than recompute: PdfSolidAngle is what MIS will call for
+  // directions that arrive here some other way, and the two must agree exactly.
+  pdf = PdfSolidAngle(intersection_point, sample_point, sample_normal);
+}
+FP_PRECISION LightMeshObject::PdfSolidAngle(const Vec3f& reference_point,
+                                            const Vec3f& light_point,
+                                            const Vec3f& light_normal) const {
+  // Triangles are chosen with probability proportional to their area, so the
+  // per-triangle factor cancels and the area-measure density is uniformly
+  // 1 / total_area. Converting area measure to solid angle contributes the
+  // usual dist^2 / cos(theta_light) Jacobian.
+  if (total_area_ <= 1e-12) return 0.0;
+
+  const Vec3f to_reference = reference_point - light_point;
+  const FP_PRECISION dist2 = norm2(to_reference);
+  if (dist2 <= 1e-12) return 0.0;
+
+  const FP_PRECISION cos_at_light = dot(light_normal, normalize(to_reference));
+  // Emitters are one-sided: the back face cannot produce this direction at all,
+  // so the pdf is genuinely zero rather than merely small.
+  if (cos_at_light <= 1e-6) return 0.0;
+
+  const FP_PRECISION pdf = dist2 / (total_area_ * cos_at_light);
+  return std::isfinite(pdf) && pdf > 0.0 ? pdf : 0.0;
 }

@@ -1,13 +1,13 @@
 #include "PlaneObject.hpp"
 
 bool PlaneObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
+    const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector,
     bool backface_culling, bool stop_at_any_hit) const {
     return IntersectPlane(ray, t_hit, intersection_normal, backface_culling, stop_at_any_hit);
 }
 
 bool PlaneObject::IntersectPlane(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool, bool) const {
+    const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, bool, bool) const {
 
         
     // Calculate the cos value between the ray and the plane normal

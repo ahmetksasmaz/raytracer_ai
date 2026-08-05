@@ -1,0 +1,152 @@
+# CLAUDE.md — raytracer_ai
+
+METU CENG795 Advanced Ray Tracing. Single-binary C++17 CPU ray/path tracer. No CI, no test framework — correctness is covered by a self-validating scene suite under `tests/` (see below).
+
+## Build & run
+
+```bash
+make release        # -> ./raytracer   (g++, -O3 -march=native -flto, warnings off)
+make test           # build + run the correctness suite (~25 s)
+```
+`make debug` -> `raytracer_debug` (-O0 -g), `make profile`, `make imgdiff`, `make clean`.
+
+`RELEASE_FLAGS` carries **`-fno-finite-math-only`** and it must stay. Plain `-ffast-math` implies `-ffinite-math-only`, under which the compiler assumes NaN/Inf cannot occur and folds every `std::isfinite` check to `true` — verified on this toolchain. The renderer relies on those guards.
+Run: `./raytracer <scene.json|scene.xml>` — relative asset paths (ply/images) resolve from **cwd**, so cd into the scene's dir first (see `renderall.sh`).
+Build is whole-program every time (`extern/*.cpp src/*.cpp src/*/*.cpp`); ~30-60s. Any new `.cpp` under `src/<Dir>/` is picked up automatically; new include dirs must be added to `INCLUDES` in the Makefile.
+
+## Layout
+
+```
+extern/     parser.{h,cpp} (scene loader), json.hpp, tinyxml2, ply, stb_image(_write), tinyexr  — vendored, don't touch except parser
+include/    headers, flat-ish; Makefile adds each subdir to -I so includes are by basename ("Scene.hpp", "BaseBRDF.hpp")
+src/        RayTracer.cpp (main), Scene.cpp (raw->runtime build), plus one .cpp per algorithm/object
+```
+Subsystems (each `include/X/` + `src/X/`): `Objects/`, `Materials/`, `BRDFs/`, `LightSources/`, `Textures/`, `ToneMappingAlgorithms/`, `TracingAlgorithms/`, `SchedulingAlgorithms/`, `FilteringAlgorithms/`.
+
+`FP_PRECISION` (= `double`, in `extern/parser.h`) is the scalar type everywhere. `parser::Vec2f/Vec3f/Vec4f/Vec5f/Vec2i/Mat4x4f` are the vector types; all math operators + `parse_transformation`, samplers, `FastRandom`, `BuildOrthonormalBasis` live in `include/Helper.hpp`. `using namespace parser;` is standard in headers here.
+
+## Pipeline
+
+`main` -> `Scene(file)` -> `LoadScene` (parse to `RawScene`, then build runtime objects) -> `PreprocessScene` (`object->Preprocess()`, `bvh_.BuildBVH`) -> `Render()`: per camera → scheduling → filtering → tone mapping → export.
+
+Hard-coded defaults in `Scene::Scene` (src/Scene.cpp:7-24), **not** settable from the scene file:
+- scheduler `ThreadQueueSchedulingAlgorithm` (32×32 tiles, `hardware_concurrency` threads, prints `Progress: N%` every 1s)
+- ray tracer `RecursiveBRDFRayTracingAlgorithm`, path tracer `RecursiveBRDFPathTracingAlgorithm`
+- filter `ExtendedGaussianFilterAlgorithm`, area-light sampling `uniform_random_2d`
+- camera pixel/aperture sampling Hammersley, time sampling jittered, circular aperture (`Scene.cpp:176-181`)
+
+Per pixel the camera emits `NumSamples` rays; `path_tracing_enabled_` picks path tracer vs ray tracer. `DefaultRayTracingAlgorithm` / `RecursiveRayTracingAlgorithm` exist but are unwired.
+
+Geometry: everything goes into `objects_` and the BVH **except planes**, which live in `plane_objects_`. `light_objects_` is a parallel list of emissive objects (LightSphere/LightMesh) used for NEE/MIS. `objects_` order is: spheres, light spheres, triangles, meshes, light meshes, mesh instances (mesh-instance resolution in `Scene.cpp` relies on that ordering).
+
+**Always trace rays through `Scene::IntersectScene`**, never `bvh_.Intersect` directly. It covers the BVH *and* the plane list; going straight to the BVH is how planes ended up visible to primary rays but invisible to shadow and secondary rays. Object `Intersect` takes a `const Ray&` and must not mutate it.
+
+Export: `.exr` → EXR of raw HDR data plus one LDR file per `Tonemap`. LDR output applies the first declared `Tonemap`, or clamps raw radiance to 0-255 if none is declared.
+
+## Scene file format (the important part)
+
+Two loaders, extension-dispatched (`Scene::LoadScene`). **JSON is canonical** — use it. The XML path (`loadFromXml`) is stale: it lacks Plane, MeshInstance, LightMesh, LightSphere, BRDFs, DirectionalLight, SpotLight, SphericalDirectionalLight, Tonemap, Renderer. Never generate XML scenes.
+
+JSON is a mechanical XML→JSON transliteration, so:
+- **Every value is a string**, including numbers: `"Radius": "1.5"`. Vectors are space-separated in one string: `"0 1 -2"`.
+- XML attributes become `_`-prefixed keys: `_id`, `_type`, `_data`, `_plyFile`, `_baseMeshId`, `_BRDF`, `_degamma`, `_normalized`, `_kdfresnel`, `_handedness`, `_resetTransform`, `_vertexOffset`, `_textureOffset`.
+- **All IDs are 1-based indices** into their list (`Material`, `Center`, `Point`, `Indices`, `Textures`, `ImageId`, `_BRDF`, transformation ids). BRDFs are sorted by `_id` after parse.
+- A repeated element is an **array**; a single one is a **bare object**. The parser handles both (try-single, catch-array), so a single-element array is safe and preferred for generated scenes.
+- Missing optional keys fall back to defaults — omit rather than guess.
+- Root is `{"Scene": {...}}`.
+
+### Skeleton
+
+```json
+{"Scene": {
+  "BackgroundColor": "0 0 0",              // 0-255 ints, LDR pixel value
+  "ShadowRayEpsilon": "0.001",             // default 1e-5
+  "IntersectionTestEpsilon": "0.001",      // parsed, currently unused downstream
+  "Cameras": {"Camera": [ ... ]},
+  "Lights": {"AmbientLight": "25 25 25", "PointLight": [...], "AreaLight": [...],
+             "DirectionalLight": [...], "SpotLight": [...], "SphericalDirectionalLight": {...}},
+  "BRDFs": {"ModifiedBlinnPhong": [...], "TorranceSparrow": [...], ...},
+  "Materials": {"Material": [ ... ]},
+  "Textures": {"Images": {"Image": [{"_id":"1","_data":"tex.png"}]}, "TextureMap": [...]},
+  "Transformations": {"Translation": [...], "Scaling": [...], "Rotation": [...], "Composite": [...]},
+  "VertexData": {"_data": "x y z\nx y z\n..."},
+  "TexCoordData": {"_data": "u v\nu v\n..."},
+  "Objects": {"Mesh": [...], "MeshInstance": [...], "Triangle": [...], "Sphere": [...],
+              "Plane": [...], "LightMesh": [...], "LightSphere": [...]}
+}}
+```
+
+### Camera
+Required: `Position`, `Up`, `NearDistance`, `ImageResolution` ("W H"), `ImageName`.
+Two modes: `"_type": "lookAt"` + `GazePoint` + `FovY` (vertical, degrees), or default + `Gaze` + `NearPlane` ("l r b t").
+Optional: `NumSamples` (rays/pixel, default 1), `Transformations`, `_handedness` ("left"), `FocusDistance` + `ApertureSize` (DOF; both > 0 to enable), `MaxRecursionDepth` (default 1), `MinRecursionDepth` (default 0, = RR start depth), `SampleMaxVal` (per-sample firefly clamp), `Tonemap`.
+Path tracing: `"Renderer": "PathTracing"` plus `"RendererParams"` — a single space-separated string, substring-matched for `ImportanceSampling`, `NextEventEstimation`, `MIS_BALANCE`, `RussianRoulette` — and optional `"SplittingFactor"` (extra bounce samples at depth 1 only). Without `Renderer` the BRDF ray tracer runs.
+`Tonemap`: `{"TMO": "Photographic"|"Filmic"|"ACES", "TMOOptions": "<key> <burn>", "Saturation": "1.0", "Gamma": "2.2", "Extension": ".png"}`. With an `.exr` output you get one LDR file per tone mapping, named `<base><Extension>`. With an LDR output the **first** tone mapping is applied to it (a warning is printed if more than one is declared); with no `Tonemap` at all, LDR output clamps raw radiance as before.
+
+Recursion caps: path tracer hard-stops at depth 32; with `RussianRoulette` on, `MaxRecursionDepth` is bypassed and RR (survival = min(max throughput, 0.95)) terminates paths past `MinRecursionDepth`.
+
+### Lights
+- `PointLight`: `Position`, `Intensity` (falls off 1/r²), optional `Transformations`.
+- `AreaLight`: `Position`, `Normal`, `Size` (square edge), `Radiance`, optional `Transformations`.
+- `DirectionalLight`: `Direction` (points *from* light), `Radiance`.
+- `SpotLight`: `Position`, `Direction`, `Intensity`, `CoverageAngle`, `FalloffAngle` (full angles, degrees).
+- `SphericalDirectionalLight`: `_type` `"latlong"`|`"probe"`, `ImageId`, optional `Sampler` `"cosine"` (default) | `"uniform"`. Also serves as background for escaping rays.
+- Emissive geometry — `LightSphere` / `LightMesh` under `Objects` with a `Radiance` — is what NEE/MIS sample. Analytic lights above are evaluated deterministically every bounce and are *not* in `light_objects_`. Cornell-box style scenes use `LightMesh`/`LightSphere`.
+
+### Materials
+`_type`: omitted/other = diffuse+specular (`BaseMaterial`), `"mirror"`, `"conductor"`, `"dielectric"`.
+Always present: `AmbientReflectance`, `DiffuseReflectance`, `SpecularReflectance`.
+Optional: `MirrorReflectance` (mirror/conductor/dielectric), `RefractionIndex`, `AbsorptionIndex` (conductor k), `AbsorptionCoefficient` (dielectric, Beer-Lambert), `PhongExponent`, `Roughness` (perturbs the reflected/refracted normal), `_degamma` ("true" raises the three reflectances to 2.2), `_BRDF` (1-based BRDF id; absent → `OriginalBlinnPhong(PhongExponent)`).
+
+### BRDFs
+Keys `OriginalPhong`, `ModifiedPhong`, `OriginalBlinnPhong`, `ModifiedBlinnPhong`, `TorranceSparrow`; each entry `{"_id":"1","Exponent":"100"}` plus `_normalized` ("true", the Modified/Original variants) or `_kdfresnel` (TorranceSparrow).
+
+### Textures
+`Images.Image[]` → `{"_id", "_data": <path>}`, loaded in order (id = 1-based position).
+`TextureMap[]`: `_type` `"image"|"perlin"|"checkerboard"`; `DecalMode` `replace_kd|blend_kd|replace_ks|replace_background|replace_normal|bump_normal|replace_all`; image: `ImageId`, `Interpolation` (`nearest`|`bilinear`|`trilinear`), `Normalizer` (255), `BumpFactor` (1), `_degamma` ("true" decodes sRGB to linear; off by default); perlin: `NoiseConversion` (`absval`|`linear`), `NoiseScale`, `NumOctaves`; checkerboard: `Scale`, `Offset`, `BlackColor`, `WhiteColor`.
+An object's `Textures` is a space-separated list of 1-based texture-map ids. A `replace_background` image map also becomes the scene background.
+
+### Transformations
+`Translation`/`Scaling` `_data` = "x y z", `Rotation` `_data` = "angle x y z" (degrees; each nonzero axis applies a separate axis rotation, composed X→Y→Z — not a true arbitrary-axis rotation), `Composite` `_data` = 16 row-major floats.
+An object's `Transformations` string is space-separated refs like `"t1 s2 r1 c3"`, applied **left to right as left-multiplications** (`M = last * ... * first * I`). Negative scale components are tracked in `RawScalingFlip` for normal correction.
+
+### Objects (all take `_id`, `Material`, optional `Transformations`, `Textures`, `MotionBlur` "dx dy dz")
+- `Sphere` / `LightSphere`: `Center` (vertex id), `Radius`; LightSphere adds `Radiance`.
+- `Triangle`: `Indices` "v0 v1 v2" (1-based into `VertexData`; tex coords come from the same indices in `TexCoordData`).
+- `Mesh` / `LightMesh`: `Faces` either `{"_data": "v0 v1 v2\n..."}` or `{"_plyFile": "bunny.ply"}`, plus optional `_vertexOffset` / `_textureOffset`. LightMesh adds `Radiance`.
+- `MeshInstance`: `_baseMeshId`, optional `_resetTransform` ("true" = ignore base transform), `Material`, `Textures`.
+- `Plane`: `Point` (vertex id), `Normal`. Infinite; outside the BVH.
+
+## Path tracer invariants
+
+These are load-bearing; breaking one produces a plausible-looking but wrong image rather than a crash.
+
+- **One pdf formula per strategy.** `hemisphere_pdf()` in `Helper.hpp` is the only definition of the hemisphere sampling density, and `ObjectLightSource::PdfSolidAngle()` the only definition of the light-sampling density. `Sample()` returns its pdf *by calling* `PdfSolidAngle`. MIS weights must combine two pdfs describing the **same direction** — drawing a fresh random sample to obtain the second one is the classic way to get silently wrong weights.
+- **Emission is gated, not unconditional.** `PathState::prev_specular` and `prev_bsdf_pdf` travel down the recursion so an emitter hit knows whether NEE already accounted for it. Without the gate, NEE double-counts direct lighting (~2× too bright).
+- **Russian roulette scales survivors by `1/p`.** Both the returned radiance and the throughput handed to children.
+- **The 1/N light-selection probability belongs in `LightSamplingPdf`**, so NEE and MIS cannot disagree about it.
+- **Analytic lights are accumulated separately from the splitting loop** — only the per-sample terms are divided by `sample_count`.
+- **Default BRDF depends on the renderer.** With `Renderer=PathTracing`, a material with no `_BRDF` gets a *normalized* `ModifiedBlinnPhong`; the ray tracer keeps `OriginalBlinnPhong`. `Original*` omits the `1/π` factor, which makes albedo-1 diffuse reflect π× the incident energy per bounce under a path tracer.
+
+## Tests
+
+```bash
+./tests/run_tests.sh            # all checks
+./tests/run_tests.sh furnace    # only names matching "furnace"
+```
+
+`tools/imgdiff.cpp` (built as `./imgdiff`) reads EXR *and* PNG via the vendored tinyexr/stb — no external deps. Modes: `--stats`, `--mean`, `--argmax` (locate a firefly), `--compare a b --tol T`, `--expect-constant f L --tol T [--max-dev D]`, `--expect-ratio a b R`, `--expect-nonnegative`, `--expect-finite`, `--expect-below f V`.
+
+Every check is **self-validating** — it asserts analytic ground truth or an invariance, never a blessed reference image. Scenes in `tests/scenes/` are self-contained (inline geometry, no PLY, no image textures); renders land in the gitignored `tests/out/`.
+
+The load-bearing ones: `furnace*` (a closed emissive box with an albedo-1 sphere must read exactly the emitted radiance — catches any energy gain/loss); `cornell_{brute,nee,mis}` (multi-bounce equivalence — **a furnace cannot detect MIS weighting errors**, since both strategies share one expectation and the weights sum to 1, so bias cancels regardless); `beer_*` (transmission ratio vs analytic `exp(-σd)`); `sphere_{norot,rot}` (rotating a sphere about its own centre must be a no-op).
+
+When adding a check, prefer an invariance (two configurations that must agree) or a closed-form expectation over a threshold someone has to eyeball.
+
+## Working here
+
+- Match the surrounding style: `Class::Method` in its own `.cpp`, members `trailing_underscore_`, `kCamelCase` enum values, `std::shared_ptr` for scene entities, comments sparse and only for pipeline STEP markers.
+- Adding a scene-file feature means touching all of: `RawX` struct in `extern/parser.h`, `loadFromJSON` in `extern/parser.cpp`, and the corresponding build loop in `src/Scene.cpp`.
+- Renderer state is read-only during rendering (tiles are the only mutable output) — anything added to the trace path must be thread-safe; use `FastRandom()` (thread-local RNG), never `rand()`.
+- Renders are slow. When verifying a change, generate/patch a small scene (low `ImageResolution`, `NumSamples` ~4-16, low depth) rather than running `renderall.sh`.
+- `.gitignore` excludes `build/*`, `*.png`, `*.xml`, `*.ply`, `hw*/*` — scene assets and outputs are untracked, so referenced input files may not exist in a clean checkout. `renderall.sh` expects `build/hw6/{brdf,directLighting,pathTracing}/inputs/`.

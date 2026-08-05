@@ -54,7 +54,7 @@ void Scene::ThreadQueueSchedulingAlgorithm(
             for (int ray_index = 0; ray_index < static_cast<int>(rays.size()); ray_index++) {
               const Vec3f pixel_value =
                   camera->path_tracing_enabled_ ?
-                  path_tracing_algorithm_(rays[ray_index], nullptr, 0, path_tracer_settings, {1.0f, 1.0f, 1.0f})
+                  path_tracing_algorithm_(rays[ray_index], nullptr, 0, path_tracer_settings, PathState{})
                   : ray_tracing_algorithm_(
                       rays[ray_index], nullptr, camera->max_recursion_depth_,
                       camera->max_recursion_depth_);

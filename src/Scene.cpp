@@ -201,25 +201,58 @@ void Scene::LoadScene() {
     }
   }
 
+  // A material with no explicit _BRDF needs a default, and the right default
+  // depends on the renderer. OriginalBlinnPhong omits the 1/pi normalisation, so
+  // under a path tracer -- which divides by a hemisphere pdf -- an albedo-1
+  // diffuse surface reflects pi times the energy it receives on every bounce:
+  // interreflection diverges instead of converging, and throughput grows without
+  // bound so Russian roulette never terminates anything. The ray tracer does not
+  // divide by a pdf and is calibrated around the unnormalised form, so it keeps
+  // the historical default and existing scenes render unchanged.
+  bool any_path_tracing = false;
+  for (const auto &raw_camera : raw_scene.cameras) {
+    if (raw_camera.path_tracing_enabled) any_path_tracing = true;
+  }
+  auto make_default_brdf =
+      [any_path_tracing](FP_PRECISION exponent) -> std::shared_ptr<BaseBRDF> {
+    if (any_path_tracing) {
+      return std::make_shared<ModifiedBlinnPhong>(exponent, true);
+    }
+    return std::make_shared<OriginalBlinnPhong>(exponent);
+  };
+  if (any_path_tracing) {
+    bool uses_default = false;
+    for (const auto &raw_material : raw_scene.materials) {
+      if (raw_material.brdf_id < 0) uses_default = true;
+    }
+    if (uses_default) {
+      std::cout << "Note: path tracing is enabled and one or more materials do "
+                   "not specify _BRDF; using a normalized ModifiedBlinnPhong "
+                   "for those instead of OriginalBlinnPhong so that they "
+                   "conserve energy."
+                << std::endl;
+    }
+  }
+
   for (const auto &raw_material : raw_scene.materials) {
     switch (raw_material.material_type) {
       case RawMaterialType::kDefault:
         materials_.push_back(std::make_shared<BaseMaterial>(
-            raw_material.brdf_id < 0 ? std::make_shared<OriginalBlinnPhong>(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
+            raw_material.brdf_id < 0 ? make_default_brdf(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness, raw_material.refraction_index, raw_material.absorption_index));
         break;
 
       case RawMaterialType::kMirror:
         materials_.push_back(std::make_shared<MirrorMaterial>(
-            raw_material.brdf_id < 0 ? std::make_shared<OriginalBlinnPhong>(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
+            raw_material.brdf_id < 0 ? make_default_brdf(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness,
             raw_material.mirror, raw_material.refraction_index, raw_material.absorption_index));
         break;
       case RawMaterialType::kConductor:
         materials_.push_back(std::make_shared<ConductorMaterial>(
-            raw_material.brdf_id < 0 ? std::make_shared<OriginalBlinnPhong>(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
+            raw_material.brdf_id < 0 ? make_default_brdf(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness,
             raw_material.mirror, raw_material.refraction_index,
@@ -227,7 +260,7 @@ void Scene::LoadScene() {
         break;
       case RawMaterialType::kDielectric:
         materials_.push_back(std::make_shared<DielectricMaterial>(
-            raw_material.brdf_id < 0 ? std::make_shared<OriginalBlinnPhong>(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
+            raw_material.brdf_id < 0 ? make_default_brdf(raw_material.phong_exponent) : brdfs_[raw_material.brdf_id - 1],
             raw_material.ambient, raw_material.diffuse, raw_material.specular,
             raw_material.phong_exponent, raw_material.roughness,
             raw_material.mirror, raw_material.absorption_coefficient,
@@ -257,13 +290,13 @@ void Scene::LoadScene() {
       {
         texture_maps_.push_back(std::make_shared<ImageTextureMap>(
         raw_texture_map.decal_mode, raw_texture_map.bump_factor, std::shared_ptr<BaseImage>(images_[raw_texture_map.image_id - 1]),
-        raw_texture_map.interpolation_mode, 1.0));
+        raw_texture_map.interpolation_mode, 1.0, raw_texture_map.degamma));
         background_texture_map_ = texture_maps_.back();
       }
       else{
           texture_maps_.push_back(std::make_shared<ImageTextureMap>(
           raw_texture_map.decal_mode, raw_texture_map.bump_factor, std::shared_ptr<BaseImage>(images_[raw_texture_map.image_id - 1]),
-          raw_texture_map.interpolation_mode, raw_texture_map.normalizer));
+          raw_texture_map.interpolation_mode, raw_texture_map.normalizer, raw_texture_map.degamma));
       }
     }
     
@@ -487,6 +520,48 @@ void Scene::LoadScene() {
   }
 
   timer.AddTimeLog(Section::kLoadScene, Event::kEnd);
+}
+
+FP_PRECISION Scene::LightSamplingPdf(
+    const std::shared_ptr<BaseObject> &light_object, const Vec3f &reference_point,
+    const Vec3f &light_point, const Vec3f &light_normal) const {
+  if (light_objects_.empty()) return 0.0;
+  auto light = std::dynamic_pointer_cast<ObjectLightSource>(light_object);
+  if (!light) return 0.0;
+  const FP_PRECISION pdf =
+      light->PdfSolidAngle(reference_point, light_point, light_normal);
+  return pdf / static_cast<FP_PRECISION>(light_objects_.size());
+}
+
+std::shared_ptr<BaseObject> Scene::IntersectScene(
+    const Ray &ray, FP_PRECISION &t_hit, Vec3f &hit_normal, Vec2f &tex_coords,
+    Vec2f &hit_u_vector, Vec2f &hit_v_vector, Vec3f &tangent_vector,
+    Vec3f &bitangent_vector, bool stop_at_any_hit) const {
+  std::shared_ptr<BaseObject> hit_object_ptr = nullptr;
+
+  const int hit_index = bvh_.Intersect(
+      ray, objects_, t_hit, hit_normal, tex_coords, hit_u_vector, hit_v_vector,
+      tangent_vector, bitangent_vector, false, stop_at_any_hit);
+  if (hit_index >= 0) {
+    hit_object_ptr = objects_[hit_index];
+    if (stop_at_any_hit) return hit_object_ptr;
+  }
+
+  // Planes are deliberately kept out of the BVH: they are unbounded, so their
+  // AABB would cover the whole scene and every traversal would be forced to
+  // descend into it. They are cheap to test directly instead.
+  for (const auto &plane : plane_objects_) {
+    FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
+    Vec3f normal;
+    if (plane->IntersectPlane(ray, temp_hit, normal) && temp_hit < t_hit) {
+      t_hit = temp_hit;
+      hit_normal = normal;
+      hit_object_ptr = plane;
+      if (stop_at_any_hit) return hit_object_ptr;
+    }
+  }
+
+  return hit_object_ptr;
 }
 
 void Scene::PreprocessScene() {

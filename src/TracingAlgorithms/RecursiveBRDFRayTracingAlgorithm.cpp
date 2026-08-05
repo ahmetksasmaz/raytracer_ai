@@ -22,22 +22,9 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
     std::shared_ptr<BaseObject> hit_object_ptr = nullptr;
 
     if (inside_object_ptr == nullptr) {
-        int hit_index = bvh_.Intersect(ray, objects_, t_hit, hit_normal, hit_tex_coords,
-                                    hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, false);
-        if (hit_index >= 0) {
-            hit_object_ptr = objects_[hit_index];
-        }
-
-        for (const auto &plane : plane_objects_) {
-            auto plane_casted = std::dynamic_pointer_cast<PlaneObject>(plane);
-            FP_PRECISION temp_hit = std::numeric_limits<FP_PRECISION>::max();
-            Vec3f normal;
-            if (plane_casted->IntersectPlane(ray, temp_hit, normal) && t_hit > temp_hit) {
-                t_hit = temp_hit;
-                hit_object_ptr = plane;
-                hit_normal = normal;
-            }
-        }
+        hit_object_ptr = IntersectScene(ray, t_hit, hit_normal, hit_tex_coords,
+                                        hit_u_vector, hit_v_vector,
+                                        hit_tangent_vector, hit_bitangent_vector);
     } else {
         hit_object_ptr = std::const_pointer_cast<BaseObject>(inside_object_ptr);
         inside_object_ptr->Intersect(ray, t_hit, hit_normal, hit_tex_coords, hit_u_vector, hit_v_vector, hit_tangent_vector, hit_bitangent_vector, false);
@@ -63,6 +50,13 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
                     static_cast<FP_PRECISION>(background_color_.z)};
         }
         return {0, 0, 0};
+    }
+
+    // Shade double-sided -- see the path tracer for the rationale. Emitters keep
+    // their geometric orientation.
+    if (dot(ray.direction_, hit_normal) > 0 &&
+        !std::dynamic_pointer_cast<ObjectLightSource>(hit_object_ptr)) {
+        hit_normal = -hit_normal;
     }
 
     // STEP : FIND PROPERTIES OF OBJECT AND APPLY TEXTURES
@@ -245,8 +239,9 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
     auto ShadowCheck = [&](const Vec3f& direction, FP_PRECISION max_dist) -> bool {
         Ray shadow_ray{ray.pixel_, intersection_point, direction, ray.diff_, ray.time_};
         shadow_hit = max_dist;
-        return bvh_.Intersect(shadow_ray, objects_, shadow_hit, shadow_normal, shadow_tex_coords, 
-                              shadow_u, shadow_v, shadow_tangent, shadow_bitangent, false, true) >= 0;
+        return IntersectScene(shadow_ray, shadow_hit, shadow_normal, shadow_tex_coords,
+                              shadow_u, shadow_v, shadow_tangent, shadow_bitangent,
+                              true) != nullptr;
     };
 
     auto light_obj = std::dynamic_pointer_cast<ObjectLightSource>(hit_object_ptr);
@@ -285,8 +280,11 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
             Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             Vec3f light_normal = FastNormalize(area_light->normal_);
-            total_light_value += hadamard(area_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) * 
-                                 area_light->size_ * area_light->size_ * dot(-light_normal, light_dir) / (dist * dist);
+            // The light-side cosine needs the same clamp as the surface-side
+            // one. Unclamped, a surface behind the emitting face receives a
+            // NEGATIVE contribution rather than none at all.
+            total_light_value += hadamard(area_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) *
+                                 area_light->size_ * area_light->size_ * std::max(0.0, dot(-light_normal, light_dir)) / (dist * dist);
         }
     }
     
@@ -338,7 +336,8 @@ Vec3f Scene::RecursiveBRDFRayTracingAlgorithm(
                 pdf_value /= static_cast<FP_PRECISION>(object_light_count);
                 Vec3f light_dir = normalize(sample_point - intersection_point);
                 FP_PRECISION dist = norm(sample_point - intersection_point);
-                if (!ShadowCheck(light_dir, dist)) {
+                // Shorten slightly so the emitter is not its own occluder.
+                if (!ShadowCheck(light_dir, dist * (1.0 - 1e-4))) {
                     Vec3f brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                                 material_ptr->refraction_index_, material_ptr->absorption_index_);
                     total_light_value += hadamard(light_object_casted->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) / pdf_value;

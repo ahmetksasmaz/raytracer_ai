@@ -352,6 +352,9 @@ struct RawBRDF{
 
 struct RawTextureMap {
   RawTextureMapType type;
+  // Opt-in sRGB -> linear decode for image textures. Off by default so existing
+  // scenes are unaffected; albedo textures authored in sRGB want it on.
+  bool degamma = false;
   int image_id;
   RawTextureMapDecalMode decal_mode;
   RawTextureMapInterpolationMode interpolation_mode = RawTextureMapInterpolationMode::kNearest;

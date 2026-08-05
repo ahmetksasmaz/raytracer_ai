@@ -1,11 +1,16 @@
 #include "SphereObject.hpp"
 
 bool SphereObject::Intersect(
-    Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool, bool) const {
+    const Ray& ray, FP_PRECISION& t_hit, Vec3f& intersection_normal, Vec2f& tex_coords, Vec2f& hit_u_vector, Vec2f& hit_v_vector, Vec3f& tangent_vector, Vec3f& bitangent_vector, bool, bool) const {
   Vec3f transformed_ray_origin =
       inverse_transform_matrix_ * (ray.origin_ - motion_blur_ * ray.time_);
-    Vec3f transformed_ray_direction =
-      normalize(inverse_transpose_transform_matrix_ * ray.direction_);
+  // Directions transform by the linear part of the INVERSE matrix (operator^
+  // drops the translation column). The inverse-transpose is the NORMAL
+  // transform: using it here rotates the direction forward while the origin is
+  // rotated backward, so the local ray no longer corresponds to the world ray
+  // and a rotated sphere is missed entirely. Matches TriangleObject/MeshObject.
+  Vec3f transformed_ray_direction =
+      normalize(inverse_transform_matrix_ ^ ray.direction_);
   Ray transformed_ray{ray.pixel_, transformed_ray_origin,
                       transformed_ray_direction, ray.diff_, ray.time_};
 
@@ -29,10 +34,6 @@ bool SphereObject::Intersect(
       Vec3f global_point = transform_matrix_ * local_point + motion_blur_ * ray.time_;
       Vec3f diff = global_point - ray.origin_;
       t_hit = norm(diff);
-      Vec3f normalized_diff = normalize(diff);
-      ray.direction_.x = normalized_diff.x;
-      ray.direction_.y = normalized_diff.y;
-      ray.direction_.z = normalized_diff.z;
       intersection_normal = approximated_normal;
 
       FP_PRECISION x = local_point.x - center_.x;
