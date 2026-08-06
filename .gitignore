@@ -37,9 +37,21 @@ build/*
 *.txt
 *.xml
 *.ply
+*.exr
+*.pgm
 hw*/*
+hw*/
 # generated test renders
 tests/out/
+
+# persistent local render output folder (not part of the codebase)
+outputs/
+
+# downloaded homework scene/ground-truth corpora (not part of the codebase)
+homework*/
+homework_corpus/
+corpus/
+ground_truth/
 
 # build artifacts from the test harness
 imgdiff
