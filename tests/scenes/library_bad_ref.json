@@ -1,0 +1,71 @@
+{
+  "__comment": "SPECTRAL LIBRARY ERROR HANDLING. Names a spectrum that does not exist. The renderer must exit non-zero: falling back to a default spectrum would let a white-balance study run under the wrong illuminant and report a plausible wrong answer, which is the one failure mode that cannot be caught by looking at the image.",
+  "Scene": {
+    "BackgroundColor": "0 0 0",
+    "ShadowRayEpsilon": "0.001",
+    "Cameras": {
+      "Camera": {
+        "_id": "1",
+        "_type": "lookAt",
+        "Position": "0 0 1.5",
+        "GazePoint": "0 0 -0.5",
+        "Up": "0 1 0",
+        "FovY": "60",
+        "NearDistance": "1",
+        "ImageResolution": "64 64",
+        "NumSamples": "36",
+        "MaxRecursionDepth": "5",
+        "Renderer": "PathTracing",
+        "RendererParams": "ImportanceSampling",
+        "ImageName": "library_bad_ref.exr"
+      }
+    },
+    "BRDFs": {
+      "ModifiedBlinnPhong": {
+        "_id": "1",
+        "_normalized": "true",
+        "Exponent": "1"
+      }
+    },
+    "Materials": {
+      "Material": [
+        {
+          "_id": "1",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0 0 0",
+          "SpecularReflectance": "0 0 0"
+        },
+        {
+          "_id": "2",
+          "_BRDF": "1",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.6 0.6 0.6",
+          "SpecularReflectance": "0 0 0"
+        }
+      ]
+    },
+    "VertexData": {
+      "_data": "-2 -2 -2 2 -2 -2 2 2 -2 -2 2 -2 -2 -2 2 2 -2 2 2 2 2 -2 2 2 0 0 -0.5"
+    },
+    "Objects": {
+      "LightMesh": {
+        "_id": "1",
+        "Material": "1",
+        "Radiance": "1 1 1",
+        "Faces": {
+          "_data": "1 2 3 1 3 4 5 8 7 5 7 6 1 4 8 1 8 5 2 6 7 2 7 3 1 5 6 1 6 2 4 3 7 4 7 8"
+        },
+        "RadianceSpectrum": {
+          "_ref": "light:no_such_lamp",
+          "_scale": "1"
+        }
+      },
+      "Sphere": {
+        "_id": "2",
+        "Material": "2",
+        "Center": "9",
+        "Radius": "0.8"
+      }
+    }
+  }
+}

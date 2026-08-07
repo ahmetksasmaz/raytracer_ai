@@ -20,6 +20,9 @@ Build is whole-program every time (`extern/*.cpp src/*.cpp src/*/*.cpp`); ~30-60
 extern/     parser.{h,cpp} (scene loader), json.hpp, tinyxml2, ply, stb_image(_write), tinyexr  — vendored, don't touch except parser
 include/    headers, flat-ish; Makefile adds each subdir to -I so includes are by basename ("Scene.hpp", "BaseBRDF.hpp")
 src/        RayTracer.cpp (main), Scene.cpp (raw->runtime build), plus one .cpp per algorithm/object
+spectra/    measured .spd spectra (lights, materials, sensors) + README/LICENSES — committed data, see below
+scenes/     demo scenes that depend on spectra/ (tests/scenes/ stays self-contained)
+outputs/    persistent render output, gitignored
 ```
 Subsystems (each `include/X/` + `src/X/`): `Objects/`, `Materials/`, `BRDFs/`, `LightSources/`, `Textures/`, `ToneMappingAlgorithms/`, `TracingAlgorithms/`, `SchedulingAlgorithms/`.
 
@@ -135,11 +138,33 @@ Two invariants keep neutral scenes bit-stable across the RGB→spectral conversi
 ```json
 "RadianceSpectrum": "D65"
 "RadianceSpectrum": {"_illuminant": "D65", "_scale": "5"}
+"RadianceSpectrum": {"_ref": "light:incandescent", "_scale": "8"}
 "DiffuseSpectrum":  {"_data": "400 0.04 550 0.9 700 0.05"}
 ```
-Keys: `IntensitySpectrum` (point/spot), `RadianceSpectrum` (area/directional/LightMesh/LightSphere), `DiffuseSpectrum` / `SpecularSpectrum` (materials). Illuminants: `D65`, `A`, `E`. An unknown name is a **hard error** — silently rendering under the wrong illuminant would corrupt a white-balance study invisibly.
+Keys: `IntensitySpectrum` (point/spot), `RadianceSpectrum` (area/directional/LightMesh/LightSphere), `DiffuseSpectrum` / `SpecularSpectrum` (materials). Precedence is `_ref` > `_illuminant` > `_data` > RGB fallback. Built-in illuminants: `D65`, `A`, `E`. An unknown name or reference is a **hard error** — silently rendering under the wrong illuminant would corrupt a white-balance study invisibly.
 
-The ColorChecker table in `SpectralData.hpp` is **published sRGB, not measured spectra**. It is fine for wiring up a pipeline but not for research conclusions: an uplifted spectrum is one of infinitely many metamers, and distinguishing metamers is the point of a spectral study. Supply measured reflectances via `DiffuseSpectrum` for real work.
+## Measured spectral library
+
+`spectra/` holds 2145 published spectra as plain-text `.spd` files, loaded at start-up and addressed by `_ref` as `"<type>:<name>"`. See `spectra/README.md` for the format and `spectra/LICENSES.md` for terms — **camspec is CC BY-NC-SA and the UEF sets are academic-use-only.**
+
+| Group | What |
+|---|---|
+| `light:` | 59 CIE illuminants (A–E, D50–D75, FL1–12, FL3.x, HP1–5, LED-B*, ISO 7589) + 56 measured real lamps (tungsten, fluorescent, HID, phosphor LEDs) |
+| `material:` | measured ColorChecker (24), artist paints (485, six oil lines), plants/flowers (219), conifer & birch foliage (3), Munsell chips (1269) |
+| `sensor:` | 28 real camera sensitivities from Jiang 2013 — DSLRs, a medium-format back, two industrial cameras, a phone — plus 2 under a permissive licence |
+
+Regenerate from upstream with `python3 tools/fetch_spectra.py`; the `.spd` files are committed, so this is only for a refresh. Search order for the directory: scene `"SpectralLibrary"` key → `$RAYTRACER_SPECTRA_DIR` → `spectra/` beside the scene → `spectra/` in cwd.
+
+Two behaviours worth knowing:
+
+- **Library lights are renormalised to 1.0 at 560 nm on load** (`NormalizeLight`, `src/SpectrumLibrary.cpp`), matching `NormalizeAt560` on the built-in illuminants. Published SPDs sit at 100 at 560 nm, so without this `"light:d65"` and `"D65"` would differ by 100× for the same nominal spectrum. Narrowband sources with negligible 560 nm output fall back to peak normalisation. `library-equivalence` in the test suite pins the two paths together.
+- **A measured camera sensitivity is the whole optical response** (QE × CFA × everything else), so a `sensor:` ref fills `cfa[0..2]` and forces quantum efficiency to 1. Splitting it would count the sensor's own efficiency twice. A single-curve ref in a `Sensor` block, or a 3-channel ref used as a plain spectrum, is a hard error either way.
+
+`FitSensorToXYZ` now prefers the measured ColorChecker from the library and falls back to the compiled-in uplifted-sRGB table only when the library is absent; the sidecar JSON records which was used. This matters more than it sounds: **fitting against measured reflectances raises the residuals ~16×** (0.019–0.048 vs 0.001–0.003 across five real sensors), because Smits-uplifted spectra are smooth and easy for any sensor to fit. The old numbers flattered every camera.
+
+The ColorChecker table in `SpectralData.hpp` is still **published sRGB, not measured spectra**. It is fine for wiring up a pipeline but not for research conclusions: an uplifted spectrum is one of infinitely many metamers, and distinguishing metamers is the point of a spectral study. Use `material:` refs, or supply your own via `_data`.
+
+`scenes/spectral_demo/` (generated by its `generate.py`, rendered by `tools/render_demo.sh` into the gitignored `outputs/`) is the worked example: one ColorChecker under five real illuminants, one chart through five real cameras, and a palette of named oils and foliage.
 
 ## Camera sensor simulation
 
@@ -147,6 +172,7 @@ Declared per camera under `"Sensor"`. Absent means no sensor simulation and the 
 
 ```json
 "Sensor": {
+  "_ref": "sensor:nikon_d700",     // optional: a measured camera, see spectra/
   "_pattern": "RGGB",              // or BGGR / GRBG / GBRG; unknown = hard error
   "ExposureTime": "1e-4", "PixelPitch": "3.45e-6", "FNumber": "2.8",
   "FullWell": "60000", "Gain": "16.0", "BitDepth": "12",
@@ -168,7 +194,7 @@ Writes four products alongside `<base>.exr`:
 
 `tests/scenes/hyperspectral_box.json` is the reference example: five explicit spectral reflectances under three spectrally distinct emitters (D65, illuminant A, a narrowband LED), captured through a modelled CMOS sensor. Two of its spheres are a **metameric pair** — same CIE XYZ under D65 to 0.07%, 6.0% apart under illuminant A — which is the thing an RGB renderer structurally cannot represent.
 
-**Default CFA filters are Gaussians, not measured curves**, and the ColorChecker training set is uplifted sRGB. Both are fine for wiring up a pipeline and wrong for research conclusions — supply measured data via the spectral syntax.
+**The default CFA filters are Gaussians, not measured curves** — they apply only when no `_ref` is given. For anything you intend to draw a conclusion from, name a real camera (`"_ref": "sensor:canon_5dmarkii"`); with the library present the ColorChecker training set is measured too, so the residual then describes the sensor rather than the placeholder data around it.
 
 Two testing traps worth remembering: whole-image variance on a mosaic measures the *mosaic pattern*, not noise (compute it within a Bayer parity class), and an over-exposed sensor pegs every parity at full well so CFA differences vanish — both cost real debugging time here.
 
@@ -194,7 +220,9 @@ These are load-bearing; breaking one produces a plausible-looking but wrong imag
 
 Every check is **self-validating** — it asserts analytic ground truth or an invariance, never a blessed reference image. Scenes in `tests/scenes/` are self-contained (inline geometry, no PLY, no image textures); renders land in the gitignored `tests/out/`.
 
-The load-bearing ones: `furnace*` (a closed emissive box with an albedo-1 sphere must read exactly the emitted radiance — catches any energy gain/loss); `cornell_{brute,nee,mis}` (multi-bounce equivalence — **a furnace cannot detect MIS weighting errors**, since both strategies share one expectation and the weights sum to 1, so bias cancels regardless); `beer_*` (transmission ratio vs analytic `exp(-σd)`); `sphere_{norot,rot}` (rotating a sphere about its own centre must be a no-op).
+The load-bearing ones: `furnace*` (a closed emissive box with an albedo-1 sphere must read exactly the emitted radiance — catches any energy gain/loss); `cornell_{brute,nee,mis}` (multi-bounce equivalence — **a furnace cannot detect MIS weighting errors**, since both strategies share one expectation and the weights sum to 1, so bias cancels regardless); `beer_*` (transmission ratio vs analytic `exp(-σd)`); `sphere_{norot,rot}` (rotating a sphere about its own centre must be a no-op); `library-equivalence` (D65 read from `spectra/` must reproduce D65 read from `SpectralData.hpp` — one comparison covering the file parser, the resample and the 560 nm normalisation).
+
+`expect_render_failure` is the harness helper for checks that assert a scene is *rejected* (`library-unknown-ref`, `library-wrong-kind`). It matches on the error message as well as the exit code, since an unrelated crash would satisfy the exit code alone.
 
 When adding a check, prefer an invariance (two configurations that must agree) or a closed-form expectation over a threshold someone has to eyeball.
 

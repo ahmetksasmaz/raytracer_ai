@@ -62,6 +62,11 @@ struct ColorMatrixFit {
   FP_PRECISION residual;      // RMS over the training reflectances
   std::string illuminant;
   int sample_count;
+  // True when the fit trained on measured ColorChecker reflectances from the
+  // spectral library rather than on the compiled-in sRGB triples uplifted to
+  // spectra. The residual only means something about the sensor in the first
+  // case; in the second it partly measures the uplift.
+  bool measured_training = false;
 };
 
 ColorMatrixFit FitSensorToXYZ(const SensorModel& sensor,

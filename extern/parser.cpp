@@ -700,13 +700,19 @@ void parser::RawScene::loadFromXml(const std::string &filepath) {
 
 namespace {
 
-// Reads a scene-supplied spectrum. Accepts either a bare illuminant name
+// Reads a scene-supplied spectrum. Accepts either a bare name
 //   "RadianceSpectrum": "D65"
+//   "RadianceSpectrum": "light:incandescent"
 // or an object form
+//   "RadianceSpectrum": {"_ref": "light:incandescent", "_scale": "8"}
 //   "RadianceSpectrum": {"_illuminant": "D65", "_scale": "5"}
 //   "RadianceSpectrum": {"_data": "400 0.04 410 0.05 ...", "_scale": "1"}
 // Returns an unset RawSpectrumData when the key is absent, in which case the
 // loader falls back to uplifting the RGB value.
+//
+// A bare string containing a colon is read as a library reference rather than
+// an illuminant name; no standard illuminant has a colon in it, so the two
+// spellings cannot collide.
 parser::RawSpectrumData ParseSpectrumData(const nlohmann::json &parent,
                                           const std::string &key) {
   parser::RawSpectrumData out;
@@ -714,8 +720,16 @@ parser::RawSpectrumData ParseSpectrumData(const nlohmann::json &parent,
   const auto &node = parent[key];
 
   if (node.is_string()) {
-    out.illuminant = node.get<std::string>();
+    const std::string text = node.get<std::string>();
+    if (text.find(':') != std::string::npos) {
+      out.ref = text;
+    } else {
+      out.illuminant = text;
+    }
     return out;
+  }
+  if (node.contains("_ref")) {
+    out.ref = node["_ref"].get<std::string>();
   }
   if (node.contains("_illuminant")) {
     out.illuminant = node["_illuminant"].get<std::string>();
@@ -768,6 +782,12 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
     intersection_test_epsilon = std::stof(json_data["IntersectionTestEpsilon"].get<std::string>());
   } else {
     intersection_test_epsilon = 0.001f;
+  }
+
+  // Parse the measured spectral library location. Omitted means search the
+  // usual places; see SpectrumLibrary::LoadDefault.
+  if (json_data.contains("SpectralLibrary")) {
+    spectral_library = json_data["SpectralLibrary"].get<std::string>();
   }
 
   // Parse Cameras
@@ -911,6 +931,9 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
                      ? std::stod(sensor_json[key].get<std::string>())
                      : fallback;
         };
+        sensor.ref = sensor_json.contains("_ref")
+                         ? sensor_json["_ref"].get<std::string>()
+                         : "";
         sensor.pattern = sensor_json.contains("_pattern")
                              ? sensor_json["_pattern"].get<std::string>()
                              : "RGGB";

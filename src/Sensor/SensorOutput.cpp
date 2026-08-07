@@ -1,5 +1,7 @@
 #include "SensorOutput.hpp"
 
+#include "SpectrumLibrary.hpp"
+
 #include <algorithm>
 #include <cstring>
 #include <fstream>
@@ -224,10 +226,36 @@ ColorMatrixFit FitSensorToXYZ(const SensorModel& sensor,
   const Spectrum sens_g = sensor.ChannelSensitivity(SensorChannel::kGreen);
   const Spectrum sens_b = sensor.ChannelSensitivity(SensorChannel::kBlue);
 
+  // Prefer measured ColorChecker reflectances from the spectral library. The
+  // compiled-in table is published sRGB uplifted to a spectrum, and an uplifted
+  // spectrum is only one of infinitely many metamers -- fitting against it
+  // measures the uplift as much as the sensor. Falling back to it keeps scenes
+  // that ship without the library working.
+  std::vector<Spectrum> reflectances;
+  const SpectrumLibrary& library = SpectrumLibrary::Instance();
   for (int i = 0; i < spectral_data::kColorCheckerCount; i++) {
     const auto& patch = spectral_data::kColorCheckerSRGB[i];
-    const Spectrum reflectance = UpliftRGB(Vec3f{patch.r, patch.g, patch.b});
-    const Spectrum stimulus = hadamard(reflectance, illuminant);
+    if (const SpectrumRecord* measured =
+            library.Find(std::string("material:") + patch.name)) {
+      if (!measured->multichannel) {
+        reflectances.push_back(measured->value);
+        continue;
+      }
+    }
+    reflectances.clear();
+    break;
+  }
+
+  const bool measured_training = !reflectances.empty();
+  if (!measured_training) {
+    for (int i = 0; i < spectral_data::kColorCheckerCount; i++) {
+      const auto& patch = spectral_data::kColorCheckerSRGB[i];
+      reflectances.push_back(UpliftRGB(Vec3f{patch.r, patch.g, patch.b}));
+    }
+  }
+
+  for (size_t i = 0; i < reflectances.size(); i++) {
+    const Spectrum stimulus = hadamard(reflectances[i], illuminant);
 
     std::array<FP_PRECISION, 3> rgb{0, 0, 0};
     for (int band = 0; band < kSpectralBands; band++) {
@@ -260,6 +288,7 @@ ColorMatrixFit FitSensorToXYZ(const SensorModel& sensor,
   ColorMatrixFit fit;
   fit.illuminant = illuminant_name;
   fit.sample_count = spectral_data::kColorCheckerCount;
+  fit.measured_training = measured_training;
 
   if (std::fabs(det) < 1e-30) {
     // Degenerate sensor (e.g. two identical channels): report identity and a
@@ -325,9 +354,14 @@ bool WriteColorMatrix(const std::string& path, const ColorMatrixFit& fit) {
          "is.\",\n";
   out << "  \"illuminant\": \"" << fit.illuminant << "\",\n";
   out << "  \"training_samples\": " << fit.sample_count << ",\n";
-  out << "  \"training_reflectances\": \"ColorChecker approximated by uplifting "
-         "published sRGB, NOT measured spectra -- refit with measured data for "
-         "research use\",\n";
+  out << "  \"training_reflectances\": \""
+      << (fit.measured_training
+              ? "measured ColorChecker reflectance from spectra/materials/"
+                "colorchecker.spd"
+              : "ColorChecker approximated by uplifting published sRGB, NOT "
+                "measured spectra -- put spectra/ on the search path to fit "
+                "against real measurements")
+      << "\",\n";
   out << "  \"relative_rms_residual\": " << fit.residual << ",\n";
   out << "  \"sensor_rgb_to_xyz\": [\n";
   for (int i = 0; i < 3; i++) {
