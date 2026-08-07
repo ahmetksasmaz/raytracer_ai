@@ -943,6 +943,7 @@ void parser::RawScene::loadFromJSON(const std::string &filepath) {
         sensor.full_well_e = num("FullWell", 10000.0);
         sensor.gain_e_per_dn = num("Gain", 1.0);
         sensor.bit_depth = static_cast<int>(num("BitDepth", 12));
+        sensor.dynamic_range_stops = num("DynamicRange", 0.0);
         sensor.read_noise_sigma_e = num("ReadNoise", 2.0);
         sensor.dark_current_e_per_s = num("DarkCurrent", 5.0);
         // Space-separated list; "None" disables every source, which is how a

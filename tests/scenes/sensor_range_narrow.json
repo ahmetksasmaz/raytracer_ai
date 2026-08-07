@@ -1,0 +1,84 @@
+{
+  "__comment": "DYNAMIC RANGE IS A DISPLAY PARAMETER (narrow). See sensor_range_wide.",
+  "Scene": {
+    "BackgroundColor": "0 0 0",
+    "ShadowRayEpsilon": "0.001",
+    "Cameras": {
+      "Camera": {
+        "_id": "1",
+        "_type": "lookAt",
+        "Position": "0 0 1.5",
+        "GazePoint": "0 0 -0.5",
+        "Up": "0 1 0",
+        "FovY": "60",
+        "NearDistance": "1",
+        "ImageResolution": "32 32",
+        "NumSamples": "16",
+        "MaxRecursionDepth": "5",
+        "Renderer": "PathTracing",
+        "RendererParams": "ImportanceSampling",
+        "ImageName": "sensor_range_narrow.exr",
+        "Sensor": {
+          "_pattern": "RGGB",
+          "ExposureTime": "1e-4",
+          "PixelPitch": "3.45e-6",
+          "FNumber": "2.8",
+          "FullWell": "60000",
+          "Gain": "16.0",
+          "BitDepth": "12",
+          "ReadNoise": "2.0",
+          "DarkCurrent": "5.0",
+          "NoiseSources": "None",
+          "DynamicRange": "3"
+        }
+      }
+    },
+    "BRDFs": {
+      "ModifiedBlinnPhong": {
+        "_id": "1",
+        "_normalized": "true",
+        "Exponent": "1"
+      }
+    },
+    "Materials": {
+      "Material": [
+        {
+          "_id": "1",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0 0 0",
+          "SpecularReflectance": "0 0 0"
+        },
+        {
+          "_id": "2",
+          "_BRDF": "1",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "1 1 1",
+          "SpecularReflectance": "0 0 0"
+        }
+      ]
+    },
+    "VertexData": {
+      "_data": "-2 -2 -2 2 -2 -2 2 2 -2 -2 2 -2 -2 -2 2 2 -2 2 2 2 2 -2 2 2 0 0 -0.5"
+    },
+    "Objects": {
+      "LightMesh": {
+        "_id": "1",
+        "Material": "1",
+        "Radiance": "1 1 1",
+        "Faces": {
+          "_data": "1 2 3 1 3 4 5 8 7 5 7 6 1 4 8 1 8 5 2 6 7 2 7 3 1 5 6 1 6 2 4 3 7 4 7 8"
+        },
+        "RadianceSpectrum": {
+          "_illuminant": "D65",
+          "_scale": "1"
+        }
+      },
+      "Sphere": {
+        "_id": "2",
+        "Material": "2",
+        "Center": "9",
+        "Radius": "0.8"
+      }
+    }
+  }
+}

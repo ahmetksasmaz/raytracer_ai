@@ -204,6 +204,9 @@ struct RawSensor {
   FP_PRECISION full_well_e = 10000.0;
   FP_PRECISION gain_e_per_dn = 1.0;
   int bit_depth = 12;
+  // Stops below saturation that the output image spans. 0 means derive it from
+  // full well over read noise, the sensor's own dynamic range.
+  FP_PRECISION dynamic_range_stops = 0.0;
   FP_PRECISION read_noise_sigma_e = 2.0;
   FP_PRECISION dark_current_e_per_s = 5.0;
   bool shot_noise = true;

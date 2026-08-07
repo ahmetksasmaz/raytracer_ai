@@ -176,6 +176,7 @@ Declared per camera under `"Sensor"`. Absent means no sensor simulation and the 
   "_pattern": "RGGB",              // or BGGR / GRBG / GBRG; unknown = hard error
   "ExposureTime": "1e-4", "PixelPitch": "3.45e-6", "FNumber": "2.8",
   "FullWell": "60000", "Gain": "16.0", "BitDepth": "12",
+  "DynamicRange": "12",            // stops below saturation; 0/absent = derive
   "ReadNoise": "2.0", "DarkCurrent": "5.0",
   "NoiseSources": "Shot Read Dark",           // "None" for a noise-free reference
   "QuantumEfficiency": {"_data": "400 0.3 550 0.6 700 0.4"},
@@ -190,13 +191,26 @@ Writes four products alongside `<base>.exr`:
 2. `<base>_raw.pgm` + `_raw.exr` — RAW Bayer mosaic in sensorRGB digital numbers (16-bit PGM because stb only writes 8-bit PNG).
 3. `<base>_demosaiced.exr` — bilinear, still sensor space.
 4. `<base>_sensor_to_xyz.json` — least-squares 3×3 plus its residual. The residual is part of the result: a sensor failing the Luther condition cannot be corrected exactly by any 3×3.
-5. `<base>_srgb.png` — demosaiced sensorRGB pushed through that matrix to XYZ, then to sRGB with the proper transfer function (not a plain 2.2 gamma). Exposure normalised on the 99.5th percentile so one hot pixel can't darken the frame. The **only** output that leaves sensor space; compute on the others.
+5. `<base>_srgb.png` — demosaiced sensorRGB pushed through that matrix to XYZ, then to sRGB with the proper transfer function (not a plain 2.2 gamma). The **only** output that leaves sensor space; compute on the others.
+
+**The sensor path is never tone mapped and never auto-exposed.** A `Tonemap` block applies to the conventional `<base>.png` only. The sensor's own output maps digital numbers to code values through a fixed window: saturation is the top of the ADC range (`2^BitDepth - 1`) and black is `DynamicRange` stops below it, both constants of the sensor rather than of the frame. Clipped highlights and crushed shadows are results, not faults — a camera does not re-expose itself to suit the scene, so exposure is something you set (`ExposureTime`, `Gain`, `FNumber`) until the histogram fits. Each render prints what it did:
+
+```
+sensor: 12.0 stops, saturation at 4095 DN, black at 1.00 DN -- 0.66% clipped, 0.04% below black
+```
+
+`DynamicRange` defaults to `log2(FullWell / ReadNoise)`, the sensor's engineering dynamic range, falling back to `BitDepth` when read noise is zero. It is a **display** parameter: it must not change the RAW, and `sensor-range-raw` asserts exactly that.
+
+Two consequences worth knowing:
+
+- **Per-channel clipping happens before the colour matrix**, as it does in a real well, so a blown red clips to a shifted hue rather than to neutral white.
+- **The fitted matrix is scaled so sensorRGB (1,1,1) gives Y=1**, and is applied to sensorRGB normalised against full scale — not to raw DN. A least-squares fit is only determined up to a scale factor, which was harmless while a percentile normalisation absorbed it downstream and is not harmless now that the display mapping is fixed.
 
 `tests/scenes/hyperspectral_box.json` is the reference example: five explicit spectral reflectances under three spectrally distinct emitters (D65, illuminant A, a narrowband LED), captured through a modelled CMOS sensor. Two of its spheres are a **metameric pair** — same CIE XYZ under D65 to 0.07%, 6.0% apart under illuminant A — which is the thing an RGB renderer structurally cannot represent.
 
 **The default CFA filters are Gaussians, not measured curves** — they apply only when no `_ref` is given. For anything you intend to draw a conclusion from, name a real camera (`"_ref": "sensor:canon_5dmarkii"`); with the library present the ColorChecker training set is measured too, so the residual then describes the sensor rather than the placeholder data around it.
 
-Two testing traps worth remembering: whole-image variance on a mosaic measures the *mosaic pattern*, not noise (compute it within a Bayer parity class), and an over-exposed sensor pegs every parity at full well so CFA differences vanish — both cost real debugging time here.
+Three testing traps worth remembering: whole-image variance on a mosaic measures the *mosaic pattern*, not noise (compute it within a Bayer parity class); an over-exposed sensor pegs every parity at full well so CFA differences vanish; and a scene-adaptive display mapping hides a badly exposed sensor completely — the demo scenes were 99.8% clipped and looked fine until the percentile normalisation came out. `sensor-fixed-exposure` is the guard: doubling exposure time must brighten the output, which an auto-exposure would cancel.
 
 ## Path tracer invariants
 

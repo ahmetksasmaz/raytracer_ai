@@ -83,6 +83,18 @@ struct SensorModel {
   FP_PRECISION gain_e_per_dn = 1.0;
   int bit_depth = 12;
 
+  // Output dynamic range, in stops below saturation.
+  //
+  // The display mapping is FIXED, not fitted to the frame: saturation is always
+  // the top of the ADC range and black is always that many stops below it. A
+  // camera does not re-expose itself to suit the scene, so neither does this --
+  // point it at something too bright and highlights blow out, point it at
+  // something too dark and shadows crush. Both are correct results, not faults
+  // in the render.
+  //
+  // <= 0 means derive it from the sensor itself; see DefaultDynamicRangeStops.
+  FP_PRECISION dynamic_range_stops = 0.0;
+
   SensorNoiseSettings noise;
 
   // Which colour the CFA puts over this pixel.
@@ -108,6 +120,49 @@ struct SensorModel {
 
   FP_PRECISION MaxDN() const {
     return static_cast<FP_PRECISION>((1 << bit_depth) - 1);
+  }
+
+  // The sensor's own engineering dynamic range: the ratio between the largest
+  // signal the well can hold and the smallest one read noise still leaves
+  // detectable. This is the figure a datasheet quotes, so it is the honest
+  // default -- a scene declaring nothing gets the range the modelled sensor
+  // actually has.
+  //
+  // With no read noise the ratio is unbounded, so the ADC's own resolution
+  // stands in: a 12-bit converter cannot express more than 12 stops regardless.
+  FP_PRECISION DefaultDynamicRangeStops() const {
+    if (noise.read_noise_sigma_e > 0.0 && full_well_e > 0.0) {
+      return std::log2(full_well_e / noise.read_noise_sigma_e);
+    }
+    return static_cast<FP_PRECISION>(bit_depth);
+  }
+
+  FP_PRECISION DynamicRangeStops() const {
+    return dynamic_range_stops > 0.0 ? dynamic_range_stops
+                                     : DefaultDynamicRangeStops();
+  }
+
+  // Digital number at the bottom of the rendered range. Anything at or below it
+  // reads as black.
+  FP_PRECISION BlackDN() const {
+    return MaxDN() * std::pow(static_cast<FP_PRECISION>(2.0),
+                              -DynamicRangeStops());
+  }
+
+  // Fixed mapping from a digital number to [0,1]. Scene-independent by
+  // construction: the only inputs are the sensor's own constants.
+  //
+  // Clipping here is per channel and happens BEFORE the colour matrix, which is
+  // where it happens in a real camera too -- the well saturates one colour at a
+  // time. That is what turns a blown red into the familiar clipped-highlight
+  // hue shift rather than into neutral white.
+  FP_PRECISION NormalizedFromDN(FP_PRECISION dn) const {
+    const FP_PRECISION white = MaxDN();
+    const FP_PRECISION black = BlackDN();
+    if (!(white > black)) return dn >= white ? 1.0 : 0.0;
+    const FP_PRECISION v = (dn - black) / (white - black);
+    return std::min(std::max(v, static_cast<FP_PRECISION>(0.0)),
+                    static_cast<FP_PRECISION>(1.0));
   }
 
   // Total spectral sensitivity of one channel: QE times that channel's filter.

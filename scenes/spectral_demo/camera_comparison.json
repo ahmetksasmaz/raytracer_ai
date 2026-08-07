@@ -28,7 +28,8 @@
           },
           "Sensor": {
             "_pattern": "RGGB",
-            "ExposureTime": "0.02",
+            "ExposureTime": "8e-5",
+            "DynamicRange": "12",
             "PixelPitch": "3.45e-6",
             "FNumber": "2.8",
             "FullWell": "60000",
@@ -63,7 +64,8 @@
           },
           "Sensor": {
             "_pattern": "RGGB",
-            "ExposureTime": "0.02",
+            "ExposureTime": "8e-5",
+            "DynamicRange": "12",
             "PixelPitch": "3.45e-6",
             "FNumber": "2.8",
             "FullWell": "60000",
@@ -98,7 +100,8 @@
           },
           "Sensor": {
             "_pattern": "RGGB",
-            "ExposureTime": "0.02",
+            "ExposureTime": "8e-5",
+            "DynamicRange": "12",
             "PixelPitch": "3.45e-6",
             "FNumber": "2.8",
             "FullWell": "60000",
@@ -133,7 +136,8 @@
           },
           "Sensor": {
             "_pattern": "RGGB",
-            "ExposureTime": "0.02",
+            "ExposureTime": "8e-5",
+            "DynamicRange": "12",
             "PixelPitch": "3.45e-6",
             "FNumber": "2.8",
             "FullWell": "60000",
@@ -168,7 +172,8 @@
           },
           "Sensor": {
             "_pattern": "RGGB",
-            "ExposureTime": "0.02",
+            "ExposureTime": "8e-5",
+            "DynamicRange": "12",
             "PixelPitch": "3.45e-6",
             "FNumber": "2.8",
             "FullWell": "60000",

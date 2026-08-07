@@ -182,36 +182,58 @@ bool WriteDemosaicedSRGB(const std::string& path, int width, int height,
   std::vector<FP_PRECISION> rgb[3];
   Demosaic(width, height, dn, sensor, rgb);
 
-  // sensorRGB -> XYZ -> linear sRGB, per pixel.
+  // STEP 1: fixed sensor response. Each channel's digital number maps onto
+  // [0,1] against the ADC's own full scale and the declared dynamic range --
+  // constants of the sensor, never of the frame. Nothing here inspects the
+  // image, so the same subject under the same light produces the same code
+  // values whatever else is in shot.
+  //
+  // Clipping is counted rather than avoided. A camera that cannot fit the
+  // scene's range blows highlights and crushes shadows; that is the measurement,
+  // and the counts are reported so it is visible without opening the file.
+  size_t over = 0, under = 0;
+  const FP_PRECISION white_dn = sensor.MaxDN();
+  const FP_PRECISION black_dn = sensor.BlackDN();
+
   std::vector<FP_PRECISION> lin(pixel_count * 3, 0.0);
   for (size_t i = 0; i < pixel_count; i++) {
-    const FP_PRECISION sr = rgb[0][i], sg = rgb[1][i], sb = rgb[2][i];
-    const FP_PRECISION X = fit.m[0][0]*sr + fit.m[0][1]*sg + fit.m[0][2]*sb;
-    const FP_PRECISION Y = fit.m[1][0]*sr + fit.m[1][1]*sg + fit.m[1][2]*sb;
-    const FP_PRECISION Z = fit.m[2][0]*sr + fit.m[2][1]*sg + fit.m[2][2]*sb;
+    FP_PRECISION channel[3];
+    for (int c = 0; c < 3; c++) {
+      const FP_PRECISION dn = rgb[c][i];
+      if (dn >= white_dn) over++;
+      else if (dn <= black_dn) under++;
+      channel[c] = sensor.NormalizedFromDN(dn);
+    }
+
+    // STEP 2: sensor space -> CIE XYZ -> linear sRGB, after per-channel
+    // clipping, so a saturated channel shifts hue the way a real one does.
+    const FP_PRECISION X = fit.m[0][0]*channel[0] + fit.m[0][1]*channel[1] + fit.m[0][2]*channel[2];
+    const FP_PRECISION Y = fit.m[1][0]*channel[0] + fit.m[1][1]*channel[1] + fit.m[1][2]*channel[2];
+    const FP_PRECISION Z = fit.m[2][0]*channel[0] + fit.m[2][1]*channel[1] + fit.m[2][2]*channel[2];
     const Vec3f c = XYZToLinearSRGB(X, Y, Z);
     lin[i*3+0] = c.x; lin[i*3+1] = c.y; lin[i*3+2] = c.z;
   }
 
-  // Exposure from a high percentile, so one hot pixel cannot darken everything.
-  std::vector<FP_PRECISION> lum;
-  lum.reserve(pixel_count);
-  for (size_t i = 0; i < pixel_count; i++) {
-    lum.push_back(std::max({lin[i*3+0], lin[i*3+1], lin[i*3+2]}));
-  }
-  std::sort(lum.begin(), lum.end());
-  FP_PRECISION white = lum.empty() ? 1.0 : lum[static_cast<size_t>(lum.size()*0.995)];
-  if (!(white > 1e-12)) white = 1.0;
-
+  // STEP 3: encode and quantise. The clamp here is the sRGB gamut, not
+  // exposure: the matrix can carry a saturated sensor colour outside the
+  // display primaries even when the sensor itself did not clip.
   std::vector<unsigned char> out(pixel_count * 3);
   for (size_t i = 0; i < pixel_count * 3; i++) {
-    FP_PRECISION v = lin[i] / white;
-    v = std::min(std::max(v, static_cast<FP_PRECISION>(0.0)), static_cast<FP_PRECISION>(1.0));
+    const FP_PRECISION v = std::min(std::max(lin[i], static_cast<FP_PRECISION>(0.0)),
+                                    static_cast<FP_PRECISION>(1.0));
     // sRGB transfer function (not a plain 2.2 gamma).
     const FP_PRECISION e = (v <= 0.0031308) ? (12.92 * v)
                                             : (1.055 * std::pow(v, 1.0/2.4) - 0.055);
     out[i] = static_cast<unsigned char>(std::lround(e * 255.0));
   }
+
+  const double samples = static_cast<double>(pixel_count) * 3.0;
+  std::printf("sensor: %.1f stops, saturation at %.0f DN, black at %.2f DN"
+              " -- %.2f%% clipped, %.2f%% below black\n",
+              static_cast<double>(sensor.DynamicRangeStops()),
+              static_cast<double>(white_dn), static_cast<double>(black_dn),
+              100.0 * over / samples, 100.0 * under / samples);
+
   return stbi_write_png(path.c_str(), width, height, 3, out.data(), width*3) != 0;
 }
 
@@ -335,6 +357,25 @@ ColorMatrixFit FitSensorToXYZ(const SensorModel& sensor,
     }
   }
   fit.residual = sq_target > 0 ? std::sqrt(sq_error / sq_target) : 0.0;
+
+  // Fix the matrix's absolute scale by anchoring full scale to white.
+  //
+  // The fit is computed in whatever units the training stimulus happened to be
+  // in, so the result is only determined up to a scale factor. That is fine for
+  // the residual, which is relative, but not for a display path with a fixed
+  // exposure: the image would land at an arbitrary brightness. Scaling so that
+  // a sensor reading of (1,1,1) -- every channel at saturation -- maps to
+  // luminance 1 makes the two ends agree, which is exactly the convention the
+  // rest of the pipeline needs: a fully exposed neutral is white.
+  //
+  // Only the overall gain changes, so the residual computed above still stands.
+  const FP_PRECISION y_at_full_scale = fit.m[1][0] + fit.m[1][1] + fit.m[1][2];
+  if (y_at_full_scale > 1e-30) {
+    const FP_PRECISION normalise = 1.0 / y_at_full_scale;
+    for (int row = 0; row < 3; row++) {
+      for (int i = 0; i < 3; i++) fit.m[row][i] *= normalise;
+    }
+  }
   return fit;
 }
 
@@ -346,8 +387,10 @@ bool WriteColorMatrix(const std::string& path, const ColorMatrixFit& fit) {
   }
   out.precision(9);
   out << "{\n";
-  out << "  \"_comment\": \"Least-squares sensorRGB -> CIE XYZ. Applies to the "
-         "RAW/demosaiced sensorRGB outputs. The residual is part of the "
+  out << "  \"_comment\": \"Least-squares sensorRGB -> CIE XYZ, scaled so that "
+         "sensorRGB (1,1,1) at full scale gives Y=1. Apply it to sensorRGB "
+         "normalised against the ADC full scale, not to raw digital numbers. "
+         "The residual is part of the "
          "result: a sensor whose sensitivities are not a linear transform of "
          "the CIE matching functions (the Luther condition) cannot be "
          "corrected exactly by any 3x3, and this quantifies how far off it "
