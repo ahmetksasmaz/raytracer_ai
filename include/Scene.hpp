@@ -9,6 +9,7 @@
 
 #include "../extern/parser.h"
 #include "Spectrum.hpp"
+#include "SpectrumLibrary.hpp"
 #include "AmbientLightSource.hpp"
 #include "AreaLightSource.hpp"
 #include "BaseCamera.hpp"

@@ -163,16 +163,21 @@ struct Vec5f {
   FP_PRECISION x, y, z, w, t;
 };
 
-// A spectrum supplied directly by a scene file, as either a named standard
-// illuminant or an explicit (wavelength, value) table. When nothing is set the
-// loader falls back to uplifting the corresponding RGB value, so existing
-// scenes are unaffected.
+// A spectrum supplied directly by a scene file, as a reference into the
+// measured spectral library, a named standard illuminant, or an explicit
+// (wavelength, value) table. When nothing is set the loader falls back to
+// uplifting the corresponding RGB value, so existing scenes are unaffected.
+//
+// Precedence at resolve time is ref > illuminant > values > RGB fallback.
 struct RawSpectrumData {
+  std::string ref;                        // e.g. "material:foliage"; see spectra/
   std::string illuminant;                 // e.g. "D65"; empty when unused
   FP_PRECISION scale = 1.0;
   std::vector<FP_PRECISION> wavelengths;  // ascending, nanometres
   std::vector<FP_PRECISION> values;
-  bool IsSet() const { return !illuminant.empty() || !values.empty(); }
+  bool IsSet() const {
+    return !ref.empty() || !illuminant.empty() || !values.empty();
+  }
 };
 
 struct RawToneMapping {
@@ -188,6 +193,10 @@ struct RawToneMapping {
 // simulation: the conventional image path is used.
 struct RawSensor {
   bool exists = false;
+  // Optional "sensor:<name>" reference into the spectral library. A measured
+  // camera sensitivity is the whole optical response, so it fills the three CFA
+  // curves and leaves quantum efficiency at unity.
+  std::string ref;
   std::string pattern = "RGGB";
   FP_PRECISION exposure_time_s = 0.01;
   FP_PRECISION pixel_pitch_m = 3.45e-6;
@@ -518,6 +527,10 @@ struct RawScene {
   std::vector<RawBRDF> brdfs;
   std::vector<RawLightMesh> light_meshes;
   std::vector<RawLightSphere> light_spheres;
+
+  // Where to look for the measured spectral library. Empty means search the
+  // usual places (see SpectrumLibrary::LoadDefault).
+  std::string spectral_library;
 
   std::vector<RawTranslation> translations;
   std::vector<RawScaling> scalings;

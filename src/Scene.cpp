@@ -7,10 +7,21 @@ namespace {
 // Turns a scene-supplied spectrum into a Spectrum, falling back to uplifting
 // the RGB value when the scene did not supply one.
 //
-// An unknown illuminant name is a hard error rather than a warning: silently
-// rendering under the wrong illuminant would corrupt a white-balance study in a
-// way that is invisible in the output.
+// An unknown illuminant name or library reference is a hard error rather than a
+// warning: silently rendering under the wrong spectrum would corrupt a
+// white-balance study in a way that is invisible in the output.
 Spectrum ResolveSpectrum(const RawSpectrumData &raw, const Vec3f &rgb_fallback) {
+  if (!raw.ref.empty()) {
+    const SpectrumRecord &record = SpectrumLibrary::Instance().Require(raw.ref);
+    if (record.multichannel) {
+      throw std::runtime_error(
+          "Spectrum reference '" + raw.ref +
+          "' has three channels and cannot be used as a single spectrum."
+          " Multi-channel records are camera sensitivities; reference them"
+          " from a camera's \"Sensor\" block instead.");
+    }
+    return record.value * raw.scale;
+  }
   if (!raw.illuminant.empty()) {
     Spectrum illuminant;
     if (!IlluminantByName(raw.illuminant, illuminant)) {
@@ -49,12 +60,32 @@ SensorModel BuildSensor(const RawSensor &raw) {
   else throw std::runtime_error("Unknown Bayer pattern '" + raw.pattern +
                                 "'. Known: RGGB, BGGR, GRBG, GBRG.");
 
+  // A measured camera sensitivity is the whole optical response -- quantum
+  // efficiency times colour filter times everything else in the path -- so it
+  // fills the three CFA curves and leaves quantum efficiency flat at 1. Folding
+  // it into the CFA *and* keeping a separate QE would apply the sensor's own
+  // efficiency twice.
+  if (!raw.ref.empty()) {
+    const SpectrumRecord &record = SpectrumLibrary::Instance().Require(raw.ref);
+    if (!record.multichannel) {
+      throw std::runtime_error(
+          "Sensor reference '" + raw.ref +
+          "' is a single-curve spectrum, not a camera sensitivity. Sensor"
+          " references must name a record with three channels.");
+    }
+    sensor.quantum_efficiency = Spectrum::Constant(1.0);
+    for (int channel = 0; channel < 3; ++channel) {
+      sensor.cfa[channel] = record.channels[channel];
+    }
+  } else {
+    DefaultBayerCFA(sensor.cfa);
+  }
+
   if (raw.quantum_efficiency.IsSet()) {
     sensor.quantum_efficiency =
         ResolveSpectrum(raw.quantum_efficiency, Vec3f{0.5, 0.5, 0.5});
   }
 
-  DefaultBayerCFA(sensor.cfa);
   if (raw.filter_red.IsSet())
     sensor.cfa[0] = ResolveSpectrum(raw.filter_red, Vec3f{1, 0, 0});
   if (raw.filter_green.IsSet())
@@ -114,6 +145,18 @@ void Scene::LoadScene() {
   timer.AddTimeLog(Section::kParseXML, Event::kEnd);
 
   timer.AddTimeLog(Section::kLoadScene, Event::kStart);
+
+  // The measured spectral library has to be in place before anything resolves a
+  // spectrum, since every _ref in the scene is looked up against it.
+  const auto slash = filename_.find_last_of('/');
+  const std::string scene_directory =
+      slash == std::string::npos ? "." : filename_.substr(0, slash);
+  SpectrumLibrary &library = SpectrumLibrary::Instance();
+  library.LoadDefault(raw_scene.spectral_library, scene_directory);
+  if (library.size() > 0) {
+    std::cout << "Loaded " << library.size() << " spectra from "
+              << library.directories().front() << std::endl;
+  }
 
   // Authored as an RGB triple, uplifted to a smooth spectrum like any other
   // RGB scene quantity.

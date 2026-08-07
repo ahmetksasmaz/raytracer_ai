@@ -73,6 +73,42 @@ check() {
   echo
 }
 
+# expect_render_failure <name> <scene> <description> <expected-message-substring>
+#
+# Asserts that a scene is REJECTED. Passing means a non-zero exit whose message
+# contains the expected text -- a crash for some unrelated reason would satisfy
+# the exit code alone, so the message is part of the assertion.
+expect_render_failure() {
+  local name="$1" scene="$2" desc="$3" expected="$4"
+
+  if [ -n "$FILTER" ] && [[ "$name" != *"$FILTER"* ]]; then
+    SKIP=$((SKIP + 1))
+    return
+  fi
+
+  printf "%-22s %s\n" "$name" "$desc"
+  ( cd "$OUT" && "$RAYTRACER" "$SCENES/$scene.json" ) > "$OUT/$scene.log" 2>&1
+  local status=$?
+
+  if [ $status -eq 0 ]; then
+    echo "    render SUCCEEDED but should have been rejected"
+    echo "    -> FAIL"
+    FAIL=$((FAIL + 1))
+    FAILED_NAMES+=("$name")
+  elif grep -q "$expected" "$OUT/$scene.log"; then
+    echo "    rejected (exit $status): $(grep -o "$expected.*" "$OUT/$scene.log" | head -1 | cut -c1-96)"
+    echo "    -> PASS"
+    PASS=$((PASS + 1))
+  else
+    echo "    failed (exit $status) but without the expected message '$expected'"
+    tail -3 "$OUT/$scene.log" | sed 's/^/    /'
+    echo "    -> FAIL"
+    FAIL=$((FAIL + 1))
+    FAILED_NAMES+=("$name")
+  fi
+  echo
+}
+
 # needs <name> <scene>...  — render the scenes a check depends on, honouring the filter
 needs() {
   local name="$1"; shift
@@ -230,6 +266,29 @@ check illuminant-discrimination "D65 vs illuminant A -- renders must differ" -- 
 needs spectral-reflectance spectral_narrowband
 check spectral-reflectance "narrow-band 550nm reflectance must render green" -- \
   --expect-channel-max "$OUT/spectral_narrowband.exr" g
+
+# --- Measured spectral library -----------------------------------------------
+# The library (spectra/*.spd) is a second route to the same physics as the
+# compiled-in tables, so it can be checked against them rather than against a
+# blessed image: D65 read from file must reproduce D65 read from SpectralData.hpp.
+# That one comparison exercises the file parser, the resample onto the band grid
+# and the 560nm normalisation in a single assertion.
+
+needs library-equivalence illuminant_d65 library_ref_d65
+check library-equivalence "library D65 must match the compiled-in D65" -- \
+  --compare "$OUT/illuminant_d65.exr" "$OUT/library_ref_d65.exr" --tol 0.002
+
+# A reference that does not resolve must stop the render. Silently substituting
+# a default would let a colour study complete under the wrong spectrum and
+# report a plausible, wrong answer -- the failure mode no image inspection
+# catches. Same reasoning as the unknown-illuminant error these mirror.
+expect_render_failure library-unknown-ref library_bad_ref \
+  "unknown _ref must be fatal, not silently defaulted" \
+  "Unknown spectrum reference"
+
+expect_render_failure library-wrong-kind library_wrong_kind \
+  "a 3-channel sensor curve used as a single spectrum must be fatal" \
+  "cannot be used as a single spectrum"
 
 # --- Sensor pipeline ---------------------------------------------------------
 # End-to-end through a declared sensor. Noise is checked WITHIN a Bayer parity
