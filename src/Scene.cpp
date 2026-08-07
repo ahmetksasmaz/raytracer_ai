@@ -47,6 +47,7 @@ SensorModel BuildSensor(const RawSensor &raw) {
   sensor.full_well_e = raw.full_well_e;
   sensor.gain_e_per_dn = raw.gain_e_per_dn;
   sensor.bit_depth = raw.bit_depth;
+  sensor.dynamic_range_stops = raw.dynamic_range_stops;
   sensor.noise.shot_noise = raw.shot_noise;
   sensor.noise.read_noise = raw.read_noise;
   sensor.noise.dark_current = raw.dark_current;

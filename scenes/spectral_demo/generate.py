@@ -50,11 +50,18 @@ PAINTS = [
      "titanium white (PW6)"),
 ]
 
-# A modest CMOS. The absolute numbers matter less than holding them fixed
-# across the sensor comparison, where the sensitivity curve is the variable.
+# A modest CMOS, exposed for this scene the way a photographer would: the
+# white patch sits just under saturation, so under 1% of the frame clips.
+#
+# There is no auto-exposure anywhere in the sensor path -- the display mapping
+# is fixed by the sensor's own full scale and DynamicRange -- so getting the
+# exposure right is part of setting up the shot, not something the renderer
+# quietly fixes afterwards. Held constant across the sensor comparison so the
+# sensitivity curve is the only variable.
 SENSOR_BASE = {
     "_pattern": "RGGB",
-    "ExposureTime": "0.02",
+    "ExposureTime": "8e-5",
+    "DynamicRange": "12",
     "PixelPitch": "3.45e-6",
     "FNumber": "2.8",
     "FullWell": "60000",

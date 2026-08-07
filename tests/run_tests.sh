@@ -311,6 +311,26 @@ check sensor-noiseless "NoiseSources None -- variance must be exactly zero" -- \
 check sensor-noise "shot/read/dark noise present, var/mean ~ 1/gain" -- \
   --variance "$OUT/sensor_noisy_raw.exr" --expect-noisy 20
 
+# --- Fixed sensor response ---------------------------------------------------
+# The sensor display path is deliberately NOT scene-adaptive: digital numbers
+# map to code values through the ADC full scale and DynamicRange, both constants
+# of the sensor. These two pairs pin that down from opposite sides.
+
+needs sensor-fixed-exposure sensor_exposure_1x sensor_exposure_2x
+# An auto-exposure would renormalise both frames to the same brightness and make
+# them agree, so "must differ" is the assertion that catches its return.
+check sensor-fixed-exposure "doubling exposure must brighten the image, not be normalised away" -- \
+  --expect-differ "$OUT/sensor_exposure_1x_srgb.png" "$OUT/sensor_exposure_2x_srgb.png" --tol 0.02
+
+needs sensor-range-display sensor_range_wide sensor_range_narrow
+# DynamicRange is a property of how the measurement is shown, not of the
+# measurement. Noise is off in both so the comparison is exact.
+check sensor-range-raw "DynamicRange must not alter the RAW measurement" -- \
+  --compare "$OUT/sensor_range_wide_raw.exr" "$OUT/sensor_range_narrow_raw.exr" --tol 1e-9
+
+check sensor-range-display "DynamicRange must change the rendered image" -- \
+  --expect-differ "$OUT/sensor_range_wide_srgb.png" "$OUT/sensor_range_narrow_srgb.png" --tol 0.02
+
 # --- Summary -----------------------------------------------------------------
 
 echo "=============================================="
