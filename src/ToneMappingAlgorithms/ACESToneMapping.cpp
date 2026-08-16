@@ -1,5 +1,7 @@
 #include "ACESToneMapping.hpp"
 
+#include <functional>
+
 void ACESToneMapping::ApplyToneMapping(Vec3f* image_data){
     std::vector<FP_PRECISION> Lw(width_ * height_);
     for(int i = 0; i < width_ * height_; i++){

@@ -36,70 +36,9 @@ Spectrum ResolveSpectrum(const RawSpectrumData &raw, const Vec3f &rgb_fallback) 
   return UpliftRGB(rgb_fallback);
 }
 
-// Builds the runtime sensor from a scene description, resolving each spectral
-// curve and falling back to synthesised placeholder filters when the scene did
-// not supply measured ones.
-SensorModel BuildSensor(const RawSensor &raw) {
-  SensorModel sensor;
-  sensor.exposure_time_s = raw.exposure_time_s;
-  sensor.pixel_pitch_m = raw.pixel_pitch_m;
-  sensor.f_number = raw.f_number;
-  sensor.full_well_e = raw.full_well_e;
-  sensor.gain_e_per_dn = raw.gain_e_per_dn;
-  sensor.bit_depth = raw.bit_depth;
-  sensor.dynamic_range_stops = raw.dynamic_range_stops;
-  sensor.noise.shot_noise = raw.shot_noise;
-  sensor.noise.read_noise = raw.read_noise;
-  sensor.noise.dark_current = raw.dark_current;
-  sensor.noise.read_noise_sigma_e = raw.read_noise_sigma_e;
-  sensor.noise.dark_current_e_per_s = raw.dark_current_e_per_s;
-
-  if (raw.pattern == "BGGR") sensor.pattern = BayerPattern::kBGGR;
-  else if (raw.pattern == "GRBG") sensor.pattern = BayerPattern::kGRBG;
-  else if (raw.pattern == "GBRG") sensor.pattern = BayerPattern::kGBRG;
-  else if (raw.pattern == "RGGB") sensor.pattern = BayerPattern::kRGGB;
-  else throw std::runtime_error("Unknown Bayer pattern '" + raw.pattern +
-                                "'. Known: RGGB, BGGR, GRBG, GBRG.");
-
-  // A measured camera sensitivity is the whole optical response -- quantum
-  // efficiency times colour filter times everything else in the path -- so it
-  // fills the three CFA curves and leaves quantum efficiency flat at 1. Folding
-  // it into the CFA *and* keeping a separate QE would apply the sensor's own
-  // efficiency twice.
-  if (!raw.ref.empty()) {
-    const SpectrumRecord &record = SpectrumLibrary::Instance().Require(raw.ref);
-    if (!record.multichannel) {
-      throw std::runtime_error(
-          "Sensor reference '" + raw.ref +
-          "' is a single-curve spectrum, not a camera sensitivity. Sensor"
-          " references must name a record with three channels.");
-    }
-    sensor.quantum_efficiency = Spectrum::Constant(1.0);
-    for (int channel = 0; channel < 3; ++channel) {
-      sensor.cfa[channel] = record.channels[channel];
-    }
-  } else {
-    DefaultBayerCFA(sensor.cfa);
-  }
-
-  if (raw.quantum_efficiency.IsSet()) {
-    sensor.quantum_efficiency =
-        ResolveSpectrum(raw.quantum_efficiency, Vec3f{0.5, 0.5, 0.5});
-  }
-
-  if (raw.filter_red.IsSet())
-    sensor.cfa[0] = ResolveSpectrum(raw.filter_red, Vec3f{1, 0, 0});
-  if (raw.filter_green.IsSet())
-    sensor.cfa[1] = ResolveSpectrum(raw.filter_green, Vec3f{0, 1, 0});
-  if (raw.filter_blue.IsSet())
-    sensor.cfa[2] = ResolveSpectrum(raw.filter_blue, Vec3f{0, 0, 1});
-
-  return sensor;
-}
-
 }  // namespace
 
-Scene::Scene(const std::string &filename)
+Scene::Scene(const std::string &filename, bool serial)
     : filename_(filename) {
   ray_tracing_algorithm_ = std::bind(
       &Scene::RecursiveBRDFRayTracingAlgorithm, this, std::placeholders::_1,
@@ -109,9 +48,14 @@ Scene::Scene(const std::string &filename)
       &Scene::RecursiveBRDFPathTracingAlgorithm, this, std::placeholders::_1,
       std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 
+  // Serial rendering exists so a suspected race can be ruled in or out: if a
+  // result changes when the tile threads go away, the bug is in the threading
+  // and not in the physics. It is much slower, so it is opt-in.
   scheduling_algorithm_ =
-      std::bind(&Scene::ThreadQueueSchedulingAlgorithm, this,
-                std::placeholders::_1, std::placeholders::_2);
+      serial ? std::bind(&Scene::NonThreadSchedulingAlgorithm, this,
+                         std::placeholders::_1, std::placeholders::_2)
+             : std::bind(&Scene::ThreadQueueSchedulingAlgorithm, this,
+                         std::placeholders::_1, std::placeholders::_2);
 
   area_light_sampling_algorithm_ = uniform_random_2d;
 
@@ -135,12 +79,18 @@ void Scene::LoadScene() {
   for (auto &c : file_extension){
     c = std::tolower(c);
   }
-  if (file_extension == "json")
-      raw_scene.loadFromJSON(filename_);
-  else if(file_extension == "xml") {
-    raw_scene.loadFromXml(filename_);
-  }
-  else {
+  if (file_extension == "json") {
+    raw_scene.loadFromJSON(filename_);
+  } else if (file_extension == "xml") {
+    // The XML loader is gone. It had drifted years behind the JSON one --
+    // no Plane, MeshInstance, LightMesh, LightSphere, BRDFs, DirectionalLight,
+    // SpotLight, SphericalDirectionalLight, Tonemap or Renderer -- so it did
+    // not fail on a modern scene, it silently rendered a different one. An
+    // explicit error is the safer answer.
+    throw std::runtime_error(
+        "Error: XML scenes are no longer supported; the loader was missing "
+        "most of the format. Convert '" + filename_ + "' to JSON.");
+  } else {
     throw std::runtime_error("Error: Unsupported file format: " + file_extension);
   }
   timer.AddTimeLog(Section::kParseXML, Event::kEnd);
@@ -288,10 +238,6 @@ void Scene::LoadScene() {
         raw_camera.aperture_size,
         SamplingAlgorithm::kHammersley,
         ApertureType::kCircular));
-
-    if (raw_camera.sensor.exists) {
-      cameras_.back()->SetSensor(BuildSensor(raw_camera.sensor));
-    }
   }
 
   for(const auto &raw_brdf : raw_scene.brdfs){

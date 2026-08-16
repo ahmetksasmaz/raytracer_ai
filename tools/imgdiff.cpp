@@ -20,18 +20,10 @@
 #include <string>
 #include <vector>
 
-// tinyexr is configured to use stb's zlib, so both stb implementations have to
-// be pulled in here for the decode/encode symbols. Same arrangement as
-// src/BaseImage.cpp.
-#define STB_IMAGE_IMPLEMENTATION
-#include "../extern/stb_image.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../extern/stb_image_write.h"
-
-#define TINYEXR_USE_MINIZ 0
-#define TINYEXR_USE_STB_ZLIB 1
-#define TINYEXR_IMPLEMENTATION
-#include "../extern/tinyexr.h"
+// Decoding goes through rt_imageio, the one library that instantiates tinyexr
+// and stb. imgdiff used to carry its own copy of both, which is why it had to
+// be built as a separate program with its own compile rule.
+#include "ImageIO/ImageIO.hpp"
 
 namespace {
 
@@ -50,38 +42,69 @@ bool HasSuffix(const std::string& s, const std::string& suffix) {
 
 // EXR values are linear radiance; LDR values are kept in 0..255 so that
 // assertions on tone-mapped output read in the units the file actually stores.
+//
+// Any channel layout loads. A 3-channel EXR maps to RGB by name; a 1-channel
+// one (the RAW mosaic) is broadcast across all three, which is what the Bayer
+// and variance modes expect; and an N-band spectral cube is averaged into all
+// three, so --compare and --expect-finite work on a cube instead of failing
+// with "R channel not found". Per-band assertions belong in --expect-channels,
+// which reads the names.
 bool LoadImage(const std::string& path, Image& image) {
+  std::string error;
+
   if (!HasSuffix(path, ".exr")) {
-    unsigned char* data =
-        stbi_load(path.c_str(), &image.width, &image.height, nullptr, 3);
-    if (!data) {
-      std::fprintf(stderr, "imgdiff: cannot load %s\n", path.c_str());
+    int channels = 3;
+    std::vector<unsigned char> data;
+    if (!image_io::ReadLDR(path, &image.width, &image.height, &channels, &data,
+                           &error)) {
+      std::fprintf(stderr, "imgdiff: %s\n", error.c_str());
       return false;
     }
-    image.rgb.resize(image.PixelCount() * 3);
-    for (size_t i = 0; i < image.rgb.size(); i++) {
+    image.rgb.resize(data.size());
+    for (size_t i = 0; i < data.size(); i++) {
       image.rgb[i] = static_cast<float>(data[i]);
     }
-    stbi_image_free(data);
     return true;
   }
 
-  float* out = nullptr;
-  const char* err = nullptr;
-  int ret = LoadEXR(&out, &image.width, &image.height, path.c_str(), &err);
-  if (ret != TINYEXR_SUCCESS) {
-    std::fprintf(stderr, "imgdiff: cannot load %s: %s\n", path.c_str(),
-                 err ? err : "unknown error");
-    if (err) FreeEXRErrorMessage(err);
+  image_io::ImagePlanes planes;
+  if (!image_io::ReadMultiChannelEXR(path, &planes, &error)) {
+    std::fprintf(stderr, "imgdiff: %s\n", error.c_str());
     return false;
   }
-  image.rgb.resize(image.PixelCount() * 3);
-  for (size_t i = 0; i < image.PixelCount(); i++) {
-    image.rgb[i * 3 + 0] = out[i * 4 + 0];
-    image.rgb[i * 3 + 1] = out[i * 4 + 1];
-    image.rgb[i * 3 + 2] = out[i * 4 + 2];
+
+  image.width = planes.width;
+  image.height = planes.height;
+  const size_t pixel_count = image.PixelCount();
+  image.rgb.assign(pixel_count * 3, 0.0f);
+
+  const int r = planes.IndexOf("R");
+  const int g = planes.IndexOf("G");
+  const int b = planes.IndexOf("B");
+
+  if (r >= 0 && g >= 0 && b >= 0) {
+    for (size_t i = 0; i < pixel_count; i++) {
+      image.rgb[i * 3 + 0] = planes.planes[r][i];
+      image.rgb[i * 3 + 1] = planes.planes[g][i];
+      image.rgb[i * 3 + 2] = planes.planes[b][i];
+    }
+  } else if (planes.ChannelCount() == 1) {
+    for (size_t i = 0; i < pixel_count; i++) {
+      const float v = planes.planes[0][i];
+      image.rgb[i * 3 + 0] = image.rgb[i * 3 + 1] = image.rgb[i * 3 + 2] = v;
+    }
+  } else if (planes.ChannelCount() > 0) {
+    const float inverse = 1.0f / planes.ChannelCount();
+    for (size_t i = 0; i < pixel_count; i++) {
+      float sum = 0.0f;
+      for (const auto& plane : planes.planes) sum += plane[i];
+      const float mean = sum * inverse;
+      image.rgb[i * 3 + 0] = image.rgb[i * 3 + 1] = image.rgb[i * 3 + 2] = mean;
+    }
+  } else {
+    std::fprintf(stderr, "imgdiff: %s has no channels\n", path.c_str());
+    return false;
   }
-  free(out);
   return true;
 }
 
@@ -206,36 +229,51 @@ int main(int argc, char** argv) {
   const std::string mode = argv[1];
 
   if (mode == "--expect-channels") {
-    // Verifies a multi-channel EXR (the spectral cube) is well formed. The
-    // normal RGB loader cannot read one -- there is no R channel -- so this
-    // inspects the header directly.
+    // Verifies a multi-channel EXR (the spectral cube) is well formed: the
+    // right number of channels, and names that parse as wavelengths in
+    // ascending order.
+    //
+    // The names are the assertion that matters. They are the only record of
+    // which band is which -- nothing else in the file says -- so a cube whose
+    // channels are named wrongly would be read as the right count of the wrong
+    // wavelengths, which no pixel comparison would catch.
     if (argc < 4) return Usage();
     const int want = std::atoi(argv[3]);
-    EXRVersion version;
-    if (ParseEXRVersionFromFile(&version, argv[2]) != TINYEXR_SUCCESS) {
-      std::fprintf(stderr, "imgdiff: cannot read %s\n", argv[2]);
+
+    image_io::ImagePlanes planes;
+    std::string error;
+    if (!image_io::ReadMultiChannelEXR(argv[2], &planes, &error)) {
+      std::fprintf(stderr, "imgdiff: %s\n", error.c_str());
       return 2;
     }
-    EXRHeader header;
-    InitEXRHeader(&header);
-    const char* err = nullptr;
-    if (ParseEXRHeaderFromFile(&header, &version, argv[2], &err) != TINYEXR_SUCCESS) {
-      std::fprintf(stderr, "imgdiff: cannot parse header: %s\n", err ? err : "?");
-      if (err) FreeEXRErrorMessage(err);
-      return 2;
-    }
-    std::printf("%s: %d channels", argv[2], header.num_channels);
-    for (int i = 0; i < std::min(header.num_channels, 3); i++)
-      std::printf(" %s", header.channels[i].name);
-    if (header.num_channels > 3)
-      std::printf(" ... %s", header.channels[header.num_channels - 1].name);
+
+    std::printf("%s: %d channels", argv[2], planes.ChannelCount());
+    for (int i = 0; i < std::min(planes.ChannelCount(), 3); i++)
+      std::printf(" %s", planes.names[i].c_str());
+    if (planes.ChannelCount() > 3)
+      std::printf(" ... %s", planes.names.back().c_str());
     std::printf("  (expected %d)\n", want);
-    const bool ok = header.num_channels == want;
-    FreeEXRHeader(&header);
-    if (!ok) {
+
+    if (planes.ChannelCount() != want) {
       std::printf("FAIL: channel count mismatch\n");
       return 1;
     }
+
+    std::vector<double> wavelengths;
+    if (!image_io::ParseBandWavelengths(planes, &wavelengths)) {
+      std::printf("FAIL: channels are not named by wavelength\n");
+      return 1;
+    }
+    for (size_t i = 1; i < wavelengths.size(); i++) {
+      if (!(wavelengths[i] > wavelengths[i - 1])) {
+        std::printf("FAIL: wavelengths are not ascending at channel %zu"
+                    " (%.0fnm after %.0fnm)\n",
+                    i, wavelengths[i], wavelengths[i - 1]);
+        return 1;
+      }
+    }
+    std::printf("bands %.0fnm..%.0fnm, ascending\n", wavelengths.front(),
+                wavelengths.back());
     std::printf("PASS\n");
     return 0;
   }

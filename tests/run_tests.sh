@@ -15,9 +15,11 @@
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RAYTRACER="$ROOT/raytracer"
-IMGDIFF="$ROOT/imgdiff"
+BIN="$ROOT/build/bin"
+RAYTRACER="$BIN/raytracer"
+IMGDIFF="$BIN/imgdiff"
 SCENES="$ROOT/tests/scenes"
+CONFIGS="$ROOT/tests/configs"
 OUT="$ROOT/tests/out"
 FILTER="${1:-}"
 
@@ -28,7 +30,8 @@ FAILED_NAMES=()
 
 for binary in "$RAYTRACER" "$IMGDIFF"; do
   if [ ! -x "$binary" ]; then
-    echo "error: $binary not built. Run: make release imgdiff"
+    echo "error: $binary not built. Run:"
+    echo "  cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j"
     exit 2
   fi
 done
@@ -118,6 +121,78 @@ needs() {
   for scene in "$@"; do
     render "$scene" || true
   done
+}
+
+# sensor_chain <prefix> <sensor-config> [seed]
+#
+# Runs the sensor stages over <prefix>_radiance.exr, leaving every intermediate
+# in $OUT so a failing check can be traced to the stage that broke it. Named
+# <prefix>_<stage>.<ext> throughout, which is the pipeline's naming convention.
+sensor_chain() {
+  local p="$1" cfg="$2" seed="${3:-1}"
+  ( cd "$OUT" &&
+    "$BIN/sensor_irradiance" --in "${p}_radiance.exr"    --out "${p}_photons.exr"     --config "$cfg" &&
+    "$BIN/sensor_cfa"        --in "${p}_photons.exr"     --out "${p}_electrons.exr"   --config "$cfg" &&
+    "$BIN/sensor_mosaic"     --in "${p}_electrons.exr"   --out "${p}_mosaic.exr"      --config "$cfg" &&
+    "$BIN/sensor_noise"      --in "${p}_mosaic.exr"      --out "${p}_noisy.exr"       --config "$cfg" --seed "$seed" &&
+    "$BIN/sensor_saturate"   --in "${p}_noisy.exr"       --out "${p}_wellclamped.exr" --config "$cfg" &&
+    "$BIN/sensor_adc"        --in "${p}_wellclamped.exr" --out "${p}_raw.pgm"         --config "$cfg"
+  ) >> "$OUT/${p}.log" 2>&1
+}
+
+# isp_chain <prefix> <sensor-config>
+#
+# The ISP stages, from the RAW to the display image. Calibration comes from the
+# sensor's own curves, so the white balance gains and the colour matrix are
+# guaranteed to be the matching pair.
+isp_chain() {
+  local p="$1" cfg="$2"
+  ( cd "$OUT" &&
+    "$BIN/sensor_ccm"       --config "$cfg"              --out "${p}_ccm.json" &&
+    "$BIN/isp_blacklevel"   --in "${p}_raw.pgm"          --out "${p}_linearized.exr" --config "$cfg" &&
+    "$BIN/isp_demosaic"     --in "${p}_linearized.exr"   --out "${p}_demosaiced.exr" --config "$cfg" &&
+    "$BIN/isp_whitebalance" --in "${p}_demosaiced.exr"   --out "${p}_wb.exr"         --calibration "${p}_ccm.json" &&
+    "$BIN/isp_colormatrix"  --in "${p}_wb.exr"           --out "${p}_xyz.exr"        --calibration "${p}_ccm.json" --matrix after_wb &&
+    "$BIN/isp_srgb"         --in "${p}_xyz.exr"          --out "${p}_srgb.png"
+  ) >> "$OUT/${p}.log" 2>&1
+}
+
+# pipeline <name> <scene> <sensor-config>  — render, then the whole chain
+pipeline() {
+  local name="$1" scene="$2" cfg="$3"
+  if [ -n "$FILTER" ] && [[ "$name" != *"$FILTER"* ]]; then
+    return
+  fi
+  render "$scene" || return 1
+  sensor_chain "$scene" "$CONFIGS/$cfg.json" || {
+    echo "    sensor chain failed, see $OUT/${scene}.log"; return 1; }
+  isp_chain "$scene" "$CONFIGS/$cfg.json" || {
+    echo "    isp chain failed, see $OUT/${scene}.log"; return 1; }
+  return 0
+}
+
+# run_check <name> <description> <command...>  — a check whose assertion is a
+# command's exit status rather than an imgdiff invocation.
+run_check() {
+  local name="$1"; shift
+  local desc="$1"; shift
+
+  if [ -n "$FILTER" ] && [[ "$name" != *"$FILTER"* ]]; then
+    SKIP=$((SKIP + 1))
+    return
+  fi
+
+  printf "%-22s %s\n" "$name" "$desc"
+  local output
+  output="$("$@" 2>&1)"
+  local status=$?
+  echo "$output" | sed "s|$OUT/||g" | sed 's/^/    /'
+  if [ $status -eq 0 ]; then
+    echo "    -> PASS"; PASS=$((PASS + 1))
+  else
+    echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("$name")
+  fi
+  echo
 }
 
 echo "=============================================="
@@ -221,14 +296,15 @@ check tonemap-ldr "LDR output honours Tonemap -- flat 1.0 must map to 108" -- \
 
 if [ -z "$FILTER" ] || [[ "spectral-selfcheck" == *"$FILTER"* ]]; then
   printf "%-22s %s\n" "spectral-selfcheck" "CIE tables, illuminant chromaticities, uplift identities"
-  if [ -x "$ROOT/spectraltest" ]; then
-    if "$ROOT/spectraltest" | sed 's/^/    /'; then
+  if [ -x "$BIN/spectraltest" ]; then
+    if "$BIN/spectraltest" | sed 's/^/    /'; then
       echo "    -> PASS"; PASS=$((PASS + 1))
     else
       echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("spectral-selfcheck")
     fi
   else
-    echo "    spectraltest not built (make spectraltest)"
+    echo "    $BIN/spectraltest not built; run:"
+    echo "      cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j"
     echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("spectral-selfcheck")
   fi
   echo
@@ -241,14 +317,15 @@ fi
 # moments distinguish a correct one.
 if [ -z "$FILTER" ] || [[ "sensor-selfcheck" == *"$FILTER"* ]]; then
   printf "%-22s %s\n" "sensor-selfcheck" "Poisson/Gaussian moments, radiometry, Bayer, quantisation"
-  if [ -x "$ROOT/sensortest" ]; then
-    if "$ROOT/sensortest" | sed 's/^/    /'; then
+  if [ -x "$BIN/sensortest" ]; then
+    if "$BIN/sensortest" | sed 's/^/    /'; then
       echo "    -> PASS"; PASS=$((PASS + 1))
     else
       echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("sensor-selfcheck")
     fi
   else
-    echo "    sensortest not built (make sensortest)"
+    echo "    $BIN/sensortest not built; run:"
+    echo "      cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j"
     echo "    -> FAIL"; FAIL=$((FAIL + 1)); FAILED_NAMES+=("sensor-selfcheck")
   fi
   echo
@@ -291,14 +368,18 @@ expect_render_failure library-wrong-kind library_wrong_kind \
   "cannot be used as a single spectrum"
 
 # --- Sensor pipeline ---------------------------------------------------------
-# End-to-end through a declared sensor. Noise is checked WITHIN a Bayer parity
-# class: whole-image variance on a mosaic just measures the mosaic pattern, so a
-# perfectly noise-free render would still look "noisy" by that measure.
+# End-to-end through the split pipeline: render -> six sensor stages -> five ISP
+# stages, each its own program passing a file to the next.
+#
+# Noise is checked WITHIN a Bayer parity class: whole-image variance on a mosaic
+# just measures the mosaic pattern, so a perfectly noise-free render would still
+# look "noisy" by that measure.
 
-needs sensor sensor_clean sensor_noisy
+pipeline sensor sensor_clean clean
+pipeline sensor sensor_noisy noisy
 
-check sensor-spectral-cube "spectral cube is a well-formed N-band EXR" -- \
-  --expect-channels "$OUT/sensor_clean_spectral.exr" 31
+check sensor-radiance-cube "radiance cube is a well-formed N-band EXR" -- \
+  --expect-channels "$OUT/sensor_clean_radiance.exr" 31
 
 check sensor-bayer "Bayer mosaic: green sites must agree, R/B must not" -- \
   --expect-bayer "$OUT/sensor_clean_raw.exr" RGGB
@@ -311,20 +392,56 @@ check sensor-noiseless "NoiseSources None -- variance must be exactly zero" -- \
 check sensor-noise "shot/read/dark noise present, var/mean ~ 1/gain" -- \
   --variance "$OUT/sensor_noisy_raw.exr" --expect-noisy 20
 
+# --- The split itself --------------------------------------------------------
+# Splitting one fused loop into six programs is exactly the kind of change that
+# produces a plausible image with a units error buried in it. These checks are
+# about the seams rather than the physics.
+
+# The stages must compose back into the fused SensorModel::ElectronsAt that
+# sensortest already validates. A factor dropped in the handover between two
+# programs -- the band width, the geometry factor, the photon energy -- would
+# show up here and nowhere else.
+run_check stage-fusion "split stages must equal the fused electron count" \
+  "$ROOT/tests/check_stage_fusion.sh"
+
+# Noise is its own program now, so it needs its own generator. Same seed twice
+# must be identical, or a frame cannot be reproduced once you have looked at it;
+# different seeds must differ, or the seed is being ignored.
+run_check noise-determinism "same seed reproduces, different seed does not" \
+  "$ROOT/tests/check_noise_seed.sh"
+
+# The band grid lives in the EXR channel names, not in the channel count. A cube
+# must survive a write/read round trip exactly, including when its grid is not
+# the one this binary was compiled for.
+run_check spectral-roundtrip "spectral cube survives write/read exactly" \
+  "$ROOT/tests/check_spectral_roundtrip.sh"
+
+# --- White balance and the colour matrix -------------------------------------
+# The two corrections overlap, so they are fitted together and must be used as a
+# pair. Applying the gains and then the un-balanced matrix double-corrects;
+# skipping the gains and using the balanced matrix under-corrects. Both produce
+# a plausible image, which is what makes this worth asserting.
+run_check wb-ccm-pairing "wb+after_wb and no_wb alone must agree" \
+  "$ROOT/tests/check_wb_ccm.sh"
+
 # --- Fixed sensor response ---------------------------------------------------
 # The sensor display path is deliberately NOT scene-adaptive: digital numbers
 # map to code values through the ADC full scale and DynamicRange, both constants
 # of the sensor. These two pairs pin that down from opposite sides.
 
-needs sensor-fixed-exposure sensor_exposure_1x sensor_exposure_2x
+pipeline sensor-fixed-exposure sensor_exposure_1x exposure_1x
+pipeline sensor-fixed-exposure sensor_exposure_2x exposure_2x
 # An auto-exposure would renormalise both frames to the same brightness and make
 # them agree, so "must differ" is the assertion that catches its return.
 check sensor-fixed-exposure "doubling exposure must brighten the image, not be normalised away" -- \
   --expect-differ "$OUT/sensor_exposure_1x_srgb.png" "$OUT/sensor_exposure_2x_srgb.png" --tol 0.02
 
-needs sensor-range-display sensor_range_wide sensor_range_narrow
+pipeline sensor-range sensor_range_wide range_wide
+pipeline sensor-range sensor_range_narrow range_narrow
 # DynamicRange is a property of how the measurement is shown, not of the
-# measurement. Noise is off in both so the comparison is exact.
+# measurement. It is read by isp_blacklevel and by nothing upstream of it, which
+# this pair asserts from both sides. Noise is off in both so the comparison is
+# exact.
 check sensor-range-raw "DynamicRange must not alter the RAW measurement" -- \
   --compare "$OUT/sensor_range_wide_raw.exr" "$OUT/sensor_range_narrow_raw.exr" --tol 1e-9
 

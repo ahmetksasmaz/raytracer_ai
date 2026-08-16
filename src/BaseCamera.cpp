@@ -1,11 +1,13 @@
 #include "BaseCamera.hpp"
 
-#include "SensorOutput.hpp"
+#include "Pipeline/Stage.hpp"
 
 #include <algorithm>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 BaseCamera::BaseCamera(
     const bool look_at_camera, const Vec3f& position, const Vec3f& gaze,
@@ -375,49 +377,35 @@ void BaseCamera::ApplyToneMappings() {
   }
 }
 
-void BaseCamera::ExportSensorProducts() {
-  if (!has_sensor_) return;
+void BaseCamera::ExportSpectralRadiance() {
+  // The renderer's real output: spectral radiance at the sensor plane, before
+  // any sensor has touched it.
+  //
+  // This is written for every render, not only when a sensor is involved,
+  // because it is the handover point to the rest of the pipeline. It is also
+  // the expensive thing -- a path traced frame can take hours, and a sensor
+  // takes milliseconds -- so keeping it sensor-independent is what lets one
+  // render be replayed through any number of cameras without re-rendering.
+  //
+  // The band grid is recorded in the channel names ("0400nm", "0410nm", ...)
+  // rather than being implied by the channel count, so a cube stays readable by
+  // a binary built for a different kSpectralBands.
+  const std::string base = image_name_.substr(0, image_name_.find_last_of("."));
+  const std::string path = base + "_radiance.exr";
 
   const size_t pixel_count = static_cast<size_t>(image_width_) * image_height_;
-  const std::string base = image_name_.substr(0, image_name_.find_last_of("."));
+  std::vector<Spectrum> spectra(spectral_image_, spectral_image_ + pixel_count);
 
-  // 1. Sensor-INDEPENDENT spectral radiance at the sensor plane, written before
-  //    the light meets the sensor. This is what lets one render be replayed
-  //    through any number of different sensors without re-rendering.
-  sensor_output::WriteSpectralCube(base + "_spectral.exr", image_width_,
-                                   image_height_, spectral_image_);
-
-  // 2. Mosaic the spectral image through this sensor.
-  std::vector<FP_PRECISION> dn(pixel_count);
-  for (int y = 0; y < image_height_; y++) {
-    for (int x = 0; x < image_width_; x++) {
-      const size_t i = static_cast<size_t>(y) * image_width_ + x;
-      const FP_PRECISION electrons = sensor_.ElectronsAt(spectral_image_[i], x, y);
-      dn[i] = sensor_.ElectronsToDN(electrons);
-    }
+  std::string error;
+  if (!pipeline::WriteSpectral(path, image_width_, image_height_, spectra,
+                               &error)) {
+    std::cerr << "Warning: cannot write spectral radiance: " << error
+              << std::endl;
   }
-  sensor_output::WriteBayerRaw(base + "_raw.pgm", base + "_raw.exr",
-                               image_width_, image_height_, dn,
-                               sensor_.bit_depth);
-
-  // 3. Demosaiced, still in sensor space.
-  sensor_output::WriteDemosaiced(base + "_demosaiced.exr", image_width_,
-                                 image_height_, dn, sensor_);
-
-  // 4. The 3x3 that takes sensorRGB to CIE XYZ, fitted from this sensor's own
-  //    spectral sensitivities.
-  const sensor_output::ColorMatrixFit fit = sensor_output::FitSensorToXYZ(
-      sensor_, IlluminantD65(), "D65");
-  sensor_output::WriteColorMatrix(base + "_sensor_to_xyz.json", fit);
-
-  // 5. Display-ready sRGB, obtained by pushing the demosaiced sensorRGB
-  //    through that matrix. The only output that leaves sensor space.
-  sensor_output::WriteDemosaicedSRGB(base + "_srgb.png", image_width_,
-                                     image_height_, dn, sensor_, fit);
 }
 
 void BaseCamera::ExportView() {
-  ExportSensorProducts();
+  ExportSpectralRadiance();
 
   std::string extension = image_name_.substr(image_name_.find_last_of(".") + 1);
   std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);

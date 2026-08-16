@@ -18,7 +18,7 @@
           "MinRecursionDepth": "2",
           "Renderer": "PathTracing",
           "RendererParams": "ImportanceSampling NextEventEstimation MIS_BALANCE RussianRoulette",
-          "ImageName": "/Users/ahmetksasmaz/Documents/claude_workspace/raytracer_ai/outputs/spectral_demo/palette.exr",
+          "ImageName": "/home/kursad/claude_workspace/raytracer_ai/outputs/spectral_demo/palette.exr",
           "Tonemap": {
             "TMO": "Photographic",
             "TMOOptions": "0.18 1.0",

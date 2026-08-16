@@ -94,10 +94,11 @@ def camera(name, position, gaze_point, fov="40", sensor_ref=None,
             "Saturation": "1.0", "Gamma": "2.2", "Extension": ".png",
         },
     }
-    if sensor_ref:
-        sensor = dict(SENSOR_BASE)
-        sensor["_ref"] = sensor_ref
-        cam["Sensor"] = sensor
+    # The sensor used to be embedded here. It is a separate file now, written
+    # by write_sensor_config() below, because a sensor is hardware rather than a
+    # property of a scene -- and because the whole point of the split pipeline is
+    # that one render can be developed through several cameras without being
+    # re-rendered.
     return cam
 
 
@@ -139,6 +140,28 @@ def quad(v0, v1, v2, v3, vertices):
     vertices.extend([v0, v1, v2, v3])
     return ["%d %d %d" % (base, base + 1, base + 2),
             "%d %d %d" % (base, base + 2, base + 3)]
+
+
+def write_sensor_config(slug, sensor_ref):
+    """Writes a standalone sensor config for one measured camera.
+
+    Named <slug>.json under sensors/ beside the scenes, which is what the
+    sensor_* stage programs take with --config.
+    """
+    directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sensors")
+    os.makedirs(directory, exist_ok=True)
+    sensor = dict(SENSOR_BASE)
+    sensor["_comment"] = (
+        "Measured spectral sensitivity from the Jiang 2013 camspec database; "
+        "see spectra/LICENSES.md. A measured camera sensitivity is the whole "
+        "optical response, so it fills the three CFA curves and quantum "
+        "efficiency is forced to 1.")
+    sensor["_ref"] = sensor_ref
+    path = os.path.join(directory, slug + ".json")
+    with open(path, "w") as f:
+        json.dump(sensor, f, indent=2)
+        f.write("\n")
+    return path
 
 
 def write(name, scene):
@@ -263,13 +286,16 @@ def camera_comparison_scene():
     scene["_comment"] = (
         "One chart, five real camera sensitivities. Identical photons reach "
         "every sensor, so the differences are the sensor alone. Compare the "
-        "_srgb.png outputs, and the residual in each _sensor_to_xyz.json -- a "
+        "_srgb.png outputs, and the residual in each _ccm.json -- a "
         "sensor that fails the Luther condition cannot be corrected by any 3x3.")
     scene["Cameras"]["Camera"] = [
-        camera(os.path.join(OUT, "camera_%s.exr" % slug), "0 0 12", "0 0 0",
-               sensor_ref="sensor:" + slug)
+        camera(os.path.join(OUT, "camera_%s.exr" % slug), "0 0 12", "0 0 0")
         for slug, _ in COMPARISON_CAMERAS
     ]
+    # One config per camera, so the single render this scene produces can be
+    # pushed through all five.
+    for slug, _ in COMPARISON_CAMERAS:
+        write_sensor_config(slug, "sensor:" + slug)
     return scene
 
 

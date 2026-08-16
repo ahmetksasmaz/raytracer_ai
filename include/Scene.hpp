@@ -79,7 +79,9 @@ struct PathState {
 
 class Scene {
  public:
-  Scene(const std::string &filename);
+  // `serial` swaps the tile-threaded scheduler for the single-threaded one,
+  // which is how a suspected race in the trace path gets ruled in or out.
+  Scene(const std::string &filename, bool serial = false);
   void Render();
   ~Scene();
 
@@ -134,14 +136,6 @@ class Scene {
 
   std::function<std::vector<Vec2f>(int)> area_light_sampling_algorithm_;
 
-  Spectrum DefaultRayTracingAlgorithm(
-      Ray &ray,
-      const std::shared_ptr<BaseObject> inside_object_ptr,
-      int, int);
-  Spectrum RecursiveRayTracingAlgorithm(
-      Ray &ray,
-      const std::shared_ptr<BaseObject> inside_object_ptr,
-      int remaining_recursion, int max_recursion);
   Spectrum RecursiveBRDFRayTracingAlgorithm(
       Ray &ray,
       const std::shared_ptr<BaseObject> inside_object_ptr,
@@ -165,11 +159,6 @@ class Scene {
   void NonThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                     int camera_index);
 
-  void BlockDivideThreadSchedulingAlgorithm(
-      const std::shared_ptr<BaseCamera> camera, int camera_index);
-
-  void SlidingThreadSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
-                                        int camera_index);
   void ThreadQueueSchedulingAlgorithm(const std::shared_ptr<BaseCamera> camera,
                                       int camera_index);
 

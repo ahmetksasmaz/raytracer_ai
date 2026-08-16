@@ -1,6 +1,6 @@
 {
   "Scene": {
-    "_comment": "One chart, five real camera sensitivities. Identical photons reach every sensor, so the differences are the sensor alone. Compare the _srgb.png outputs, and the residual in each _sensor_to_xyz.json -- a sensor that fails the Luther condition cannot be corrected by any 3x3.",
+    "_comment": "One chart, five real camera sensitivities. Identical photons reach every sensor, so the differences are the sensor alone. Compare the _srgb.png outputs, and the residual in each _ccm.json -- a sensor that fails the Luther condition cannot be corrected by any 3x3.",
     "BackgroundColor": "0 0 0",
     "ShadowRayEpsilon": "0.001",
     "Cameras": {
@@ -18,27 +18,13 @@
           "MinRecursionDepth": "2",
           "Renderer": "PathTracing",
           "RendererParams": "ImportanceSampling NextEventEstimation MIS_BALANCE RussianRoulette",
-          "ImageName": "/Users/ahmetksasmaz/Documents/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_nikon_d700.exr",
+          "ImageName": "/home/kursad/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_nikon_d700.exr",
           "Tonemap": {
             "TMO": "Photographic",
             "TMOOptions": "0.18 1.0",
             "Saturation": "1.0",
             "Gamma": "2.2",
             "Extension": ".png"
-          },
-          "Sensor": {
-            "_pattern": "RGGB",
-            "ExposureTime": "8e-5",
-            "DynamicRange": "12",
-            "PixelPitch": "3.45e-6",
-            "FNumber": "2.8",
-            "FullWell": "60000",
-            "Gain": "12.0",
-            "BitDepth": "12",
-            "ReadNoise": "2.0",
-            "DarkCurrent": "5.0",
-            "NoiseSources": "Shot Read",
-            "_ref": "sensor:nikon_d700"
           }
         },
         {
@@ -54,27 +40,13 @@
           "MinRecursionDepth": "2",
           "Renderer": "PathTracing",
           "RendererParams": "ImportanceSampling NextEventEstimation MIS_BALANCE RussianRoulette",
-          "ImageName": "/Users/ahmetksasmaz/Documents/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_canon_5dmarkii.exr",
+          "ImageName": "/home/kursad/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_canon_5dmarkii.exr",
           "Tonemap": {
             "TMO": "Photographic",
             "TMOOptions": "0.18 1.0",
             "Saturation": "1.0",
             "Gamma": "2.2",
             "Extension": ".png"
-          },
-          "Sensor": {
-            "_pattern": "RGGB",
-            "ExposureTime": "8e-5",
-            "DynamicRange": "12",
-            "PixelPitch": "3.45e-6",
-            "FNumber": "2.8",
-            "FullWell": "60000",
-            "Gain": "12.0",
-            "BitDepth": "12",
-            "ReadNoise": "2.0",
-            "DarkCurrent": "5.0",
-            "NoiseSources": "Shot Read",
-            "_ref": "sensor:canon_5dmarkii"
           }
         },
         {
@@ -90,27 +62,13 @@
           "MinRecursionDepth": "2",
           "Renderer": "PathTracing",
           "RendererParams": "ImportanceSampling NextEventEstimation MIS_BALANCE RussianRoulette",
-          "ImageName": "/Users/ahmetksasmaz/Documents/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_nokia_n900.exr",
+          "ImageName": "/home/kursad/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_nokia_n900.exr",
           "Tonemap": {
             "TMO": "Photographic",
             "TMOOptions": "0.18 1.0",
             "Saturation": "1.0",
             "Gamma": "2.2",
             "Extension": ".png"
-          },
-          "Sensor": {
-            "_pattern": "RGGB",
-            "ExposureTime": "8e-5",
-            "DynamicRange": "12",
-            "PixelPitch": "3.45e-6",
-            "FNumber": "2.8",
-            "FullWell": "60000",
-            "Gain": "12.0",
-            "BitDepth": "12",
-            "ReadNoise": "2.0",
-            "DarkCurrent": "5.0",
-            "NoiseSources": "Shot Read",
-            "_ref": "sensor:nokia_n900"
           }
         },
         {
@@ -126,27 +84,13 @@
           "MinRecursionDepth": "2",
           "Renderer": "PathTracing",
           "RendererParams": "ImportanceSampling NextEventEstimation MIS_BALANCE RussianRoulette",
-          "ImageName": "/Users/ahmetksasmaz/Documents/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_point_grey_grasshopper_50s5c.exr",
+          "ImageName": "/home/kursad/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_point_grey_grasshopper_50s5c.exr",
           "Tonemap": {
             "TMO": "Photographic",
             "TMOOptions": "0.18 1.0",
             "Saturation": "1.0",
             "Gamma": "2.2",
             "Extension": ".png"
-          },
-          "Sensor": {
-            "_pattern": "RGGB",
-            "ExposureTime": "8e-5",
-            "DynamicRange": "12",
-            "PixelPitch": "3.45e-6",
-            "FNumber": "2.8",
-            "FullWell": "60000",
-            "Gain": "12.0",
-            "BitDepth": "12",
-            "ReadNoise": "2.0",
-            "DarkCurrent": "5.0",
-            "NoiseSources": "Shot Read",
-            "_ref": "sensor:point_grey_grasshopper_50s5c"
           }
         },
         {
@@ -162,27 +106,13 @@
           "MinRecursionDepth": "2",
           "Renderer": "PathTracing",
           "RendererParams": "ImportanceSampling NextEventEstimation MIS_BALANCE RussianRoulette",
-          "ImageName": "/Users/ahmetksasmaz/Documents/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_phase_one.exr",
+          "ImageName": "/home/kursad/claude_workspace/raytracer_ai/outputs/spectral_demo/camera_phase_one.exr",
           "Tonemap": {
             "TMO": "Photographic",
             "TMOOptions": "0.18 1.0",
             "Saturation": "1.0",
             "Gamma": "2.2",
             "Extension": ".png"
-          },
-          "Sensor": {
-            "_pattern": "RGGB",
-            "ExposureTime": "8e-5",
-            "DynamicRange": "12",
-            "PixelPitch": "3.45e-6",
-            "FNumber": "2.8",
-            "FullWell": "60000",
-            "Gain": "12.0",
-            "BitDepth": "12",
-            "ReadNoise": "2.0",
-            "DarkCurrent": "5.0",
-            "NoiseSources": "Shot Read",
-            "_ref": "sensor:phase_one"
           }
         }
       ]

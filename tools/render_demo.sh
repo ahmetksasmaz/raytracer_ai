@@ -14,8 +14,9 @@ FILTER="${1:-}"
 SCENES=$(ls scenes/spectral_demo/*.json 2>/dev/null)
 mkdir -p outputs/spectral_demo
 
-if [ ! -x ./raytracer ]; then
-  echo "raytracer not built; run 'make release' first" >&2
+if [ ! -x ./build/bin/raytracer ]; then
+  echo "raytracer not built; run:" >&2
+  echo "  cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j" >&2
   exit 1
 fi
 
@@ -26,7 +27,7 @@ for scene in $SCENES; do
 
   printf '%-24s ' "$name"
   start=$(date +%s)
-  if ./raytracer "$scene" > "outputs/spectral_demo/$name.log" 2>&1; then
+  if ./build/bin/raytracer "$scene" > "outputs/spectral_demo/$name.log" 2>&1; then
     echo "ok  ($(( $(date +%s) - start ))s)"
   else
     echo "FAILED -- see outputs/spectral_demo/$name.log"

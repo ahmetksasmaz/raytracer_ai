@@ -1,0 +1,15 @@
+{
+  "_pattern": "RGGB",
+  "ExposureTime": "8e-5",
+  "DynamicRange": "12",
+  "PixelPitch": "3.45e-6",
+  "FNumber": "2.8",
+  "FullWell": "60000",
+  "Gain": "12.0",
+  "BitDepth": "12",
+  "ReadNoise": "2.0",
+  "DarkCurrent": "5.0",
+  "NoiseSources": "Shot Read",
+  "_comment": "Measured spectral sensitivity from the Jiang 2013 camspec database; see spectra/LICENSES.md. A measured camera sensitivity is the whole optical response, so it fills the three CFA curves and quantum efficiency is forced to 1.",
+  "_ref": "sensor:canon_5dmarkii"
+}

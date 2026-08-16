@@ -32,9 +32,8 @@
 *.app
 
 
-build/*
+build/
 *.png
-*.txt
 *.xml
 *.ply
 *.exr
@@ -55,8 +54,17 @@ ground_truth/
 
 # build artifacts from the test harness
 imgdiff
+raytracer
 raytracer_debug
 raytracer_profile
 *.dSYM/
 spectraltest
 sensortest
+
+# editor / tooling
+.DS_Store
+compile_commands.json
+.cache/
+.vscode/
+.idea/
+cmake-build-*/

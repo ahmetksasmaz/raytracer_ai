@@ -1,57 +1,68 @@
 #include "BaseImage.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "../extern/stb_image.h"
-#include "STBExporter.hpp"
-
-#define TINYEXR_USE_MINIZ 0
-#define TINYEXR_USE_STB_ZLIB 1
-#define TINYEXR_IMPLEMENTATION
-#include "../extern/tinyexr.h"
+// Decoding goes through rt_imageio, which is the only translation unit that
+// instantiates tinyexr and stb. This file used to define TINYEXR_IMPLEMENTATION
+// and STB_IMAGE_IMPLEMENTATION itself, which worked only as long as the
+// renderer was one binary; with a dozen executables linking the same libraries
+// it is a duplicate-symbol link error.
+#include "ImageIO/ImageIO.hpp"
 
 BaseImage::BaseImage(const std::string& path) : path_(path) {
 
     std::string extension = path.substr(path.find_last_of('.') + 1);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
     if(extension == "exr" || extension == "hdr"){
-      float* out;
-      const char* err = NULL;
-
-      int ret = LoadEXR(&out, &width_, &height_, path.c_str(), &err);
-
-      if (ret != TINYEXR_SUCCESS) {
+      image_io::ImagePlanes image;
+      std::string error;
+      if (!image_io::ReadMultiChannelEXR(path, &image, &error)) {
         throw std::runtime_error("Error: The image " + path_ +
-                              " cannot be loaded.");
-      } else {
-        mipmapping_.push_back(std::vector<std::vector<Vec3f>>(height_, std::vector<Vec3f>(width_)));
-        for (int i = 0; i < height_; i++) {
-          for (int j = 0; j < width_; j++) {
-            mipmapping_[0][i][j] = Vec3f{FP_PRECISION(out[4 * (i * width_ + j) + 0]),
-                                FP_PRECISION(out[4 * (i * width_ + j) + 1]),
-                                FP_PRECISION(out[4 * (i * width_ + j) + 2])};
-          }
-        }
+                                 " cannot be loaded: " + error);
+      }
 
-        free(out);
+      // Named channels where present; otherwise the first three planes, which
+      // is what an EXR written by something else is likely to hold.
+      int channel[3];
+      const char* names[3] = {"R", "G", "B"};
+      for (int c = 0; c < 3; c++) {
+        channel[c] = image.IndexOf(names[c]);
+        if (channel[c] < 0) channel[c] = c < image.ChannelCount() ? c : 0;
+      }
+      if (image.ChannelCount() == 0) {
+        throw std::runtime_error("Error: The image " + path_ +
+                                 " has no channels.");
+      }
+
+      width_ = image.width;
+      height_ = image.height;
+      mipmapping_.push_back(std::vector<std::vector<Vec3f>>(height_, std::vector<Vec3f>(width_)));
+      for (int i = 0; i < height_; i++) {
+        for (int j = 0; j < width_; j++) {
+          const size_t index = static_cast<size_t>(i) * width_ + j;
+          mipmapping_[0][i][j] = Vec3f{
+              FP_PRECISION(image.planes[channel[0]][index]),
+              FP_PRECISION(image.planes[channel[1]][index]),
+              FP_PRECISION(image.planes[channel[2]][index])};
+        }
       }
     }
     else{
-      unsigned char * image = stbi_load(path.c_str(), &width_, &height_, nullptr, 3);
-
-      if (image) {
-        mipmapping_.push_back(std::vector<std::vector<Vec3f>>(height_, std::vector<Vec3f>(width_)));
-        for (int i = 0; i < height_; i++) {
-          for (int j = 0; j < width_; j++) {
-            mipmapping_[0][i][j] = Vec3f{FP_PRECISION(image[3 * (i * width_ + j) + 0]),
-                                FP_PRECISION(image[3 * (i * width_ + j) + 1]),
-                                FP_PRECISION(image[3 * (i * width_ + j) + 2])};
-          }
-        }
-
-        free(image);
-      } else {
+      int channels = 3;
+      std::vector<unsigned char> image;
+      std::string error;
+      if (!image_io::ReadLDR(path, &width_, &height_, &channels, &image,
+                             &error)) {
         throw std::runtime_error("Error: The image " + path_ +
                                 " cannot be loaded.");
+      }
+
+      mipmapping_.push_back(std::vector<std::vector<Vec3f>>(height_, std::vector<Vec3f>(width_)));
+      for (int i = 0; i < height_; i++) {
+        for (int j = 0; j < width_; j++) {
+          const size_t index = (static_cast<size_t>(i) * width_ + j) * 3;
+          mipmapping_[0][i][j] = Vec3f{FP_PRECISION(image[index + 0]),
+                                       FP_PRECISION(image[index + 1]),
+                                       FP_PRECISION(image[index + 2])};
+        }
       }
     }
 

@@ -13,7 +13,9 @@
 
 #include "ply.h"
 
-#define FP_PRECISION double
+// FP_PRECISION and the Vec* types live here now, so the sensor and ISP stages
+// can use them without pulling in the whole scene description.
+#include "../include/Core/Types.hpp"
 
 namespace ply_reader{
   typedef struct Vertex {
@@ -82,86 +84,8 @@ enum RawEnvironmentMapSampler { kUniform, kCosine };
 
 enum RawBRDFType { kOriginalBlinnPhong, kOriginalPhong, kModifiedBlinnPhong, kModifiedPhong, kTorranceSparrow };
 
-struct Vec2f {
-  FP_PRECISION x, y;
-};
-
-struct Vec3f {
-  FP_PRECISION x, y, z;
-
-  FP_PRECISION operator[](size_t index) {
-    switch (index) {
-      case 0:
-        return x;
-      case 1:
-        return y;
-      case 2:
-        return z;
-      default:
-        return 0;
-    }
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const Vec3f& vec) {
-    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
-    return os;
-  }
-};
-
-struct Vec2i {
-  int x, y;
-
-  bool operator==(const Vec2i& other) const {
-    return x == other.x && y == other.y;
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const Vec2i& vec) {
-    os << "(" << vec.x << ", " << vec.y << ")";
-    return os;
-  }
-};
-
-struct Vec3i {
-  int x, y, z;
-
-  FP_PRECISION operator[](size_t index) {
-    switch (index) {
-      case 0:
-        return x;
-      case 1:
-        return y;
-      case 2:
-        return z;
-      default:
-        return 0;
-    }
-  }
-};
-
-struct Vec3uc {
-  unsigned char r, g, b;
-
-  FP_PRECISION operator[](size_t index) {
-    switch (index) {
-      case 0:
-        return r;
-      case 1:
-        return g;
-      case 2:
-        return b;
-      default:
-        return 0;
-    }
-  }
-};
-
-struct Vec4f {
-  FP_PRECISION x, y, z, w;
-};
-
-struct Vec5f {
-  FP_PRECISION x, y, z, w, t;
-};
+// Vec2f, Vec3f, Vec2i, Vec3i, Vec3uc, Vec4f and Vec5f are defined in
+// include/Core/Types.hpp, included above.
 
 // A spectrum supplied directly by a scene file, as a reference into the
 // measured spectral library, a named standard illuminant, or an explicit
@@ -189,34 +113,11 @@ struct RawToneMapping {
   std::string extension = "";
 };
 
-// Camera sensor description. Absent from a scene file means no sensor
-// simulation: the conventional image path is used.
-struct RawSensor {
-  bool exists = false;
-  // Optional "sensor:<name>" reference into the spectral library. A measured
-  // camera sensitivity is the whole optical response, so it fills the three CFA
-  // curves and leaves quantum efficiency at unity.
-  std::string ref;
-  std::string pattern = "RGGB";
-  FP_PRECISION exposure_time_s = 0.01;
-  FP_PRECISION pixel_pitch_m = 3.45e-6;
-  FP_PRECISION f_number = 2.8;
-  FP_PRECISION full_well_e = 10000.0;
-  FP_PRECISION gain_e_per_dn = 1.0;
-  int bit_depth = 12;
-  // Stops below saturation that the output image spans. 0 means derive it from
-  // full well over read noise, the sensor's own dynamic range.
-  FP_PRECISION dynamic_range_stops = 0.0;
-  FP_PRECISION read_noise_sigma_e = 2.0;
-  FP_PRECISION dark_current_e_per_s = 5.0;
-  bool shot_noise = true;
-  bool read_noise = true;
-  bool dark_current = true;
-  RawSpectrumData quantum_efficiency;
-  RawSpectrumData filter_red;
-  RawSpectrumData filter_green;
-  RawSpectrumData filter_blue;
-};
+// The sensor used to live here, declared per camera. It does not any more: a
+// sensor is a piece of hardware, not a property of a scene, and tying the two
+// together meant one render could only ever be developed through one camera.
+// Sensor configuration now lives in its own file -- see
+// include/Sensor/SensorConfig.hpp -- and is read by the sensor stage programs.
 
 struct RawCamera {
   bool look_at_camera = false;
@@ -244,7 +145,6 @@ struct RawCamera {
   bool russian_roulette_enabled = false;
   int splitting_factor = 1;
   FP_PRECISION sample_max_val = 0.0f;
-  RawSensor sensor;
 };
 
 struct RawPointLight {
@@ -543,7 +443,6 @@ struct RawScene {
   std::vector<RawImage> images;
   std::vector<RawTextureMap> texture_maps;
 
-  void loadFromXml(const std::string& filepath);
   void loadFromJSON(const std::string& filepath);
 };
 }  // namespace parser

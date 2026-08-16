@@ -11,13 +11,9 @@ enum class SamplingAlgorithm {
   kMax = 5
 };
 
-enum class FilteringAlgorithm {
-  kBox = 0,
-  kGaussian = 1,
-  kExtendedGaussian = 2,
-  kBest = 2,
-  kMax = 2
-};
+// FilteringAlgorithm used to be here. Reconstruction is splat-based now --
+// BaseCamera::SplatSample applies the Gaussian weight as each sample lands --
+// so there is no filtering pass left to select between.
 
 enum class ApertureType {
   kCircular = 0,

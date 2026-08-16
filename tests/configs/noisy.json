@@ -1,0 +1,14 @@
+{
+  "_comment": "The clean sensor with all three noise sources on. Poisson electrons through gain 16 give DN with variance/mean near 1/16.",
+  "_pattern": "RGGB",
+  "ExposureTime": "1e-4",
+  "PixelPitch": "3.45e-6",
+  "FNumber": "2.8",
+  "FullWell": "60000",
+  "Gain": "16.0",
+  "BitDepth": "12",
+  "ReadNoise": "2.0",
+  "DarkCurrent": "5.0",
+  "DynamicRange": "0",
+  "NoiseSources": "Shot Read Dark"
+}

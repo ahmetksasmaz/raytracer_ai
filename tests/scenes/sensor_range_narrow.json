@@ -17,20 +17,7 @@
         "MaxRecursionDepth": "5",
         "Renderer": "PathTracing",
         "RendererParams": "ImportanceSampling",
-        "ImageName": "sensor_range_narrow.exr",
-        "Sensor": {
-          "_pattern": "RGGB",
-          "ExposureTime": "1e-4",
-          "PixelPitch": "3.45e-6",
-          "FNumber": "2.8",
-          "FullWell": "60000",
-          "Gain": "16.0",
-          "BitDepth": "12",
-          "ReadNoise": "2.0",
-          "DarkCurrent": "5.0",
-          "NoiseSources": "None",
-          "DynamicRange": "3"
-        }
+        "ImageName": "sensor_range_narrow.exr"
       }
     },
     "BRDFs": {

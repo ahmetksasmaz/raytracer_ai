@@ -18,12 +18,17 @@
 // Keeping the spectral radiance image separate from this model is the point:
 // one render can be replayed through any number of different sensors.
 
+// Each arrow above is now its own executable, so every stage below is exposed
+// as its own function as well as through the fused helpers the tests use. The
+// fused and split paths must agree exactly; `stage-fusion` in the test suite is
+// what holds them together.
+
 #include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
 
-#include "Helper.hpp"
+#include "Core/Noise.hpp"
 #include "Spectrum.hpp"
 
 // Colour filter array layout, named by the 2x2 tile read in row-major order
@@ -214,7 +219,35 @@ struct SensorModel {
     return PhotonsPerJoulePerBand() * GeometryFactor();
   }
 
-  // Noise-free electron count for one pixel.
+  // --- Stage: spectral radiance -> photons (`sensor_irradiance`) ------------
+  // Per-band photon count arriving at one pixel. Purely radiometric: no colour
+  // filter, no quantum efficiency, so the result is still sensor-agnostic apart
+  // from the aperture and exposure.
+  Spectrum PhotonsFromRadiance(const Spectrum& radiance) const {
+    const Spectrum& photons_per_joule = PhotonsPerJoulePerBand();
+    const FP_PRECISION geometry = GeometryFactor();
+    Spectrum photons;
+    for (int band = 0; band < kSpectralBands; band++) {
+      photons[band] = radiance[band] * photons_per_joule[band] * geometry;
+    }
+    return photons;
+  }
+
+  // --- Stage: photons -> electrons (`sensor_cfa`) ---------------------------
+  // Integrates the photon spectrum against one channel's total sensitivity.
+  // Computed for all three channels; the Bayer mosaic then keeps one of them.
+  FP_PRECISION ElectronsFromPhotons(const Spectrum& photons,
+                                    SensorChannel channel) const {
+    const Spectrum sensitivity = ChannelSensitivity(channel);
+    FP_PRECISION electrons = 0.0;
+    for (int band = 0; band < kSpectralBands; band++) {
+      electrons += photons[band] * sensitivity[band];
+    }
+    return std::max(static_cast<FP_PRECISION>(0.0), electrons);
+  }
+
+  // Noise-free electron count for one pixel, fused. Exactly equivalent to
+  // ElectronsFromPhotons(PhotonsFromRadiance(radiance), ChannelAt(x, y)).
   FP_PRECISION ElectronsAt(const Spectrum& radiance, int x, int y) const {
     const Spectrum& photons_per_joule = PhotonsPerJoulePerBand();
     const FP_PRECISION geometry = GeometryFactor();
@@ -227,28 +260,46 @@ struct SensorModel {
     return std::max(static_cast<FP_PRECISION>(0.0), electrons * geometry);
   }
 
-  // Applies the noise chain and quantises. Kept separate from ElectronsAt so a
-  // noise-free reference can be produced from the same signal.
-  FP_PRECISION ElectronsToDN(FP_PRECISION signal_electrons) const {
+  // --- Stage: noise (`sensor_noise`) ----------------------------------------
+  // The generator is a parameter rather than a thread-local, because this stage
+  // is its own program now: the same input and the same seed have to give the
+  // same RAW twice, or a frame cannot be reproduced once you have looked at it.
+  FP_PRECISION ApplyNoise(FP_PRECISION signal_electrons,
+                          core::RandomGenerator& rng) const {
     FP_PRECISION electrons = signal_electrons;
 
     if (noise.shot_noise) {
-      electrons = SamplePoisson(electrons);
+      electrons = rng.Poisson(electrons);
     }
     if (noise.dark_current) {
-      electrons += SamplePoisson(noise.dark_current_e_per_s * exposure_time_s);
+      electrons += rng.Poisson(noise.dark_current_e_per_s * exposure_time_s);
     }
     if (noise.read_noise) {
-      electrons += SampleGaussian(0.0, noise.read_noise_sigma_e);
+      electrons += rng.Gaussian(0.0, noise.read_noise_sigma_e);
     }
+    return electrons;
+  }
 
-    // Saturation happens in the well, before readout.
-    electrons = std::min(electrons, full_well_e);
+  // --- Stage: full-well clamp (`sensor_saturate`) ---------------------------
+  // Saturation happens in the well, before readout, and per channel -- which is
+  // what turns a blown red into a hue shift rather than into neutral white.
+  FP_PRECISION Saturate(FP_PRECISION electrons) const {
+    return std::min(electrons, full_well_e);
+  }
 
+  // --- Stage: gain and quantisation (`sensor_adc`) --------------------------
+  FP_PRECISION Quantise(FP_PRECISION electrons) const {
     const FP_PRECISION dn = electrons / gain_e_per_dn;
     // A real ADC cannot return a negative code, even though read noise can
     // drive a dark pixel below zero electrons.
     return std::min(std::max(std::floor(dn), static_cast<FP_PRECISION>(0.0)),
                     MaxDN());
+  }
+
+  // Noise, clamp and quantisation fused. Kept separate from ElectronsAt so a
+  // noise-free reference can be produced from the same signal.
+  FP_PRECISION ElectronsToDN(FP_PRECISION signal_electrons,
+                             core::RandomGenerator& rng) const {
+    return Quantise(Saturate(ApplyNoise(signal_electrons, rng)));
   }
 };

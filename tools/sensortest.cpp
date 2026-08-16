@@ -14,6 +14,14 @@
 #include "../include/Sensor/SensorModel.hpp"
 
 namespace {
+// One generator for the whole run. The sensor stages take their generator as a
+// parameter now, so the tests supply one explicitly too -- and a fixed seed
+// makes a statistical failure reproducible rather than something that shows up
+// once in ten runs.
+core::RandomGenerator rng(20240816);
+}  // namespace
+
+namespace {
 
 int failures = 0;
 
@@ -49,7 +57,7 @@ int main() {
   for (double lambda : {2.0, 25.0, 500.0, 50000.0}) {
     std::vector<double> draws;
     draws.reserve(200000);
-    for (int i = 0; i < 200000; i++) draws.push_back(SamplePoisson(lambda));
+    for (int i = 0; i < 200000; i++) draws.push_back(rng.Poisson(lambda));
     const Moments m = SampleMoments(draws);
     const double mean_err = std::fabs(m.mean - lambda) / lambda;
     const double var_ratio = m.variance / lambda;
@@ -66,7 +74,7 @@ int main() {
   {
     double most_negative = 0.0;
     for (int i = 0; i < 100000; i++)
-      most_negative = std::min(most_negative, SamplePoisson(40.0));
+      most_negative = std::min(most_negative, rng.Poisson(40.0));
     char detail[80];
     std::snprintf(detail, sizeof(detail), "min draw %.1f", most_negative);
     Check(most_negative >= 0.0, "Poisson draws are non-negative", detail);
@@ -77,7 +85,7 @@ int main() {
     const double sigma = 3.0;
     std::vector<double> draws;
     draws.reserve(200000);
-    for (int i = 0; i < 200000; i++) draws.push_back(SampleGaussian(0.0, sigma));
+    for (int i = 0; i < 200000; i++) draws.push_back(rng.Gaussian(0.0, sigma));
     const Moments m = SampleMoments(draws);
     char detail[160];
     std::snprintf(detail, sizeof(detail), "mean=%.4f (want 0)  sd=%.4f (want %.1f)",
@@ -123,6 +131,58 @@ int main() {
     }
     Check(all_ok, "all four Bayer patterns tile correctly",
           "checked 2x2 parities plus tiling");
+  }
+
+  // --- The split matches the fused path ------------------------------------
+  // The sensor is a chain of separate programs now, and the first two stages
+  // together must reproduce exactly what the fused ElectronsAt computes:
+  //
+  //   ElectronsFromPhotons(PhotonsFromRadiance(L), ChannelAt(x, y))
+  //       == ElectronsAt(L, x, y)
+  //
+  // This is the assertion the split needs and no physics check provides. A
+  // factor dropped in the handover between two programs -- the band width, the
+  // geometry factor A*Omega*t, the photon energy hc/lambda -- leaves each stage
+  // looking individually plausible and only shows up in the composition. It is
+  // checked over several spectra and both CFA parities so a mistake cannot hide
+  // in one channel or in a flat spectrum's symmetry.
+  {
+    SensorModel s;
+    DefaultBayerCFA(s.cfa);
+    s.exposure_time_s = 2.5e-4;
+    s.f_number = 4.0;
+    s.pixel_pitch_m = 2.2e-6;
+
+    Spectrum sloped, spike;
+    for (int b = 0; b < kSpectralBands; b++) {
+      sloped[b] = 0.1 + 0.9 * b / static_cast<double>(kSpectralBands - 1);
+      spike[b] = (BandWavelength(b) > 540 && BandWavelength(b) < 560) ? 5.0 : 0.0;
+    }
+    const Spectrum cases[3] = {Spectrum::Constant(1.0), sloped, spike};
+
+    double worst = 0.0;
+    bool positive = false;
+    for (const Spectrum& radiance : cases) {
+      const Spectrum photons = s.PhotonsFromRadiance(radiance);
+      for (int y = 0; y < 2; y++) {
+        for (int x = 0; x < 2; x++) {
+          const double fused = s.ElectronsAt(radiance, x, y);
+          const double split =
+              s.ElectronsFromPhotons(photons, s.ChannelAt(x, y));
+          if (fused > 0.0) positive = true;
+          const double relative =
+              fused > 0.0 ? std::fabs(split - fused) / fused
+                          : std::fabs(split - fused);
+          worst = std::max(worst, relative);
+        }
+      }
+    }
+    char detail[160];
+    std::snprintf(detail, sizeof(detail),
+                  "3 spectra x 4 parities, worst relative difference %.3e",
+                  worst);
+    Check(positive && worst < 1e-12,
+          "split stages reproduce the fused electron count", detail);
   }
 
   // --- Radiometry ----------------------------------------------------------
@@ -180,8 +240,8 @@ int main() {
     s.bit_depth = 12;
     s.gain_e_per_dn = 1.0;
     s.full_well_e = 1e9;  // isolate the ADC ceiling from well saturation
-    const double huge = s.ElectronsToDN(1e8);
-    const double neg = s.ElectronsToDN(-50.0);
+    const double huge = s.ElectronsToDN(1e8, rng);
+    const double neg = s.ElectronsToDN(-50.0, rng);
     char detail[160];
     std::snprintf(detail, sizeof(detail), "saturated=%.0f (max %.0f), negative=%.0f",
                   huge, s.MaxDN(), neg);
@@ -198,8 +258,8 @@ int main() {
     s.bit_depth = 16;
     char detail[120];
     std::snprintf(detail, sizeof(detail), "DN=%.0f (well %.0f e-)",
-                  s.ElectronsToDN(50000.0), s.full_well_e);
-    Check(s.ElectronsToDN(50000.0) == 1000.0, "full well clamps before readout",
+                  s.ElectronsToDN(50000.0, rng), s.full_well_e);
+    Check(s.ElectronsToDN(50000.0, rng) == 1000.0, "full well clamps before readout",
           detail);
   }
 
@@ -218,7 +278,7 @@ int main() {
     auto mean_dark = [&](double t) {
       s.exposure_time_s = t;
       double sum = 0;
-      for (int i = 0; i < 20000; i++) sum += s.ElectronsToDN(0.0);
+      for (int i = 0; i < 20000; i++) sum += s.ElectronsToDN(0.0, rng);
       return sum / 20000.0;
     };
     const double d1 = mean_dark(0.01);
