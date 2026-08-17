@@ -314,8 +314,25 @@ constexpr int kReconstructionRadius = 1;
 
 }  // namespace
 
+void BaseCamera::EnableAOVs() {
+  if (reflectance_accumulator_) return;
+  const size_t pixel_count = static_cast<size_t>(image_width_) * image_height_;
+  const size_t band_count = pixel_count * kSpectralBands;
+
+  reflectance_accumulator_ = new std::atomic<FP_PRECISION>[band_count];
+  illumination_accumulator_ = new std::atomic<FP_PRECISION>[band_count];
+  for (size_t i = 0; i < band_count; i++) {
+    reflectance_accumulator_[i].store(0.0, std::memory_order_relaxed);
+    illumination_accumulator_[i].store(0.0, std::memory_order_relaxed);
+  }
+  reflectance_image_ = new Spectrum[pixel_count];
+  illumination_image_ = new Spectrum[pixel_count];
+}
+
 void BaseCamera::SplatSample(const Vec2i& pixel_coordinate,
-                             const Spectrum& pixel_value, const Vec2f& diff) {
+                             const Spectrum& pixel_value,
+                             const Spectrum& reflectance,
+                             const Spectrum& illumination, const Vec2f& diff) {
   // Firefly clamping is per band, which is the spectrally meaningful operation.
   Spectrum clamped = pixel_value;
   clamped.ClampMaxInPlace(sample_max_val_);
@@ -334,12 +351,23 @@ void BaseCamera::SplatSample(const Vec2i& pixel_coordinate,
           gaussian_kernel_weight(offset, kReconstructionSigma);
       if (!(weight > 0.0)) continue;
 
-      const size_t base =
-          (static_cast<size_t>(py) * image_width_ + px) * kAccumStride;
+      const size_t pixel = static_cast<size_t>(py) * image_width_ + px;
+      const size_t base = pixel * kAccumStride;
       for (int band = 0; band < kSpectralBands; band++) {
         AtomicAdd(accumulator_[base + band], clamped[band] * weight);
       }
       AtomicAdd(accumulator_[base + kSpectralBands], weight);
+
+      // Same sample, same weight, no second weight channel -- see the header.
+      if (reflectance_accumulator_) {
+        const size_t aov_base = pixel * kSpectralBands;
+        for (int band = 0; band < kSpectralBands; band++) {
+          AtomicAdd(reflectance_accumulator_[aov_base + band],
+                    reflectance[band] * weight);
+          AtomicAdd(illumination_accumulator_[aov_base + band],
+                    illumination[band] * weight);
+        }
+      }
     }
   }
 }
@@ -362,6 +390,23 @@ void BaseCamera::ResolveAccumulator() {
 
     spectral_image_[i] = resolved;
     image_data_[i] = SpectrumToLinearSRGB(resolved);
+
+    if (reflectance_accumulator_) {
+      const size_t aov_base = i * kSpectralBands;
+      Spectrum reflectance, illumination;
+      if (weight > 0.0) {
+        for (int band = 0; band < kSpectralBands; band++) {
+          reflectance[band] =
+              reflectance_accumulator_[aov_base + band].load(std::memory_order_relaxed) / weight;
+          illumination[band] =
+              illumination_accumulator_[aov_base + band].load(std::memory_order_relaxed) / weight;
+        }
+      }
+      reflectance.SanitizeInPlace();
+      illumination.SanitizeInPlace();
+      reflectance_image_[i] = reflectance;
+      illumination_image_[i] = illumination;
+    }
   }
 }
 
@@ -401,6 +446,25 @@ void BaseCamera::ExportSpectralRadiance() {
                                &error)) {
     std::cerr << "Warning: cannot write spectral radiance: " << error
               << std::endl;
+  }
+
+  if (!reflectance_accumulator_) return;
+
+  // The decomposition: radiance = reflectance * illumination. Written beside
+  // the radiance so a downstream stage can read the ground-truth illuminant at
+  // every pixel instead of estimating it.
+  const std::vector<Spectrum> reflectance(reflectance_image_,
+                                          reflectance_image_ + pixel_count);
+  if (!pipeline::WriteSpectral(base + "_reflectance.exr", image_width_,
+                               image_height_, reflectance, &error)) {
+    std::cerr << "Warning: cannot write reflectance: " << error << std::endl;
+  }
+
+  const std::vector<Spectrum> illumination(illumination_image_,
+                                           illumination_image_ + pixel_count);
+  if (!pipeline::WriteSpectral(base + "_illumination.exr", image_width_,
+                               image_height_, illumination, &error)) {
+    std::cerr << "Warning: cannot write illumination: " << error << std::endl;
   }
 }
 

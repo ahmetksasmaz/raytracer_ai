@@ -38,7 +38,7 @@ Spectrum ResolveSpectrum(const RawSpectrumData &raw, const Vec3f &rgb_fallback) 
 
 }  // namespace
 
-Scene::Scene(const std::string &filename, bool serial)
+Scene::Scene(const std::string &filename, bool serial, bool collect_aovs)
     : filename_(filename) {
   ray_tracing_algorithm_ = std::bind(
       &Scene::RecursiveBRDFRayTracingAlgorithm, this, std::placeholders::_1,
@@ -46,7 +46,8 @@ Scene::Scene(const std::string &filename, bool serial)
 
   path_tracing_algorithm_ = std::bind(
       &Scene::RecursiveBRDFPathTracingAlgorithm, this, std::placeholders::_1,
-      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
+      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5,
+      std::placeholders::_6);
 
   // Serial rendering exists so a suspected race can be ruled in or out: if a
   // result changes when the tile threads go away, the bug is in the threading
@@ -60,6 +61,12 @@ Scene::Scene(const std::string &filename, bool serial)
   area_light_sampling_algorithm_ = uniform_random_2d;
 
   LoadScene();
+
+  // After LoadScene, so the cameras exist and their resolutions are known.
+  if (collect_aovs) {
+    for (const auto &camera : cameras_) camera->EnableAOVs();
+  }
+
   timer.AddTimeLog(Section::kPreprocessScene, Event::kStart);
   PreprocessScene();
   timer.AddTimeLog(Section::kPreprocessScene, Event::kEnd);

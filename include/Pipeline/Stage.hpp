@@ -76,6 +76,19 @@ bool WriteSingle(const std::string& path, int width, int height,
 bool WriteTriple(const std::string& path, int width, int height,
                  const std::vector<FP_PRECISION> rgb[3], std::string* error);
 
+// A two-channel map: the illumination chromaticity, r/g and b/g.
+//
+// Green is the reference in both ratios because that is the axis a von Kries
+// correction leaves alone -- a Bayer CFA samples green twice as often, so it is
+// the least noisy channel and the one worth not touching.
+bool ReadPair(const std::string& path, int* width, int* height,
+              std::vector<FP_PRECISION>* first, std::vector<FP_PRECISION>* second,
+              std::string* error);
+
+bool WritePair(const std::string& path, int width, int height,
+               const std::vector<FP_PRECISION>& first,
+               const std::vector<FP_PRECISION>& second, std::string* error);
+
 bool WriteSpectral(const std::string& path, int width, int height,
                    const std::vector<Spectrum>& spectra, std::string* error);
 

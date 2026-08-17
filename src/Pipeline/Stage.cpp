@@ -11,6 +11,11 @@ namespace {
 // space the numbers are in is recorded by the file's postfix, not its channels.
 const char* kTripleNames[3] = {"R", "G", "B"};
 
+// Names for the two-channel chromaticity map. Deliberately not "R"/"B": those
+// would make imgdiff treat the file as a partial colour image, and anything
+// ending in "nm" would let ReadSpectral accept it as a one-band cube.
+const char* kPairNames[2] = {"r_over_g", "b_over_g"};
+
 }  // namespace
 
 Arguments::Arguments(int argc, char** argv) {
@@ -181,6 +186,47 @@ bool WriteTriple(const std::string& path, int width, int height,
     image.names.push_back(kTripleNames[c]);
     image.planes.emplace_back(rgb[c].begin(), rgb[c].end());
   }
+  return image_io::WriteMultiChannelEXR(path, image, error);
+}
+
+bool ReadPair(const std::string& path, int* width, int* height,
+              std::vector<FP_PRECISION>* first, std::vector<FP_PRECISION>* second,
+              std::string* error) {
+  image_io::ImagePlanes image;
+  if (!image_io::ReadMultiChannelEXR(path, &image, error)) return false;
+  if (image.ChannelCount() != 2) {
+    *error = path + " has " + std::to_string(image.ChannelCount()) +
+             " channels; this stage expects two (" + kPairNames[0] + ", " +
+             kPairNames[1] + "). Is it pointed at a demosaiced image?";
+    return false;
+  }
+
+  *width = image.width;
+  *height = image.height;
+  // By name, never by position: WriteMultiChannelEXR sorts channels, so
+  // b_over_g lands first in the file.
+  std::vector<FP_PRECISION>* out[2] = {first, second};
+  for (int c = 0; c < 2; c++) {
+    const int index = image.IndexOf(kPairNames[c]);
+    if (index < 0) {
+      *error = path + " has no '" + kPairNames[c] + "' channel";
+      return false;
+    }
+    out[c]->assign(image.planes[index].begin(), image.planes[index].end());
+  }
+  return true;
+}
+
+bool WritePair(const std::string& path, int width, int height,
+               const std::vector<FP_PRECISION>& first,
+               const std::vector<FP_PRECISION>& second, std::string* error) {
+  image_io::ImagePlanes image;
+  image.width = width;
+  image.height = height;
+  image.names.push_back(kPairNames[0]);
+  image.planes.emplace_back(first.begin(), first.end());
+  image.names.push_back(kPairNames[1]);
+  image.planes.emplace_back(second.begin(), second.end());
   return image_io::WriteMultiChannelEXR(path, image, error);
 }
 

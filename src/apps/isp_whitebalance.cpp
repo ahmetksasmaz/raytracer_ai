@@ -8,6 +8,11 @@
 //
 // Where the gains come from is the whole question:
 //
+//   --chroma <illumchroma.exr> a per-pixel illumination chromaticity map, from
+//                              sensor_illum_chroma. Ground truth rather than an
+//                              estimate, and the only mode that can be right
+//                              everywhere on a scene lit by more than one
+//                              spectrally distinct source.
 //   --calibration <ccm.json>   the gains sensor_ccm computed from the sensor's
 //                              own curves and a named illuminant. Correct by
 //                              construction -- it knows both the light and the
@@ -43,8 +48,8 @@ int main(int argc, char** argv) {
     return pipeline::Usage(
         args.program(),
         "--in <demosaiced.exr> --out <wb.exr> "
-        "[--calibration <ccm.json>] [--method gray-world|max-rgb] "
-        "[--gains \"r g b\"]");
+        "[--chroma <illumchroma.exr>] [--calibration <ccm.json>] "
+        "[--method gray-world|max-rgb] [--gains \"r g b\"]");
   }
 
   int width = 0, height = 0;
@@ -56,6 +61,50 @@ int main(int argc, char** argv) {
 
   FP_PRECISION gains[3] = {1.0, 1.0, 1.0};
   std::string source;
+
+  // Checked before the global modes: the selection chain is first-match-wins,
+  // and a ground-truth map is never the thing you meant to have overridden.
+  if (args.Has("chroma")) {
+    int map_width = 0, map_height = 0;
+    std::vector<FP_PRECISION> r_over_g, b_over_g;
+    if (!pipeline::ReadPair(args.Get("chroma"), &map_width, &map_height,
+                            &r_over_g, &b_over_g, &error)) {
+      return pipeline::Fail(args.program(), error);
+    }
+    // A map from a different render would still divide cleanly and produce a
+    // perfectly plausible picture, so the mismatch has to be fatal.
+    if (map_width != width || map_height != height) {
+      return pipeline::Fail(
+          args.program(),
+          "chromaticity map is " + std::to_string(map_width) + "x" +
+              std::to_string(map_height) + " but the image is " +
+              std::to_string(width) + "x" + std::to_string(height) +
+              ". They are from different renders.");
+    }
+
+    isp::ApplyWhiteBalanceMap(rgb, r_over_g, b_over_g);
+
+    // Report the mean of the per-pixel gains so the line is comparable with the
+    // global modes below; the correction itself varied pixel by pixel.
+    FP_PRECISION sum_r = 0.0, sum_b = 0.0;
+    for (size_t i = 0; i < r_over_g.size(); i++) {
+      sum_r += r_over_g[i] > 1e-30 ? 1.0 / r_over_g[i] : 1.0;
+      sum_b += b_over_g[i] > 1e-30 ? 1.0 / b_over_g[i] : 1.0;
+    }
+    const FP_PRECISION count = static_cast<FP_PRECISION>(r_over_g.size());
+    std::printf("%s: %dx%d, per-pixel von Kries, mean gains %.4f 1.0000 %.4f"
+                " (ground truth) -> %s\n",
+                args.program().c_str(), width, height,
+                static_cast<double>(sum_r / count),
+                static_cast<double>(sum_b / count), out.c_str());
+    std::printf("%s: pass --matrix after_wb to isp_colormatrix, or the image "
+                "will be corrected twice\n", args.program().c_str());
+
+    if (!pipeline::WriteTriple(out, width, height, rgb, &error)) {
+      return pipeline::Fail(args.program(), error);
+    }
+    return 0;
+  }
 
   if (args.Has("gains")) {
     std::istringstream stream(args.Get("gains"));
@@ -85,9 +134,10 @@ int main(int argc, char** argv) {
     source = "calibrated for " + calibration.illuminant;
   } else {
     return pipeline::Fail(args.program(),
-                          "no gains given. Pass --calibration <ccm.json> for "
-                          "the calibrated gains, --method for an estimate, or "
-                          "--gains \"r g b\".");
+                          "no gains given. Pass --chroma <illumchroma.exr> for "
+                          "the per-pixel ground truth, --calibration "
+                          "<ccm.json> for the calibrated gains, --method for an "
+                          "estimate, or --gains \"r g b\".");
   }
 
   isp::ApplyWhiteBalance(rgb, gains);

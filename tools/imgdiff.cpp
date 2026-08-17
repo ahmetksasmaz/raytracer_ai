@@ -93,6 +93,14 @@ bool LoadImage(const std::string& path, Image& image) {
       const float v = planes.planes[0][i];
       image.rgb[i * 3 + 0] = image.rgb[i * 3 + 1] = image.rgb[i * 3 + 2] = v;
     }
+  } else if (planes.ChannelCount() == 2) {
+    // A chromaticity map. Averaging the two would make a file and the same file
+    // with r/g and b/g swapped compare identical, so keep them apart: first
+    // channel into R, second into G, blue left at zero.
+    for (size_t i = 0; i < pixel_count; i++) {
+      image.rgb[i * 3 + 0] = planes.planes[0][i];
+      image.rgb[i * 3 + 1] = planes.planes[1][i];
+    }
   } else if (planes.ChannelCount() > 0) {
     const float inverse = 1.0f / planes.ChannelCount();
     for (size_t i = 0; i < pixel_count; i++) {
@@ -227,6 +235,112 @@ int Usage() {
 int main(int argc, char** argv) {
   if (argc < 3) return Usage();
   const std::string mode = argv[1];
+
+  if (mode == "--expect-pair") {
+    // Asserts a two-channel map is constant, with the two named values. Used
+    // for a chromaticity map whose illuminant is known in closed form.
+    if (argc < 5) return Usage();
+    const double want_a = std::atof(argv[3]);  // r_over_g
+    const double want_b = std::atof(argv[4]);  // b_over_g
+    const double tol = ArgTol(argc, argv, 0.01);
+
+    image_io::ImagePlanes planes;
+    std::string error;
+    if (!image_io::ReadMultiChannelEXR(argv[2], &planes, &error)) {
+      std::fprintf(stderr, "imgdiff: %s\n", error.c_str());
+      return 2;
+    }
+    if (planes.ChannelCount() != 2) {
+      std::printf("FAIL: %s has %d channels, expected 2\n", argv[2],
+                  planes.ChannelCount());
+      return 1;
+    }
+
+    // By NAME, not by position: EXR stores channels sorted, so b_over_g comes
+    // back before r_over_g and a positional read compares each against the
+    // other's expectation.
+    const char* names[2] = {"r_over_g", "b_over_g"};
+    const double want[2] = {want_a, want_b};
+    double worst[2] = {0.0, 0.0};
+    for (int c = 0; c < 2; c++) {
+      const int index = planes.IndexOf(names[c]);
+      if (index < 0) {
+        std::printf("FAIL: %s has no '%s' channel\n", argv[2], names[c]);
+        return 1;
+      }
+      for (float v : planes.planes[index]) {
+        worst[c] = std::max(worst[c], std::fabs(v - want[c]));
+      }
+    }
+    std::printf("%s: %s worst deviation %.6g (want %.6g), %s worst %.6g"
+                " (want %.6g), tol %.6g\n",
+                argv[2], names[0], worst[0], want[0],
+                names[1], worst[1], want[1], tol);
+    if (worst[0] > tol || worst[1] > tol) {
+      std::printf("FAIL: map is not constant at the expected chromaticity\n");
+      return 1;
+    }
+    std::printf("PASS\n");
+    return 0;
+  }
+
+  if (mode == "--expect-product") {
+    // Asserts a * b == c per channel, matched by channel NAME.
+    //
+    // Deliberately not routed through LoadImage: that averages an N-band cube
+    // into grey, and mean(a)*mean(b) is not mean(a*b), so an averaged
+    // comparison would be testing a different claim than the one intended.
+    if (argc < 5) return Usage();
+    const double tol = ArgTol(argc, argv, 0.001);
+
+    image_io::ImagePlanes a, b, c;
+    std::string error;
+    if (!image_io::ReadMultiChannelEXR(argv[2], &a, &error) ||
+        !image_io::ReadMultiChannelEXR(argv[3], &b, &error) ||
+        !image_io::ReadMultiChannelEXR(argv[4], &c, &error)) {
+      std::fprintf(stderr, "imgdiff: %s\n", error.c_str());
+      return 2;
+    }
+    if (a.width != b.width || a.width != c.width ||
+        a.height != b.height || a.height != c.height) {
+      std::printf("FAIL: dimensions differ\n");
+      return 1;
+    }
+
+    double sq_error = 0.0, sq_expected = 0.0, worst = 0.0;
+    size_t compared = 0;
+    for (int ch = 0; ch < a.ChannelCount(); ch++) {
+      const int bi = b.IndexOf(a.names[ch]);
+      const int ci = c.IndexOf(a.names[ch]);
+      if (bi < 0 || ci < 0) {
+        std::printf("FAIL: channel %s missing from one of the inputs\n",
+                    a.names[ch].c_str());
+        return 1;
+      }
+      for (size_t i = 0; i < a.PixelCount(); i++) {
+        const double product = static_cast<double>(a.planes[ch][i]) *
+                               static_cast<double>(b.planes[bi][i]);
+        const double actual = c.planes[ci][i];
+        const double d = product - actual;
+        sq_error += d * d;
+        sq_expected += actual * actual;
+        worst = std::max(worst, std::fabs(d));
+        compared++;
+      }
+    }
+    const double relative =
+        sq_expected > 0 ? std::sqrt(sq_error / sq_expected) : 0.0;
+    std::printf("%s x %s vs %s: %zu samples over %d channels,"
+                " relative_rmse=%.6g max_abs=%.6g tol=%.6g\n",
+                argv[2], argv[3], argv[4], compared, a.ChannelCount(),
+                relative, worst, tol);
+    if (relative > tol) {
+      std::printf("FAIL: the product does not reproduce the third image\n");
+      return 1;
+    }
+    std::printf("PASS\n");
+    return 0;
+  }
 
   if (mode == "--expect-channels") {
     // Verifies a multi-channel EXR (the spectral cube) is well formed: the

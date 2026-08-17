@@ -40,7 +40,11 @@ class BaseCamera {
       const ApertureType aperture_type = ApertureType::kDefault);
   virtual ~BaseCamera() {
     delete[] accumulator_;
+    delete[] reflectance_accumulator_;
+    delete[] illumination_accumulator_;
     delete[] spectral_image_;
+    delete[] reflectance_image_;
+    delete[] illumination_image_;
     delete[] image_data_;
   };
 
@@ -60,7 +64,19 @@ class BaseCamera {
   // Splats cross the 32x32 tile boundaries each thread owns, so accumulation is
   // atomic.
   virtual void SplatSample(const Vec2i& pixel_coordinate,
-                           const Spectrum& pixel_value, const Vec2f& diff);
+                           const Spectrum& pixel_value,
+                           const Spectrum& reflectance,
+                           const Spectrum& illumination, const Vec2f& diff);
+
+  // Whether this camera is collecting the reflectance/illumination AOVs. The
+  // schedulers ask before tracing: when false the tracer is handed nullptr and
+  // skips the extra BRDF evaluations entirely, so --no-aov costs nothing.
+  bool CollectsAOVs() const { return reflectance_accumulator_ != nullptr; }
+
+  // Allocates the AOV buffers. Called once, before rendering starts; the
+  // buffers are two thirds of the film's memory, so they are not allocated
+  // unless someone asked for them.
+  void EnableAOVs();
 
   // Divides the accumulated film by its weights, producing both the spectral
   // image and the conventional linear-sRGB image. Call once per camera after
@@ -122,6 +138,17 @@ class BaseCamera {
   std::atomic<FP_PRECISION>* accumulator_;
   static constexpr int kAccumStride = kSpectralBands + 1;
 
+  // The two AOV films, width * height * kSpectralBands each. They deliberately
+  // do NOT carry their own weight channel: all three buffers are written by the
+  // same sample with the same reconstruction weight, so a second copy could
+  // only ever drift out of step with the first.
+  //
+  // nullptr when AOVs are off, which is also how CollectsAOVs() answers.
+  std::atomic<FP_PRECISION>* reflectance_accumulator_ = nullptr;
+  std::atomic<FP_PRECISION>* illumination_accumulator_ = nullptr;
+
   Spectrum* spectral_image_;  // resolved, sensor-independent
+  Spectrum* reflectance_image_ = nullptr;
+  Spectrum* illumination_image_ = nullptr;
   Vec3f* image_data_;         // resolved, linear sRGB, conventional output
 };

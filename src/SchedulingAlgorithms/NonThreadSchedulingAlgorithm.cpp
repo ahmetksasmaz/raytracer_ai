@@ -18,13 +18,16 @@ void Scene::NonThreadSchedulingAlgorithm(
 
       std::vector<Ray> rays = camera->GenerateRay({x, y});
       for (int ray_index = 0; ray_index < rays.size(); ray_index++) {
+        PathAOV aov;
+        PathAOV* aov_ptr = camera->CollectsAOVs() ? &aov : nullptr;
         const Spectrum pixel_value =
         camera->path_tracing_enabled_ ?
-        path_tracing_algorithm_(rays[ray_index], nullptr, 0, path_tracer_settings, PathState{})
+        path_tracing_algorithm_(rays[ray_index], nullptr, 0, path_tracer_settings, PathState{}, aov_ptr)
             : ray_tracing_algorithm_(
               rays[ray_index], nullptr, camera->max_recursion_depth_,
               camera->max_recursion_depth_);
-        camera->SplatSample({x, y}, pixel_value, rays[ray_index].diff_);
+        camera->SplatSample({x, y}, pixel_value, aov.reflectance, aov.illumination,
+                            rays[ray_index].diff_);
       }
     }
   }

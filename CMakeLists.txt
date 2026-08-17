@@ -107,7 +107,8 @@ set(RT_SENSOR_STAGES
   sensor_noise        # shot, dark, read
   sensor_saturate     # full-well clamp
   sensor_adc          # gain + quantisation -> RAW
-  sensor_ccm)         # sensor curves -> white balance gains + colour matrices
+  sensor_ccm          # sensor curves -> white balance gains + colour matrices
+  sensor_illum_chroma) # illumination cube -> per-pixel r/g, b/g ground truth
 
 foreach(stage ${RT_SENSOR_STAGES})
   add_executable(${stage} src/apps/${stage}.cpp)

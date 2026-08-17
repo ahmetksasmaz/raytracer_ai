@@ -77,11 +77,42 @@ struct PathState {
     bool prev_specular = true;
 };
 
+// The renderer's decomposition of what a pixel saw:
+//
+//     radiance(lambda) = reflectance(lambda) * illumination(lambda)
+//
+// `reflectance` is the diffuse reflectance of the first non-specular surface the
+// camera path reached, textures included. `illumination` is the radiance that
+// same pixel would have shown had that surface been perfectly white -- so it is
+// the light arriving there, with the surface's own colour divided out.
+//
+// Defining illumination by re-evaluating the BRDF with kd=1 rather than by
+// dividing radiance by the albedo matters twice over. It stays defined on a
+// black surface, which still receives light and whose illuminant is still worth
+// knowing; and it makes the factorisation above a real claim that a test can
+// falsify, instead of an identity that holds by construction.
+//
+// The factorisation is exact only where the first vertex has no specular lobe.
+// No per-band scalar splits a specular highlight into "surface colour" times
+// "light colour", so with ks > 0 this is an approximation -- a good one for the
+// diffuse-dominated scenes it exists to serve, but an approximation.
+struct PathAOV {
+  Spectrum reflectance = Spectrum::Zero();
+  Spectrum illumination = Spectrum::Zero();
+  // Set once, at the first non-specular vertex. Specular vertices pass the
+  // struct further down instead of filling it, so a path through a mirror
+  // records the surface behind the mirror rather than the mirror itself.
+  bool captured = false;
+};
+
 class Scene {
  public:
   // `serial` swaps the tile-threaded scheduler for the single-threaded one,
   // which is how a suspected race in the trace path gets ruled in or out.
-  Scene(const std::string &filename, bool serial = false);
+  // `collect_aovs` makes every camera also produce the reflectance and
+  // illumination maps. It roughly triples film memory, so it is a knob rather
+  // than a constant -- see BaseCamera::EnableAOVs.
+  Scene(const std::string &filename, bool serial = false, bool collect_aovs = true);
   void Render();
   ~Scene();
 
@@ -129,7 +160,9 @@ class Scene {
       scheduling_algorithm_;
   std::function<Spectrum(Ray &, const std::shared_ptr<BaseObject>, int, int)>
       ray_tracing_algorithm_;
-  std::function<Spectrum(Ray &, const std::shared_ptr<BaseObject>, int, const PathTracerSettings&, const PathState&)>
+  // The trailing PathAOV* is nullable: nullptr means "not collecting", which is
+  // what --no-aov passes, so the extra work costs nothing when it is not wanted.
+  std::function<Spectrum(Ray &, const std::shared_ptr<BaseObject>, int, const PathTracerSettings&, const PathState&, PathAOV*)>
       path_tracing_algorithm_;
   std::function<void(Vec3f *, int, int, std::vector<unsigned char> &)>
       tone_mapping_algorithm_;
@@ -143,7 +176,8 @@ class Scene {
     Spectrum RecursiveBRDFPathTracingAlgorithm(
       Ray &ray,
       const std::shared_ptr<BaseObject> inside_object_ptr,
-      int current_recursion, const PathTracerSettings& settings, const PathState& state = PathState{});
+      int current_recursion, const PathTracerSettings& settings, const PathState& state = PathState{},
+      PathAOV* aov = nullptr);
 
   // Combined solid-angle pdf of the next-event-estimation strategy for a
   // specific point on a specific emitter: the emitter's own pdf, scaled by the

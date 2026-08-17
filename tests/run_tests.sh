@@ -140,6 +140,19 @@ sensor_chain() {
   ) >> "$OUT/${p}.log" 2>&1
 }
 
+# illum_chroma <prefix> <sensor-config>
+#
+# The renderer's illumination cube through this sensor's filters, as the
+# per-pixel r/g and b/g a von Kries correction consumes. Skipped silently when
+# the render had no AOVs, so --no-aov renders still run the rest of the chain.
+illum_chroma() {
+  local p="$1" cfg="$2"
+  [ -f "$OUT/${p}_illumination.exr" ] || return 0
+  ( cd "$OUT" &&
+    "$BIN/sensor_illum_chroma" --in "${p}_illumination.exr" --out "${p}_illumchroma.exr" --config "$cfg"
+  ) >> "$OUT/${p}.log" 2>&1
+}
+
 # isp_chain <prefix> <sensor-config>
 #
 # The ISP stages, from the RAW to the display image. Calibration comes from the
@@ -147,11 +160,16 @@ sensor_chain() {
 # guaranteed to be the matching pair.
 isp_chain() {
   local p="$1" cfg="$2"
+  # Ground truth when the render produced it, calibrated gains otherwise.
+  local wb_args=(--calibration "${p}_ccm.json")
+  if [ -f "$OUT/${p}_illumchroma.exr" ]; then
+    wb_args=(--chroma "${p}_illumchroma.exr")
+  fi
   ( cd "$OUT" &&
     "$BIN/sensor_ccm"       --config "$cfg"              --out "${p}_ccm.json" &&
     "$BIN/isp_blacklevel"   --in "${p}_raw.pgm"          --out "${p}_linearized.exr" --config "$cfg" &&
     "$BIN/isp_demosaic"     --in "${p}_linearized.exr"   --out "${p}_demosaiced.exr" --config "$cfg" &&
-    "$BIN/isp_whitebalance" --in "${p}_demosaiced.exr"   --out "${p}_wb.exr"         --calibration "${p}_ccm.json" &&
+    "$BIN/isp_whitebalance" --in "${p}_demosaiced.exr"   --out "${p}_wb.exr"         "${wb_args[@]}" &&
     "$BIN/isp_colormatrix"  --in "${p}_wb.exr"           --out "${p}_xyz.exr"        --calibration "${p}_ccm.json" --matrix after_wb &&
     "$BIN/isp_srgb"         --in "${p}_xyz.exr"          --out "${p}_srgb.png"
   ) >> "$OUT/${p}.log" 2>&1
@@ -166,6 +184,8 @@ pipeline() {
   render "$scene" || return 1
   sensor_chain "$scene" "$CONFIGS/$cfg.json" || {
     echo "    sensor chain failed, see $OUT/${scene}.log"; return 1; }
+  illum_chroma "$scene" "$CONFIGS/$cfg.json" || {
+    echo "    illumination chromaticity failed, see $OUT/${scene}.log"; return 1; }
   isp_chain "$scene" "$CONFIGS/$cfg.json" || {
     echo "    isp chain failed, see $OUT/${scene}.log"; return 1; }
   return 0
@@ -415,6 +435,20 @@ run_check noise-determinism "same seed reproduces, different seed does not" \
 # the one this binary was compiled for.
 run_check spectral-roundtrip "spectral cube survives write/read exactly" \
   "$ROOT/tests/check_spectral_roundtrip.sh"
+
+# --- The renderer's decomposition --------------------------------------------
+# radiance = reflectance * illumination, which is a real claim rather than an
+# identity: illumination is computed by re-evaluating the BRDF with kd=1, not by
+# dividing radiance by the albedo. Dividing would make the product hold by
+# construction and test nothing.
+needs aov-decomposition illuminant_d65
+run_check aov-decomposition "radiance must equal reflectance x illumination" \
+  "$ROOT/tests/check_aov_decomposition.sh"
+
+# The per-pixel illuminant map, against the closed form the calibration already
+# knows. Two independent routes to the same number.
+run_check illum-chroma "ground-truth illuminant map vs the calibrated gains" \
+  "$ROOT/tests/check_illum_chroma.sh"
 
 # --- White balance and the colour matrix -------------------------------------
 # The two corrections overlap, so they are fitted together and must be used as a

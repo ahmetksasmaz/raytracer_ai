@@ -56,7 +56,15 @@ if [ -z "$RADIANCE" ]; then
   echo "the render produced no *_radiance.exr" >&2
   exit 1
 fi
-[ "$SCENE_DIR" = "$OUT" ] || mv "$SCENE_DIR/$RADIANCE" "$OUT/${NAME}_radiance.exr"
+STEM="${RADIANCE%_radiance.exr}"
+if [ "$SCENE_DIR" != "$OUT" ]; then
+  mv "$SCENE_DIR/$RADIANCE" "$OUT/${NAME}_radiance.exr"
+  # The decomposition, when the render produced it (--no-aov skips it).
+  for aov in illumination reflectance; do
+    [ -f "$SCENE_DIR/${STEM}_${aov}.exr" ] &&
+      mv "$SCENE_DIR/${STEM}_${aov}.exr" "$OUT/${NAME}_${aov}.exr"
+  done
+fi
 
 SENSOR_ARGS=(--config "$SENSOR")
 
@@ -68,13 +76,21 @@ step "sensor: radiance -> RAW"
 "$BIN/sensor_saturate"   --in "${NAME}_noisy.exr"       --out "${NAME}_wellclamped.exr" "${SENSOR_ARGS[@]}"
 "$BIN/sensor_adc"        --in "${NAME}_wellclamped.exr" --out "${NAME}_raw.pgm"         "${SENSOR_ARGS[@]}"
 
+# The illumination cube, as chromaticity this sensor can act on. Ground truth
+# for white balance -- what an auto-white-balance algorithm is trying to guess.
+WB_ARGS=(--calibration "${NAME}_ccm.json")
+if [ -f "${NAME}_illumination.exr" ]; then
+  "$BIN/sensor_illum_chroma" --in "${NAME}_illumination.exr" --out "${NAME}_illumchroma.exr" "${SENSOR_ARGS[@]}"
+  WB_ARGS=(--chroma "${NAME}_illumchroma.exr")
+fi
+
 step "calibrate: sensor curves -> white balance gains + colour matrices"
 "$BIN/sensor_ccm" "${SENSOR_ARGS[@]}" --out "${NAME}_ccm.json"
 
 step "isp: RAW -> sRGB"
 "$BIN/isp_blacklevel"    --in "${NAME}_raw.pgm"         --out "${NAME}_linearized.exr" "${SENSOR_ARGS[@]}"
 "$BIN/isp_demosaic"      --in "${NAME}_linearized.exr"  --out "${NAME}_demosaiced.exr" "${SENSOR_ARGS[@]}"
-"$BIN/isp_whitebalance"  --in "${NAME}_demosaiced.exr"  --out "${NAME}_wb.exr"         --calibration "${NAME}_ccm.json"
+"$BIN/isp_whitebalance"  --in "${NAME}_demosaiced.exr"  --out "${NAME}_wb.exr"         "${WB_ARGS[@]}"
 "$BIN/isp_colormatrix"   --in "${NAME}_wb.exr"          --out "${NAME}_xyz.exr"        --calibration "${NAME}_ccm.json" --matrix after_wb
 "$BIN/isp_srgb"          --in "${NAME}_xyz.exr"         --out "${NAME}_srgb.png"
 

@@ -19,7 +19,9 @@ Run the whole pipeline with `./tools/pipeline.sh <scene.json> [sensor-config.jso
 Every stage is its own executable reading one file and writing one file, named `<scene>_<postfix>.<ext>`. This is the architecture: the expensive part (rendering) happens once, and everything downstream is replayable in milliseconds against the same cube.
 
 ```
-raytracer            scene.json        -> _radiance.exr    (N-band spectral cube)
+raytracer            scene.json        -> _radiance.exr     (N-band spectral cube)
+                                       -> _illumination.exr (N-band, the light)
+                                       -> _reflectance.exr  (N-band, the surface)
 
 sensor_irradiance    _radiance.exr     -> _photons.exr     L·A·Ω·t·λ/hc
 sensor_cfa           _photons.exr      -> _electrons.exr   QE × CFA, 3 channels
@@ -28,10 +30,11 @@ sensor_noise         _mosaic.exr       -> _noisy.exr       shot + dark + read
 sensor_saturate      _noisy.exr        -> _wellclamped.exr full-well clamp
 sensor_adc           _wellclamped.exr  -> _raw.pgm/.exr    gain + quantisation
 sensor_ccm           (config only)     -> _ccm.json        wb gains + 2 matrices
+sensor_illum_chroma  _illumination.exr -> _illumchroma.exr  per-pixel r/g, b/g
 
 isp_blacklevel       _raw.pgm          -> _linearized.exr  DN -> [0,1], fixed window
 isp_demosaic         _linearized.exr   -> _demosaiced.exr  bilinear
-isp_whitebalance     _demosaiced.exr   -> _wb.exr          per-channel gains
+isp_whitebalance     _demosaiced.exr   -> _wb.exr          gains, global or per-pixel
 isp_colormatrix      _wb.exr           -> _xyz.exr         sensorRGB -> CIE XYZ
 isp_srgb             _xyz.exr          -> _srgb.png        the only display output
 
@@ -39,6 +42,10 @@ raw_preview          _raw.pgm          -> _raw*.png        RAW made viewable, un
 ```
 
 Uniform CLI: `<prog> --in <file> --out <file> --config <sensor.json>`. `sensor_noise` also takes `--seed`.
+
+**The renderer emits a decomposition**, not just a picture: `radiance = reflectance ⊙ illumination`, where reflectance is the diffuse albedo of the first non-specular surface and illumination is the radiance that pixel would have shown had the surface been white. `--no-aov` skips both (they are two thirds of film memory: 752 vs 256 bytes/pixel).
+
+That makes `_illumination.exr` **per-pixel ground truth for the illuminant** — what an auto-white-balance algorithm is trying to guess — which is what `sensor_illum_chroma` turns into the r/g, b/g map `isp_whitebalance --chroma` consumes.
 
 **One render, many cameras.** `_radiance.exr` is sensor-independent, so pointing the sensor stages at a different config develops the same render through a different camera with no re-rendering. That is the point of the split; verified against `sensor:nikon_d700` and `sensor:canon_5dmarkii`, whose measured white-balance gains differ (2.04/1.00/1.22 vs 2.22/1.00/1.51).
 
@@ -78,6 +85,12 @@ Hard-coded defaults in `Scene::Scene` (src/Scene.cpp:7-24), **not** settable fro
 - camera pixel/aperture sampling Hammersley, time sampling jittered, circular aperture (`Scene.cpp:176-181`)
 
 Per pixel the camera emits `NumSamples` rays; `path_tracing_enabled_` picks path tracer vs ray tracer.
+
+**The AOVs come from the tracer, not from arithmetic on the image.** A nullable `PathAOV*` (`Scene.hpp`) travels down the recursion: `nullptr` means "not collecting", which is what `--no-aov` passes, so the extra work genuinely costs nothing. The struct is filled at the **first non-specular vertex** — specular vertices pass the pointer down instead, so a camera→mirror→wall path records the wall, not the mirror. Emitters and background set reflectance 1 and illumination = the radiance, which keeps the factorisation true and makes a visible light report its own chromaticity.
+
+Illumination is the same light transport with the BRDF re-evaluated at `kd=1, ks=0` — never `radiance / albedo`. The division would be undefined on a black surface (which still receives light, and whose illuminant is still worth knowing) and would make `radiance = reflectance ⊙ illumination` true by construction, so `aov-decomposition` could not falsify it. The factorisation is **exact only where the first vertex has no specular lobe**: no per-band scalar splits a highlight into surface colour times light colour.
+
+The two AOV films reuse the radiance film's weight channel rather than carrying their own — same sample, same reconstruction weight, so a second copy could only drift.
 
 `BaseCamera::ExportSpectralRadiance` writes `<base>_radiance.exr` on **every** render — it is the handover to the rest of the pipeline, not an optional extra. The band grid is recorded in the channel names (`0400nm`, `0410nm`, …) and nothing else in the file states it, so readers must parse the names rather than count channels; `kSpectralBands` is a free knob and a 61-band cube must not be read as 31.
 
@@ -236,6 +249,19 @@ Chain: spectral radiance → photons (`L·A·Ω·t·λ/hc`, Ω = π/4N²) → el
 
 Mixing them up double-corrects or under-corrects, and **both produce a perfectly plausible image**, which is what makes it worth an assertion rather than a comment. `isp_colormatrix --matrix after_wb|no_wb` names the choice; `wb-ccm-pairing` asserts that the two routes agree exactly and that mismatching them does not.
 
+### Per-pixel white balance
+
+`isp_whitebalance --chroma <_illumchroma.exr>` applies von Kries per pixel from the ground-truth map: `R /= r/g`, `G` untouched, `B /= b/g`. It is checked **before** `--gains`/`--method`/`--calibration`, because the selection chain is first-match-wins and ground truth is never what you meant to have overridden. A map whose dimensions do not match the image is fatal — it would divide cleanly and produce a plausible, wrong picture.
+
+Two properties are load-bearing:
+
+- **Green is never scaled**, so the data stays in the same units as the global path and both the fixed exposure window and `matrix_after_wb`'s brightness anchoring still hold. Renormalising the map (to unit luminance, or max-channel-1) would break the anchor.
+- The global calibrated gains are exactly the reciprocals of the calibration illuminant's sensor chromaticity, so **a constant map reproduces the global path bit-for-bit**. `illum-chroma` asserts that at `--tol 1e-9`, and separately that the map's content actually drives the correction (two cameras, same illumination cube, different maps → different images).
+
+The honest caveat: `matrix_after_wb` was fitted for one illuminant, so at pixels whose local chromaticity differs from it, `residual_after_wb` no longer describes the error there. That is inherent to per-pixel WB with one global CCM — what real ISPs do — not a bug.
+
+On `hyperspectral_box` (three spectrally distinct emitters) per-pixel and global differ by ~35% relative RMSE, which is the whole point: one gain triple cannot be right in three differently lit regions.
+
 Each matrix is scaled so a **full-scale neutral in the RAW** gives Y=1, expressed in whichever space that matrix consumes: the anchor is `(1,1,1)` for `matrix_no_wb` and the gain vector for `matrix_after_wb`. Anchoring both at `(1,1,1)` — the obvious thing — makes the two routes disagree by a few percent of overall brightness, which the fixed exposure window turns into a real error rather than something absorbed downstream.
 
 The residual is part of the result: a sensor whose sensitivities are not a linear transform of the CIE matching functions (the Luther condition) cannot be corrected exactly by any 3×3.
@@ -279,9 +305,11 @@ These are load-bearing; breaking one produces a plausible-looking but wrong imag
 ./tests/run_tests.sh furnace    # only names matching "furnace"
 ```
 
-`tools/imgdiff.cpp` (built as `build/bin/imgdiff`) reads EXR *and* PNG through `rt_imageio` — no external deps. Modes: `--stats`, `--mean`, `--argmax` (locate a firefly), `--compare a b --tol T`, `--expect-constant f L --tol T [--max-dev D]`, `--expect-ratio a b R`, `--expect-nonnegative`, `--expect-finite`, `--expect-below f V`, `--expect-differ`, `--expect-channels f N`, `--expect-bayer f PATTERN`, `--variance`.
+`tools/imgdiff.cpp` (built as `build/bin/imgdiff`) reads EXR *and* PNG through `rt_imageio` — no external deps. Modes: `--stats`, `--mean`, `--argmax` (locate a firefly), `--compare a b --tol T`, `--expect-constant f L --tol T [--max-dev D]`, `--expect-ratio a b R`, `--expect-nonnegative`, `--expect-finite`, `--expect-below f V`, `--expect-differ`, `--expect-channels f N`, `--expect-bayer f PATTERN`, `--variance`, `--expect-pair f A B` (a 2-channel map constant at A, B), `--expect-product a b c` (a ⊙ b == c, per channel by name).
 
-It loads **any** channel layout: 3 channels by name, 1 channel broadcast across RGB (the RAW mosaic), and an N-band cube averaged into RGB, so `--compare` works on a spectral cube instead of failing with "R channel not found". `--expect-channels` additionally asserts every channel name parses as a wavelength and that they ascend — the names are the only record of which band is which, so a cube with wrongly named channels would otherwise read as the right count of the wrong wavelengths.
+`--expect-product` reads through `ReadMultiChannelEXR` directly rather than the RGB loader, because `mean(a)·mean(b) != mean(a·b)` — averaging first would test a different claim.
+
+It loads **any** channel layout: 3 channels by name, 1 channel broadcast across RGB (the RAW mosaic), 2 channels kept apart as R and G (a chromaticity map — averaging them would make r/g and b/g swapped compare identical), and an N-band cube averaged into RGB, so `--compare` works on a spectral cube instead of failing with "R channel not found". `--expect-channels` additionally asserts every channel name parses as a wavelength and that they ascend — the names are the only record of which band is which, so a cube with wrongly named channels would otherwise read as the right count of the wrong wavelengths.
 
 Note **`--expect-differ` compares the two images' means**, so it cannot detect two different draws of zero-mean noise over the same signal. For a per-pixel assertion, assert that a strict `--compare` *fails* (see `tests/check_noise_seed.sh`).
 
@@ -293,6 +321,8 @@ The ones that guard the split, which the physics checks cannot see:
 - `sensor-selfcheck` asserts `ElectronsFromPhotons(PhotonsFromRadiance(L), ch) == ElectronsAt(L, x, y)` over several spectra and both CFA parities. A factor dropped in the handover between two programs — the band width, `A·Ω·t`, `hc/λ` — leaves every stage individually plausible and only shows up in the composition.
 - `stage-fusion` asserts the seams: a noise-free config means `sensor_noise` is a no-op, an unsaturated signal means `sensor_saturate` is a no-op, and the mosaic keeps its Bayer structure across the EXR boundary. A stage that acts when it should not is the easiest way to break a pipeline whose output still looks reasonable.
 - `noise-determinism`, `spectral-roundtrip`, `wb-ccm-pairing` — see the sensor section above.
+- `aov-decomposition` asserts `radiance = reflectance ⊙ illumination` band by band. It runs on `illuminant_d65` specifically because that sphere's albedo is **0.6, not 1**: on an all-white scene the reflectance map is 1 everywhere and the product degenerates into comparing the illumination against itself. The check guards against exactly that by first asserting the map is *not* uniformly 1 — a trap the first version of this test fell into.
+- `illum-chroma` ties the renderer's per-pixel illuminant map to the closed form the calibration already knows, agreeing to ~1e-9.
 
 `expect_render_failure` is the harness helper for checks that assert a scene is *rejected* (`library-unknown-ref`, `library-wrong-kind`). It matches on the error message as well as the exit code, since an unrelated crash would satisfy the exit code alone. Harness helpers: `render`, `needs`, `check`, `run_check` (a check whose assertion is a script's exit status), `sensor_chain`, `isp_chain`, `pipeline`.
 
@@ -304,6 +334,7 @@ When adding a check, prefer an invariance (two configurations that must agree) o
 - Adding a scene-file feature means touching all of: `RawX` struct in `extern/parser.h`, `loadFromJSON` in `extern/parser.cpp`, and the corresponding build loop in `src/Scene.cpp`.
 - Adding a **pipeline stage** means: the physics in the matching library (`rt_sensor` / `rt_isp`), a `main()` in `src/apps/`, a name in the `RT_SENSOR_STAGES` / `RT_ISP_STAGES` list in `CMakeLists.txt`, and a line in `tools/pipeline.sh`. Keep the `main()` thin — argv, config, one library call, one file — so `sensortest` keeps testing the real code.
 - Renderer state is read-only during rendering (tiles are the only mutable output) — anything added to the trace path must be thread-safe; use `FastRandom()` (thread-local RNG), never `rand()`. The **sensor stages are different**: they take a `core::RandomGenerator&` so a run is reproducible from its seed.
+- The renderer writes `_illumination.exr` and `_reflectance.exr` by default; `--no-aov` skips them and restores the old film memory exactly. Collecting them must not change the image — verified bit-identical.
 - Renders are slow; the stages are not. When verifying a change downstream of the renderer, reuse an existing `_radiance.exr` from `tests/out/` instead of re-rendering — that is what the split is for. When you do need a render, patch a small scene (low `ImageResolution`, `NumSamples` ~4-16, low depth).
 - `.gitignore` excludes `build/`, `*.png`, `*.xml`, `*.ply`, `*.exr`, `*.pgm`, `hw*/` — scene assets and outputs are untracked, so referenced input files may not exist in a clean checkout. It deliberately does **not** contain a bare `*.txt`, which used to silently ignore `CMakeLists.txt`.
 - Do not commit binaries. `raytracer` was tracked for 56 commits (~41 MB of blobs) before the CMake move; it and `build/` are ignored now.

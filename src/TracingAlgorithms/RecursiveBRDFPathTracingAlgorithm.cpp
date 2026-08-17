@@ -34,7 +34,8 @@ Spectrum ApplyBeerLambert(const Spectrum &radiance,
 Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
     Ray &ray,
     const std::shared_ptr<BaseObject> inside_object_ptr,
-    int current_recursion, const PathTracerSettings& settings, const PathState& state)
+    int current_recursion, const PathTracerSettings& settings, const PathState& state,
+    PathAOV* aov)
 {
     current_recursion++;
 
@@ -46,6 +47,27 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
     // SplittingFactor darken direct lighting in proportion to itself.
     Spectrum analytic_light_value;
     Spectrum sampled_light_value;
+
+    // The same two accumulators again, but gathered with the surface's own
+    // colour taken out of the BRDF. Together they become the illumination AOV:
+    // the radiance this pixel would have shown had the surface been white.
+    Spectrum analytic_illumination_value;
+    Spectrum sampled_illumination_value;
+
+    // A path that ends without ever reaching a diffuse surface -- straight into
+    // an emitter, or out to the background -- has no surface colour to take
+    // out. Recording reflectance 1 keeps radiance = reflectance * illumination
+    // true there, and makes a directly visible light report its own
+    // chromaticity, which is what a white-balance ground truth should say about
+    // a light source.
+    auto TerminateEmissive = [&](Spectrum radiance) {
+        if (aov && !aov->captured) {
+            aov->reflectance = Spectrum::Constant(1.0);
+            aov->illumination = radiance;
+            aov->captured = true;
+        }
+        return radiance;
+    };
 
     const int sample_count = (current_recursion == 1) ? settings.splitting_factor : 1;
 
@@ -104,15 +126,15 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
     if (!hit_object_ptr) {
         if (spherical_directional_light_) {
             Vec3f direction;
-            return UpliftRGB(spherical_directional_light_->GetIntensity(ray.direction_, direction, true));
+            return TerminateEmissive(UpliftRGB(spherical_directional_light_->GetIntensity(ray.direction_, direction, true)));
         }
         if (current_recursion == 1) {
             if (background_texture_map_) {
                 FP_PRECISION u = 0.5 + (atan2(ray.direction_.z, ray.direction_.x) / (2 * M_PI));
                 FP_PRECISION v = 0.5 - (asin(ray.direction_.y) / M_PI);
-                return UpliftRGB(background_texture_map_->GetColorAt({u, v}, {0,0,0}));
+                return TerminateEmissive(UpliftRGB(background_texture_map_->GetColorAt({u, v}, {0,0,0})));
             }
-            return background_color_;
+            return TerminateEmissive(background_color_);
         }
         return Spectrum();
     }
@@ -132,7 +154,7 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
             // through a specular bounce -- next-event estimation cannot aim
             // through a delta reflection, so no one else can have counted it.
             if (!settings.nee_enabled || state.prev_specular) {
-                return emitter->radiance_ * rr_scale;
+                return TerminateEmissive(emitter->radiance_ * rr_scale);
             }
 
             if (settings.mis_balance_enabled) {
@@ -148,7 +170,7 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
                 const FP_PRECISION denominator = state.prev_bsdf_pdf + light_pdf;
                 const FP_PRECISION weight =
                     denominator > 1e-9 ? state.prev_bsdf_pdf / denominator : 1.0;
-                return emitter->radiance_ * weight * rr_scale;
+                return TerminateEmissive(emitter->radiance_ * weight * rr_scale);
             }
 
             // NEE alone owns direct lighting. Adding emission here as well is
@@ -235,7 +257,9 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
         Vec3f texture_value = texture->GetColorAt(hit_tex_coords, hit_point, result_di, result_dj);
 
         if (texture->GetReplaceAllFlag()) {
-            return UpliftRGB(texture_value);
+            // replace_all short-circuits shading entirely, so the texture value
+            // IS the radiance; there is no separable surface colour.
+            return TerminateEmissive(UpliftRGB(texture_value));
         }
 
         FP_PRECISION diffuse_coeff = texture->GetDiffuseCoefficient();
@@ -306,7 +330,7 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
                 Spectrum new_throughput = hadamard(throughput, mirror_ptr->mirror_);
                 Spectrum reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
                                                                             current_recursion, settings,
-                                                                            PathState{new_throughput, 0.0, true});
+                                                                            PathState{new_throughput, 0.0, true}, aov);
                 specular_value += hadamard(reflection_color, mirror_ptr->mirror_);
             } else if (conductor_ptr) {
                 FP_PRECISION n2 = conductor_ptr->refraction_index_;
@@ -323,7 +347,7 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
                 Spectrum new_throughput = hadamard(throughput, conductor_factor);
                 Spectrum reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
                                                                             current_recursion, settings,
-                                                                            PathState{new_throughput, 0.0, true});
+                                                                            PathState{new_throughput, 0.0, true}, aov);
                 specular_value += hadamard(reflection_color, conductor_factor);
             } else {
                 FP_PRECISION n1 = inside_object_ptr ? dielectric_ptr->refraction_index_ : 1.0f;
@@ -344,18 +368,18 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
                     
                     Spectrum reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
                                                 current_recursion, settings,
-                                                PathState{throughput * fresnel_r, 0.0, true});
+                                                PathState{throughput * fresnel_r, 0.0, true}, aov);
                     Spectrum refraction_color = RecursiveBRDFPathTracingAlgorithm(refraction_ray,
                                                 inside_object_ptr ? nullptr : hit_object_ptr,
                                                 current_recursion, settings,
-                                                PathState{throughput * fresnel_t, 0.0, true});
+                                                PathState{throughput * fresnel_t, 0.0, true}, aov);
 
                     specular_value += reflection_color * fresnel_r;
                     specular_value += refraction_color * fresnel_t;
                 } else {
                     Spectrum reflection_color = RecursiveBRDFPathTracingAlgorithm(reflection_ray, inside_object_ptr,
                                                                                 current_recursion, settings,
-                                                                                PathState{throughput, 0.0, true});
+                                                                                PathState{throughput, 0.0, true}, aov);
                     specular_value += reflection_color;
                 }
             }
@@ -377,6 +401,27 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
     if (inside_object_ptr) {
         return ApplyBeerLambert(analytic_light_value, inside_object_ptr, t_hit) * rr_scale;
     }
+
+    // STEP : AOV CAPTURE
+    // Everything specular returned above, so this is the first non-specular
+    // vertex on the path. Its diffuse reflectance is the surface colour to take
+    // out; `collect_aov` then turns on the parallel white-surface accumulation
+    // below. Only the FIRST such vertex captures -- deeper bounces are part of
+    // the illumination arriving here, not a second surface colour.
+    const bool collect_aov = (aov != nullptr) && !aov->captured;
+    if (collect_aov) {
+        aov->reflectance = KD;
+        aov->captured = true;
+    }
+
+    // The BRDF with the surface's own colour removed: kd = 1, ks = 0. Used only
+    // to build the illumination AOV, and only at this vertex.
+    auto EvaluateWhiteBRDF = [&](const Vec3f& outgoing, const Vec3f& incoming) {
+        return material_ptr->brdf_->Evaluate(outgoing, incoming, hit_normal,
+                                             Spectrum::Constant(1.0), Spectrum::Zero(),
+                                             material_ptr->refraction_index_,
+                                             material_ptr->absorption_index_);
+    };
 
     FP_PRECISION shadow_hit;
     Vec2f shadow_tex_coords;
@@ -403,7 +448,10 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
         if (!ShadowCheck(direction, std::numeric_limits<FP_PRECISION>::max())) {
             Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, direction, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
-            analytic_light_value += hadamard(env_radiance, brdf) * std::max(0.0, dot(hit_normal, direction));
+            const FP_PRECISION geometry = std::max(0.0, dot(hit_normal, direction));
+            analytic_light_value += hadamard(env_radiance, brdf) * geometry;
+            if (collect_aov)
+                analytic_illumination_value += hadamard(env_radiance, EvaluateWhiteBRDF(-ray.direction_, direction)) * geometry;
         }
     }
     
@@ -415,7 +463,10 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
         if (!ShadowCheck(light_dir, dist)) {
             Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
-            analytic_light_value += hadamard(point_light->intensity_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) / dist_sq;
+            const FP_PRECISION geometry = std::max(0.0, dot(hit_normal, light_dir)) / dist_sq;
+            analytic_light_value += hadamard(point_light->intensity_, brdf) * geometry;
+            if (collect_aov)
+                analytic_illumination_value += hadamard(point_light->intensity_, EvaluateWhiteBRDF(-ray.direction_, light_dir)) * geometry;
         }
     }
     
@@ -433,8 +484,11 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
             Vec3f light_normal = FastNormalize(area_light->normal_);
             // Clamp the light-side cosine too -- see the ray tracer for why.
-            analytic_light_value += hadamard(area_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir)) *
+            const FP_PRECISION geometry = std::max(0.0, dot(hit_normal, light_dir)) *
                                  area_light->size_ * area_light->size_ * std::max(0.0, dot(-light_normal, light_dir)) / dist_sq;
+            analytic_light_value += hadamard(area_light->radiance_, brdf) * geometry;
+            if (collect_aov)
+                analytic_illumination_value += hadamard(area_light->radiance_, EvaluateWhiteBRDF(-ray.direction_, light_dir)) * geometry;
         }
     }
     
@@ -455,8 +509,11 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
                 }
                 Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                             material_ptr->refraction_index_, material_ptr->absorption_index_);
-                analytic_light_value += hadamard(spot_light->intensity_ * attenuation / (dist * dist), brdf) * 
-                                     std::max(0.0, dot(hit_normal, light_dir));
+                const Spectrum spot_radiance = spot_light->intensity_ * attenuation / (dist * dist);
+                const FP_PRECISION geometry = std::max(0.0, dot(hit_normal, light_dir));
+                analytic_light_value += hadamard(spot_radiance, brdf) * geometry;
+                if (collect_aov)
+                    analytic_illumination_value += hadamard(spot_radiance, EvaluateWhiteBRDF(-ray.direction_, light_dir)) * geometry;
             }
         }
     }
@@ -466,7 +523,10 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
         if (!ShadowCheck(light_dir, std::numeric_limits<FP_PRECISION>::max())) {
             Spectrum brdf = material_ptr->brdf_->Evaluate(-ray.direction_, light_dir, hit_normal, KD, KS, 
                                                         material_ptr->refraction_index_, material_ptr->absorption_index_);
-            analytic_light_value += hadamard(dir_light->radiance_, brdf) * std::max(0.0, dot(hit_normal, light_dir));
+            const FP_PRECISION geometry = std::max(0.0, dot(hit_normal, light_dir));
+            analytic_light_value += hadamard(dir_light->radiance_, brdf) * geometry;
+            if (collect_aov)
+                analytic_illumination_value += hadamard(dir_light->radiance_, EvaluateWhiteBRDF(-ray.direction_, light_dir)) * geometry;
         }
     }
 
@@ -513,8 +573,11 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
             const Spectrum new_throughput = hadamard(throughput, brdf) * cos_term / indirect_pdf;
             const PathState child_state{new_throughput, indirect_pdf, false};
 
+            // The child is told nullptr: this vertex already captured, and what
+            // comes back from deeper bounces is illumination arriving here, not
+            // a second surface colour to take out.
             Spectrum sample_color = RecursiveBRDFPathTracingAlgorithm(sample_ray, inside_object_ptr,
-                                                                   current_recursion, settings, child_state);
+                                                                   current_recursion, settings, child_state, nullptr);
             Spectrum indirect_value = hadamard(sample_color, brdf) * cos_term / indirect_pdf;
 
             indirect_value.SanitizeInPlace();
@@ -522,6 +585,15 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
             indirect_value.ClampMaxInPlace(settings.sample_max_val);
 
             sampled_light_value += indirect_value;
+
+            if (collect_aov) {
+                // Same child radiance, same geometry, white BRDF. No extra rays.
+                Spectrum indirect_illumination =
+                    hadamard(sample_color, EvaluateWhiteBRDF(-ray.direction_, sample_dir)) * cos_term / indirect_pdf;
+                indirect_illumination.SanitizeInPlace();
+                indirect_illumination.ClampMaxInPlace(settings.sample_max_val);
+                sampled_illumination_value += indirect_illumination;
+            }
 
             // --- Light-sampling strategy (next-event estimation) ------------
             if (!settings.nee_enabled || light_objects_.empty()) {
@@ -555,6 +627,9 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
                                                                    material_ptr->refraction_index_, material_ptr->absorption_index_);
             const FP_PRECISION light_cos = std::max(static_cast<FP_PRECISION>(0.0), dot(hit_normal, light_dir));
             Spectrum direct_value = hadamard(emitter->radiance_, light_brdf) * light_cos / light_pdf;
+            Spectrum direct_illumination =
+                collect_aov ? hadamard(emitter->radiance_, EvaluateWhiteBRDF(-ray.direction_, light_dir)) * light_cos / light_pdf
+                            : Spectrum();
 
             if (settings.mis_balance_enabled) {
                 // Balance heuristic for the light-sampling strategy, evaluated
@@ -562,9 +637,10 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
                 const FP_PRECISION bsdf_pdf_for_light_dir =
                     hemisphere_pdf(light_cos, settings.importance_sampling_enabled);
                 const FP_PRECISION denominator = light_pdf + bsdf_pdf_for_light_dir;
-                direct_value = denominator > 1e-9
-                                   ? direct_value * (light_pdf / denominator)
-                                   : direct_value;
+                const FP_PRECISION mis_weight =
+                    denominator > 1e-9 ? light_pdf / denominator : 1.0;
+                direct_value = direct_value * mis_weight;
+                direct_illumination = direct_illumination * mis_weight;
             }
 
             direct_value.SanitizeInPlace();
@@ -572,6 +648,12 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
             direct_value.ClampMaxInPlace(settings.sample_max_val);
 
             sampled_light_value += direct_value;
+
+            if (collect_aov) {
+                direct_illumination.SanitizeInPlace();
+                direct_illumination.ClampMaxInPlace(settings.sample_max_val);
+                sampled_illumination_value += direct_illumination;
+            }
         }
     }
 
@@ -583,6 +665,18 @@ Spectrum Scene::RecursiveBRDFPathTracingAlgorithm(
     result = result * rr_scale;
 
     result.SanitizeInPlace();
+
+    if (collect_aov) {
+        // Assembled exactly like the radiance above -- same split between the
+        // once-per-vertex analytic term and the per-sample averaged one, same
+        // Russian-roulette scaling. Any divergence here would show up as a
+        // decomposition that does not multiply back to the radiance.
+        Spectrum illumination = analytic_illumination_value +
+                   sampled_illumination_value / static_cast<FP_PRECISION>(sample_count);
+        illumination = illumination * rr_scale;
+        illumination.SanitizeInPlace();
+        aov->illumination = illumination;
+    }
 
     return result;
 }

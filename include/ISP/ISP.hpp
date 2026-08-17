@@ -75,6 +75,26 @@ void EstimateWhiteBalance(const std::vector<FP_PRECISION> rgb[3],
 void ApplyWhiteBalance(std::vector<FP_PRECISION> rgb[3],
                        const FP_PRECISION gains[3]);
 
+// Per-pixel von Kries, driven by an illumination chromaticity map.
+//
+// The map holds what the illuminant at each pixel looks like to this sensor,
+// as r/g and b/g. Dividing each channel by its own ratio takes the light's
+// colour out and leaves the surface's:
+//
+//     R' = R / (r/g)      G' = G      B' = B / (b/g)
+//
+// Green is untouched, which is not just convention -- it is what keeps the
+// image in the same units as the global path, so the fixed exposure window and
+// the colour matrix's brightness anchoring both still hold. Renormalising the
+// map (to unit luminance, or max-channel-1) would break that.
+//
+// This is the correction a single global gain triple cannot make: a scene lit
+// by two spectrally different sources needs a different answer in each region,
+// and one triple can only ever be right in one of them.
+void ApplyWhiteBalanceMap(std::vector<FP_PRECISION> rgb[3],
+                          const std::vector<FP_PRECISION>& r_over_g,
+                          const std::vector<FP_PRECISION>& b_over_g);
+
 // --- Colour matrix ----------------------------------------------------------
 // sensorRGB -> CIE XYZ. The matrix must match whether white balance was applied
 // first; see Sensor/SensorCalibration.hpp.

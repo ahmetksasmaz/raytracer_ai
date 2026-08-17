@@ -105,6 +105,19 @@ void ApplyWhiteBalance(std::vector<FP_PRECISION> rgb[3],
   }
 }
 
+void ApplyWhiteBalanceMap(std::vector<FP_PRECISION> rgb[3],
+                          const std::vector<FP_PRECISION>& r_over_g,
+                          const std::vector<FP_PRECISION>& b_over_g) {
+  const size_t pixel_count = rgb[0].size();
+  for (size_t i = 0; i < pixel_count; i++) {
+    // A non-positive ratio means the map had nothing to say about this pixel.
+    // Leaving the channel alone is the identity, which is safer than dividing
+    // by something near zero and blowing the pixel out.
+    if (r_over_g[i] > 1e-30) rgb[0][i] /= r_over_g[i];
+    if (b_over_g[i] > 1e-30) rgb[2][i] /= b_over_g[i];
+  }
+}
+
 void ApplyColorMatrix(const std::vector<FP_PRECISION> rgb[3],
                       const FP_PRECISION m[3][3],
                       std::vector<FP_PRECISION> xyz[3]) {
