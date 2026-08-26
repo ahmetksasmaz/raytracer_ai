@@ -52,12 +52,12 @@ outputs/
 # Demo results: regenerable by demo/run_demo.sh in about five minutes, and
 # roughly 750 MB. The generator, the five scenes and the thirty sensor configs
 # ARE committed -- those are the inputs.
-demo/rendered_*/
-demo/*_d65/
-demo/*_incandescent/
-demo/*_fl11/
-demo/*_led_b3/
-demo/*_hps/
+demo/*/rendered_*/
+demo/*/[a-z]*_d65/
+demo/*/[a-z]*_incandescent/
+demo/*/[a-z]*_fl11/
+demo/*/[a-z]*_led_b3/
+demo/*/[a-z]*_hps/
 
 # downloaded homework scene/ground-truth corpora (not part of the codebase)
 homework*/

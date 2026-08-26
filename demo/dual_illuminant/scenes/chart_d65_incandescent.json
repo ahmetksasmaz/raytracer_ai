@@ -1,0 +1,566 @@
+{
+  "Scene": {
+    "_comment": "ColorChecker under TWO illuminants: CIE D65 daylight on the left, measured tungsten lamp on the right. The illuminant varies across the frame, so no single white balance gain triple is correct everywhere -- which is what the renderer's per-pixel illumination map is for.",
+    "BackgroundColor": "0 0 0",
+    "ShadowRayEpsilon": "0.001",
+    "Cameras": {
+      "Camera": [
+        {
+          "_type": "lookAt",
+          "Position": "0 0 13.5",
+          "GazePoint": "0 0 0",
+          "Up": "0 1 0",
+          "FovY": "40",
+          "NearDistance": "1",
+          "ImageResolution": "400 400",
+          "NumSamples": "96",
+          "MaxRecursionDepth": "4",
+          "MinRecursionDepth": "2",
+          "Renderer": "PathTracing",
+          "RendererParams": "ImportanceSampling NextEventEstimation MIS_BALANCE RussianRoulette",
+          "ImageName": "rendered_d65_incandescent/chart.exr",
+          "Tonemap": {
+            "TMO": "Photographic",
+            "TMOOptions": "0.18 1.0",
+            "Saturation": "1.0",
+            "Gamma": "2.2",
+            "Extension": ".png"
+          }
+        }
+      ]
+    },
+    "Lights": {
+      "AmbientLight": "0 0 0"
+    },
+    "Materials": {
+      "Material": [
+        {
+          "_id": "1",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:dark_skin"
+          }
+        },
+        {
+          "_id": "2",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:light_skin"
+          }
+        },
+        {
+          "_id": "3",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:blue_sky"
+          }
+        },
+        {
+          "_id": "4",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:foliage"
+          }
+        },
+        {
+          "_id": "5",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:blue_flower"
+          }
+        },
+        {
+          "_id": "6",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:bluish_green"
+          }
+        },
+        {
+          "_id": "7",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:orange"
+          }
+        },
+        {
+          "_id": "8",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:purplish_blue"
+          }
+        },
+        {
+          "_id": "9",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:moderate_red"
+          }
+        },
+        {
+          "_id": "10",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:purple"
+          }
+        },
+        {
+          "_id": "11",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:yellow_green"
+          }
+        },
+        {
+          "_id": "12",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:orange_yellow"
+          }
+        },
+        {
+          "_id": "13",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:blue"
+          }
+        },
+        {
+          "_id": "14",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:green"
+          }
+        },
+        {
+          "_id": "15",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:red"
+          }
+        },
+        {
+          "_id": "16",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:yellow"
+          }
+        },
+        {
+          "_id": "17",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:magenta"
+          }
+        },
+        {
+          "_id": "18",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:cyan"
+          }
+        },
+        {
+          "_id": "19",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:white_9_5"
+          }
+        },
+        {
+          "_id": "20",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:neutral_8"
+          }
+        },
+        {
+          "_id": "21",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:neutral_6_5"
+          }
+        },
+        {
+          "_id": "22",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:neutral_5"
+          }
+        },
+        {
+          "_id": "23",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:neutral_3_5"
+          }
+        },
+        {
+          "_id": "24",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:black_2"
+          }
+        },
+        {
+          "_id": "25",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0.5 0.5 0.5",
+          "SpecularReflectance": "0 0 0",
+          "DiffuseSpectrum": {
+            "_ref": "material:neutral_5"
+          }
+        },
+        {
+          "_id": "26",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0 0 0",
+          "SpecularReflectance": "0 0 0",
+          "RadianceSpectrum": {
+            "_ref": "light:d65",
+            "_scale": "42.0"
+          }
+        },
+        {
+          "_id": "27",
+          "AmbientReflectance": "0 0 0",
+          "DiffuseReflectance": "0 0 0",
+          "SpecularReflectance": "0 0 0",
+          "RadianceSpectrum": {
+            "_ref": "light:incandescent",
+            "_scale": "42.0"
+          }
+        }
+      ]
+    },
+    "VertexData": {
+      "_data": "-4.575 1.625 0\n-3.175 1.625 0\n-3.175 3.025 0\n-4.575 3.025 0\n-3.025 1.625 0\n-1.625 1.625 0\n-1.625 3.025 0\n-3.025 3.025 0\n-1.475 1.625 0\n-0.075 1.625 0\n-0.075 3.025 0\n-1.475 3.025 0\n0.075 1.625 0\n1.475 1.625 0\n1.475 3.025 0\n0.075 3.025 0\n1.625 1.625 0\n3.025 1.625 0\n3.025 3.025 0\n1.625 3.025 0\n3.175 1.625 0\n4.575 1.625 0\n4.575 3.025 0\n3.175 3.025 0\n-4.575 0.075 0\n-3.175 0.075 0\n-3.175 1.475 0\n-4.575 1.475 0\n-3.025 0.075 0\n-1.625 0.075 0\n-1.625 1.475 0\n-3.025 1.475 0\n-1.475 0.075 0\n-0.075 0.075 0\n-0.075 1.475 0\n-1.475 1.475 0\n0.075 0.075 0\n1.475 0.075 0\n1.475 1.475 0\n0.075 1.475 0\n1.625 0.075 0\n3.025 0.075 0\n3.025 1.475 0\n1.625 1.475 0\n3.175 0.075 0\n4.575 0.075 0\n4.575 1.475 0\n3.175 1.475 0\n-4.575 -1.475 0\n-3.175 -1.475 0\n-3.175 -0.075 0\n-4.575 -0.075 0\n-3.025 -1.475 0\n-1.625 -1.475 0\n-1.625 -0.075 0\n-3.025 -0.075 0\n-1.475 -1.475 0\n-0.075 -1.475 0\n-0.075 -0.075 0\n-1.475 -0.075 0\n0.075 -1.475 0\n1.475 -1.475 0\n1.475 -0.075 0\n0.075 -0.075 0\n1.625 -1.475 0\n3.025 -1.475 0\n3.025 -0.075 0\n1.625 -0.075 0\n3.175 -1.475 0\n4.575 -1.475 0\n4.575 -0.075 0\n3.175 -0.075 0\n-4.575 -3.025 0\n-3.175 -3.025 0\n-3.175 -1.625 0\n-4.575 -1.625 0\n-3.025 -3.025 0\n-1.625 -3.025 0\n-1.625 -1.625 0\n-3.025 -1.625 0\n-1.475 -3.025 0\n-0.075 -3.025 0\n-0.075 -1.625 0\n-1.475 -1.625 0\n0.075 -3.025 0\n1.475 -3.025 0\n1.475 -1.625 0\n0.075 -1.625 0\n1.625 -3.025 0\n3.025 -3.025 0\n3.025 -1.625 0\n1.625 -1.625 0\n3.175 -3.025 0\n4.575 -3.025 0\n4.575 -1.625 0\n3.175 -1.625 0\n-12 -9 -0.05\n12 -9 -0.05\n12 9 -0.05\n-12 9 -0.05\n-8 8 -1\n8 8 -1\n8 8 6\n-8 8 6\n-8 8 -1\n0.5 8 -1\n0.5 8 6\n-8 8 6\n-0.5 8 -1\n8 8 -1\n8 8 6\n-0.5 8 6"
+    },
+    "Objects": {
+      "Triangle": [
+        {
+          "_id": "1",
+          "Material": "1",
+          "Indices": "1 2 3"
+        },
+        {
+          "_id": "2",
+          "Material": "1",
+          "Indices": "1 3 4"
+        },
+        {
+          "_id": "3",
+          "Material": "2",
+          "Indices": "5 6 7"
+        },
+        {
+          "_id": "4",
+          "Material": "2",
+          "Indices": "5 7 8"
+        },
+        {
+          "_id": "5",
+          "Material": "3",
+          "Indices": "9 10 11"
+        },
+        {
+          "_id": "6",
+          "Material": "3",
+          "Indices": "9 11 12"
+        },
+        {
+          "_id": "7",
+          "Material": "4",
+          "Indices": "13 14 15"
+        },
+        {
+          "_id": "8",
+          "Material": "4",
+          "Indices": "13 15 16"
+        },
+        {
+          "_id": "9",
+          "Material": "5",
+          "Indices": "17 18 19"
+        },
+        {
+          "_id": "10",
+          "Material": "5",
+          "Indices": "17 19 20"
+        },
+        {
+          "_id": "11",
+          "Material": "6",
+          "Indices": "21 22 23"
+        },
+        {
+          "_id": "12",
+          "Material": "6",
+          "Indices": "21 23 24"
+        },
+        {
+          "_id": "13",
+          "Material": "7",
+          "Indices": "25 26 27"
+        },
+        {
+          "_id": "14",
+          "Material": "7",
+          "Indices": "25 27 28"
+        },
+        {
+          "_id": "15",
+          "Material": "8",
+          "Indices": "29 30 31"
+        },
+        {
+          "_id": "16",
+          "Material": "8",
+          "Indices": "29 31 32"
+        },
+        {
+          "_id": "17",
+          "Material": "9",
+          "Indices": "33 34 35"
+        },
+        {
+          "_id": "18",
+          "Material": "9",
+          "Indices": "33 35 36"
+        },
+        {
+          "_id": "19",
+          "Material": "10",
+          "Indices": "37 38 39"
+        },
+        {
+          "_id": "20",
+          "Material": "10",
+          "Indices": "37 39 40"
+        },
+        {
+          "_id": "21",
+          "Material": "11",
+          "Indices": "41 42 43"
+        },
+        {
+          "_id": "22",
+          "Material": "11",
+          "Indices": "41 43 44"
+        },
+        {
+          "_id": "23",
+          "Material": "12",
+          "Indices": "45 46 47"
+        },
+        {
+          "_id": "24",
+          "Material": "12",
+          "Indices": "45 47 48"
+        },
+        {
+          "_id": "25",
+          "Material": "13",
+          "Indices": "49 50 51"
+        },
+        {
+          "_id": "26",
+          "Material": "13",
+          "Indices": "49 51 52"
+        },
+        {
+          "_id": "27",
+          "Material": "14",
+          "Indices": "53 54 55"
+        },
+        {
+          "_id": "28",
+          "Material": "14",
+          "Indices": "53 55 56"
+        },
+        {
+          "_id": "29",
+          "Material": "15",
+          "Indices": "57 58 59"
+        },
+        {
+          "_id": "30",
+          "Material": "15",
+          "Indices": "57 59 60"
+        },
+        {
+          "_id": "31",
+          "Material": "16",
+          "Indices": "61 62 63"
+        },
+        {
+          "_id": "32",
+          "Material": "16",
+          "Indices": "61 63 64"
+        },
+        {
+          "_id": "33",
+          "Material": "17",
+          "Indices": "65 66 67"
+        },
+        {
+          "_id": "34",
+          "Material": "17",
+          "Indices": "65 67 68"
+        },
+        {
+          "_id": "35",
+          "Material": "18",
+          "Indices": "69 70 71"
+        },
+        {
+          "_id": "36",
+          "Material": "18",
+          "Indices": "69 71 72"
+        },
+        {
+          "_id": "37",
+          "Material": "19",
+          "Indices": "73 74 75"
+        },
+        {
+          "_id": "38",
+          "Material": "19",
+          "Indices": "73 75 76"
+        },
+        {
+          "_id": "39",
+          "Material": "20",
+          "Indices": "77 78 79"
+        },
+        {
+          "_id": "40",
+          "Material": "20",
+          "Indices": "77 79 80"
+        },
+        {
+          "_id": "41",
+          "Material": "21",
+          "Indices": "81 82 83"
+        },
+        {
+          "_id": "42",
+          "Material": "21",
+          "Indices": "81 83 84"
+        },
+        {
+          "_id": "43",
+          "Material": "22",
+          "Indices": "85 86 87"
+        },
+        {
+          "_id": "44",
+          "Material": "22",
+          "Indices": "85 87 88"
+        },
+        {
+          "_id": "45",
+          "Material": "23",
+          "Indices": "89 90 91"
+        },
+        {
+          "_id": "46",
+          "Material": "23",
+          "Indices": "89 91 92"
+        },
+        {
+          "_id": "47",
+          "Material": "24",
+          "Indices": "93 94 95"
+        },
+        {
+          "_id": "48",
+          "Material": "24",
+          "Indices": "93 95 96"
+        },
+        {
+          "_id": "49",
+          "Material": "25",
+          "Indices": "97 98 99"
+        },
+        {
+          "_id": "50",
+          "Material": "25",
+          "Indices": "97 99 100"
+        }
+      ],
+      "LightMesh": [
+        {
+          "_id": "1",
+          "Material": "26",
+          "RadianceSpectrum": {
+            "_ref": "light:d65",
+            "_scale": "42.0"
+          },
+          "Faces": {
+            "_data": "105 106 107\n105 107 108"
+          }
+        },
+        {
+          "_id": "2",
+          "Material": "27",
+          "RadianceSpectrum": {
+            "_ref": "light:incandescent",
+            "_scale": "42.0"
+          },
+          "Faces": {
+            "_data": "109 110 111\n109 111 112"
+          }
+        }
+      ]
+    }
+  }
+}
