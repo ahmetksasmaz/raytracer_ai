@@ -52,6 +52,7 @@ outputs/
 # Demo results: regenerable by demo/run_demo.sh in about five minutes, and
 # roughly 750 MB. The generator, the five scenes and the thirty sensor configs
 # ARE committed -- those are the inputs.
+demo/*/run.log
 demo/*/rendered_*/
 demo/*/[a-z]*_d65/
 demo/*/[a-z]*_incandescent/

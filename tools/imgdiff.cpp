@@ -95,11 +95,19 @@ bool LoadImage(const std::string& path, Image& image) {
     }
   } else if (planes.ChannelCount() == 2) {
     // A chromaticity map. Averaging the two would make a file and the same file
-    // with r/g and b/g swapped compare identical, so keep them apart: first
-    // channel into R, second into G, blue left at zero.
+    // with r/g and b/g swapped compare identical, so keep them apart.
+    //
+    // Resolved by NAME where the names are known. EXR stores channels sorted,
+    // so b_over_g comes first in the file, and reading positionally prints the
+    // two the wrong way round under headings that say "r=" and "g=" -- which is
+    // exactly how the author of this branch misread his own output.
+    const int rg = planes.IndexOf("r_over_g");
+    const int bg = planes.IndexOf("b_over_g");
+    const int first = rg >= 0 ? rg : 0;
+    const int second = bg >= 0 ? bg : 1;
     for (size_t i = 0; i < pixel_count; i++) {
-      image.rgb[i * 3 + 0] = planes.planes[0][i];
-      image.rgb[i * 3 + 1] = planes.planes[1][i];
+      image.rgb[i * 3 + 0] = planes.planes[first][i];
+      image.rgb[i * 3 + 1] = planes.planes[second][i];
     }
   } else if (planes.ChannelCount() > 0) {
     const float inverse = 1.0f / planes.ChannelCount();

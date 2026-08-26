@@ -45,6 +45,16 @@ if [ ! -d "$DEMO/scenes" ] || [ ! -d "$DEMO/sensors" ]; then
   exit 1
 fi
 
+# Everything this script prints also goes to a log file, so a run that takes
+# minutes can be followed with `tail -f` and inspected afterwards. Without it
+# the only record of a background run was whatever scrollback happened to
+# survive, which is no record at all.
+LOG="$DEMO/run.log"
+mkdir -p "$DEMO"
+exec > >(tee "$LOG") 2>&1
+echo "log: $LOG"
+echo "started: $(date '+%Y-%m-%d %H:%M:%S')"
+
 ILLUMINANTS=(d65 incandescent fl11 led_b3 hps)
 mapfile -t SENSORS < <(cd "$DEMO/sensors" && ls *.json | sed 's/\.json$//')
 if [ "$SENSOR_LIMIT" -gt 0 ]; then
@@ -68,7 +78,7 @@ for illum in "${ILLUMINANTS[@]}"; do
     continue
   fi
   mkdir -p "$out"
-  printf 'render %-14s ' "$illum"
+  printf '[%s] render %-14s ' "$(date '+%H:%M:%S')" "$illum"
   start=$(date +%s)
   if "$BIN/raytracer" "scenes/chart_$illum.json" > "$out/render.log" 2>&1; then
     echo "ok ($(( $(date +%s) - start ))s)"
@@ -89,7 +99,7 @@ done
 total=$(( ${#ILLUMINANTS[@]} * ${#SENSORS[@]} ))
 done_count=0
 for sensor in "${SENSORS[@]}"; do
-  printf 'develop %-30s ' "$sensor"
+  printf '[%s] develop %-30s ' "$(date '+%H:%M:%S')" "$sensor"
   for illum in "${ILLUMINANTS[@]}"; do
     if develop "$sensor" "$illum" "$illum"; then
       printf '.'
@@ -108,6 +118,7 @@ done
 
 echo
 echo "=============================================="
+echo " finished: $(date '+%Y-%m-%d %H:%M:%S')"
 if [ "$failed" -gt 0 ]; then
   echo " $failed of $total failed -- see demo/single_illuminant/*/develop.log"
   exit 1

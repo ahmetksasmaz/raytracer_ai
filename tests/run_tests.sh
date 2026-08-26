@@ -215,6 +215,10 @@ run_check() {
   echo
 }
 
+# Also written to a file, so a run started in the background leaves a record.
+LOG="$OUT/run_tests.log"
+exec > >(tee "$LOG") 2>&1
+
 echo "=============================================="
 echo " raytracer correctness suite"
 echo "=============================================="
@@ -449,6 +453,11 @@ run_check aov-decomposition "radiance must equal reflectance x illumination" \
 # knows. Two independent routes to the same number.
 run_check illum-chroma "ground-truth illuminant map vs the calibrated gains" \
   "$ROOT/tests/check_illum_chroma.sh"
+
+# The map is the divisor, not a decorative false-colour image: dividing the
+# demosaiced image by it must give exactly the white-balanced one.
+run_check illum-divisor "demosaiced / (r/g, 1, b/g) must equal the wb image" \
+  "$ROOT/tests/check_illum_divisor.sh"
 
 # --- White balance and the colour matrix -------------------------------------
 # The two corrections overlap, so they are fitted together and must be used as a

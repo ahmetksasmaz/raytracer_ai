@@ -48,6 +48,16 @@ fi
 # The sensor and ISP chain, shared with the single-illuminant demo.
 . "$ROOT/demo/develop.sh"
 
+# Everything this script prints also goes to a log file, so a run that takes
+# minutes can be followed with `tail -f` and inspected afterwards. Without it
+# the only record of a background run was whatever scrollback happened to
+# survive, which is no record at all.
+LOG="$DEMO/run.log"
+mkdir -p "$DEMO"
+exec > >(tee "$LOG") 2>&1
+echo "log: $LOG"
+echo "started: $(date '+%Y-%m-%d %H:%M:%S')"
+
 mapfile -t PAIRS < <(cd "$DEMO/scenes" && ls chart_*.json | sed 's/^chart_//; s/\.json$//')
 mapfile -t SENSORS < <(cd "$DEMO/sensors" && ls *.json | sed 's/\.json$//')
 if [ "$SENSOR_LIMIT" -gt 0 ]; then
@@ -68,7 +78,7 @@ for pair in "${PAIRS[@]}"; do
     continue
   fi
   mkdir -p "$out"
-  printf 'render %-22s ' "$pair"
+  printf '[%s] render %-22s ' "$(date '+%H:%M:%S')" "$pair"
   start=$(date +%s)
   if "$BIN/raytracer" "scenes/chart_$pair.json" > "$out/render.log" 2>&1; then
     echo "ok ($(( $(date +%s) - start ))s)"
@@ -83,7 +93,7 @@ done
 
 total=$(( ${#PAIRS[@]} * ${#SENSORS[@]} ))
 for sensor in "${SENSORS[@]}"; do
-  printf 'develop %-30s ' "$sensor"
+  printf '[%s] develop %-30s ' "$(date '+%H:%M:%S')" "$sensor"
   for pair in "${PAIRS[@]}"; do
     # The global white balance has to pick ONE light. It picks the left one --
     # a camera that metered off the left of the frame -- so the right half comes
@@ -102,6 +112,7 @@ done
 
 echo
 echo "=============================================="
+echo " finished: $(date '+%Y-%m-%d %H:%M:%S')"
 if [ "$failed" -gt 0 ]; then
   echo " $failed of $total failed -- see demo/dual_illuminant/*/develop.log"
   exit 1

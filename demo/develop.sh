@@ -117,11 +117,16 @@ METER
   run "$BIN/isp_srgb"         --in "$out/xyz_gt.exr"     --out "$out/9_srgb_ground_truth.png" || return 1
 
   # The viewable set. Numbered so they sort in pipeline order in a file browser.
-  # The ground-truth illuminant map, made viewable. Through the sensor's own
-  # matrix so the hues are the eye's -- matrix_no_wb, because this is the thing
-  # a white balance is derived FROM and so is unbalanced by definition.
-  run "$BIN/chroma_preview" --in "$out/illumchroma.exr" --out "$out/0_illuminant_map.png" \
-      --calibration "$out/ccm_reference.json" &&
+  # The ground-truth illuminant map, made viewable, in SENSOR SPACE. That is
+  # the view that matters, because the triple it draws is literally the divisor:
+  #
+  #     demosaiced / (r/g, 1, b/g)  =  wb
+  #
+  # It comes out green-cyan, the way published illuminant maps do -- green is
+  # the reference channel and a CFA's green response dominates, so both ratios
+  # sit below 1. Passing --calibration would convert it to what the light looks
+  # like to the eye, which is a different and no longer divisible quantity.
+  run "$BIN/chroma_preview" --in "$out/illumchroma.exr" --out "$out/0_illuminant_map.png" &&
   run "$BIN/raw_preview"  --in "$out/raw.pgm"        --out "$out/1_bayer_raw.png" --config "$cfg" --mosaic &&
   run "$BIN/isp_preview"  --in "$out/demosaiced.exr" --out "$out/2_debayered_linear.png" --linear &&
   run "$BIN/isp_preview"  --in "$out/demosaiced.exr" --out "$out/3_debayered_gamma.png" &&

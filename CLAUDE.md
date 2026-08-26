@@ -316,7 +316,13 @@ Three testing traps worth remembering: whole-image variance on a mosaic measures
 | `single_illuminant/` | 5 (`d65`, `incandescent`, `fl11`, `led_b3`, `hps`) | 150 | one light per scene — the case a global white balance handles |
 | `dual_illuminant/` | 6 (ordered pairs of `d65`, `incandescent`, `fl11`) | 180 | **two** lights, one per side — the case it cannot |
 
-Each result carries 10 images, starting with `0_illuminant_map.png` — the ground-truth illuminant, reconstructed as `(r/g, 1, b/g)` and pushed through the sensor's `matrix_no_wb` so the hues are the eye's. It reads flat neutral under D65, flat orange under sodium, and a left-to-right gradient on the dual scenes. `chroma_preview` reports the p1..p99 spread rather than min..max, because a ratio is ill-conditioned wherever the green response is near zero and a handful of edge pixels otherwise dominate the extremes:
+Each result carries 10 images, starting with `0_illuminant_map.png` — the ground-truth illuminant, drawn as `(r/g, 1, b/g)` **in sensor space**. That is the view worth having, because the triple it draws is literally the divisor:
+
+```
+demosaiced / (r/g, 1, b/g)  =  white balanced
+```
+
+`illum-divisor` asserts exactly that (relative RMSE 1.6e-08) along with green being exactly 1. It also means the map comes out **green-cyan the way published illuminant maps do** — green is the reference channel and a CFA's green response dominates, so both ratios sit below 1. D65 reads teal, tungsten shifts yellow-green as blue falls away, and sodium is strongly yellow-green because it has almost no blue at all. `chroma_preview --calibration` instead shows what the light would look like to the eye (tungsten orange), which is informative but no longer the divisor. `chroma_preview` reports the p1..p99 spread rather than min..max, because a ratio is ill-conditioned wherever the green response is near zero and a handful of edge pixels otherwise dominate the extremes:
 
 ```
 single, d65                r/g 0.489..0.495     flat to three digits
@@ -332,6 +338,8 @@ python3 demo/dual_illuminant/generate_demo.py   && ./demo/dual_illuminant/run_de
 ```
 
 Each takes ~5 min and ~800 MB. Outputs land in `<demo>/rendered_<tag>/` and `<demo>/<sensor>_<tag>/`; only the scripts, scenes and sensor configs are committed.
+
+**Both runners and the test suite tee everything to a log**, with a timestamp per render and per sensor — `<demo>/run.log` and `tests/out/run_tests.log`. A five-minute run is worth following with `tail -f`, and a run started in the background otherwise leaves no record at all beyond whatever scrollback survives.
 
 **`demo/develop.sh` is shared by both on purpose.** The two subtle things — the per-pair exposure metering and the split between scene-fitted gains and a reference-fitted matrix — both produce a plausible-looking wrong image when got wrong, so there is one copy rather than two that can drift.
 
@@ -378,7 +386,7 @@ These are load-bearing; breaking one produces a plausible-looking but wrong imag
 
 `--expect-product` reads through `ReadMultiChannelEXR` directly rather than the RGB loader, because `mean(a)·mean(b) != mean(a·b)` — averaging first would test a different claim.
 
-It loads **any** channel layout: 3 channels by name, 1 channel broadcast across RGB (the RAW mosaic), 2 channels kept apart as R and G (a chromaticity map — averaging them would make r/g and b/g swapped compare identical), and an N-band cube averaged into RGB, so `--compare` works on a spectral cube instead of failing with "R channel not found". `--expect-channels` additionally asserts every channel name parses as a wavelength and that they ascend — the names are the only record of which band is which, so a cube with wrongly named channels would otherwise read as the right count of the wrong wavelengths.
+It loads **any** channel layout: 3 channels by name, 1 channel broadcast across RGB (the RAW mosaic), 2 channels kept apart as R and G (a chromaticity map — averaging them would make r/g and b/g swapped compare identical, and they are resolved **by name**, since EXR sorts channels so `b_over_g` comes first and a positional read prints the pair the wrong way round under headings saying `r=` and `g=`), and an N-band cube averaged into RGB, so `--compare` works on a spectral cube instead of failing with "R channel not found". `--expect-channels` additionally asserts every channel name parses as a wavelength and that they ascend — the names are the only record of which band is which, so a cube with wrongly named channels would otherwise read as the right count of the wrong wavelengths.
 
 Note **`--expect-differ` compares the two images' means**, so it cannot detect two different draws of zero-mean noise over the same signal. For a per-pixel assertion, assert that a strict `--compare` *fails* (see `tests/check_noise_seed.sh`).
 

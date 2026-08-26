@@ -21,12 +21,24 @@
 // So the whole image is scaled by a single factor, from its own maximum, and
 // that factor is printed. It is a viewing gain, nothing more.
 //
-// COLOUR. Without --calibration the ratios are shown as they are, in sensor
-// space: honest, but the hues are the camera's, not the eye's. With it, the
-// triple goes through the sensor's own matrix to CIE XYZ and then to sRGB, so
-// tungsten looks orange and daylight looks neutral the way they should. The
-// matrix wanted is matrix_no_wb: this data has NOT been white balanced -- it is
-// the thing a white balance is derived from.
+// COLOUR. The default is sensor space, unconverted, and that is the view worth
+// having: it is literally the divisor, so
+//
+//     demosaiced / (r/g, 1, b/g)  =  white balanced
+//
+// holds pixel by pixel, and the picture comes out green-cyan the way published
+// illuminant maps do -- green is the reference channel and a CFA's green
+// response dominates, so r/g and b/g both sit below 1.
+//
+// --calibration instead pushes the triple through the sensor's matrix to CIE
+// XYZ and then sRGB, which answers a different question: what colour the light
+// would look like to the eye, tungsten orange and daylight neutral. Useful, but
+// no longer the divisor. The matrix wanted there is matrix_no_wb, since this
+// data has NOT been white balanced -- it is the thing a white balance is
+// derived from.
+//
+// --exr writes the reconstructed triple as a three-channel image, so the
+// division relation above can be asserted rather than eyeballed.
 
 #include <algorithm>
 #include <cmath>
@@ -46,7 +58,7 @@ int main(int argc, char** argv) {
   if (in.empty() || out.empty()) {
     return pipeline::Usage(args.program(),
                            "--in <illumchroma.exr> --out <preview.png> "
-                           "[--calibration <ccm.json>] [--linear]");
+                           "[--calibration <ccm.json>] [--linear] [--exr <triple.exr>]");
   }
 
   int width = 0, height = 0;
@@ -103,6 +115,19 @@ int main(int argc, char** argv) {
 
   if (!image_io::WritePNG8(out, width, height, 3, pixels, &error)) {
     return pipeline::Fail(args.program(), error);
+  }
+
+  // The triple as data, unscaled and untransformed: exactly what
+  // isp_whitebalance --chroma divides by.
+  if (args.Has("exr")) {
+    std::vector<FP_PRECISION> triple[3];
+    triple[0] = r_over_g;
+    triple[1].assign(pixel_count, 1.0);
+    triple[2] = b_over_g;
+    if (!pipeline::WriteTriple(args.Get("exr"), width, height, triple,
+                               &error)) {
+      return pipeline::Fail(args.program(), error);
+    }
   }
 
   // The spread says whether the map is worth looking at: a single-illuminant
