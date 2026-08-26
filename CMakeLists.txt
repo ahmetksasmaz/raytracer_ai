@@ -123,7 +123,8 @@ set(RT_ISP_STAGES
   isp_colormatrix     # sensorRGB  -> CIE XYZ
   isp_srgb            # CIE XYZ    -> 8-bit sRGB
   isp_preview         # any linear 3-channel image -> PNG, no colour transform
-  raw_preview)        # RAW        -> viewable, uncorrected sensor space
+  raw_preview         # RAW        -> viewable, uncorrected sensor space
+  chroma_preview)     # illuminant map -> viewable
 
 foreach(stage ${RT_ISP_STAGES})
   add_executable(${stage} src/apps/${stage}.cpp)

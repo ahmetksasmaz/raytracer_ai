@@ -40,6 +40,7 @@ isp_srgb             _xyz.exr          -> _srgb.png        the only display outp
 isp_preview          any linear 3ch    -> .png             no colour transform
 
 raw_preview          _raw.pgm          -> _raw*.png        RAW made viewable, uncorrected
+chroma_preview       _illumchroma.exr  -> .png             the illuminant map, viewable
 ```
 
 Uniform CLI: `<prog> --in <file> --out <file> --config <sensor.json>`. `sensor_noise` also takes `--seed`.
@@ -314,6 +315,15 @@ Three testing traps worth remembering: whole-image variance on a mosaic measures
 |---|---|---|---|
 | `single_illuminant/` | 5 (`d65`, `incandescent`, `fl11`, `led_b3`, `hps`) | 150 | one light per scene — the case a global white balance handles |
 | `dual_illuminant/` | 6 (ordered pairs of `d65`, `incandescent`, `fl11`) | 180 | **two** lights, one per side — the case it cannot |
+
+Each result carries 10 images, starting with `0_illuminant_map.png` — the ground-truth illuminant, reconstructed as `(r/g, 1, b/g)` and pushed through the sensor's `matrix_no_wb` so the hues are the eye's. It reads flat neutral under D65, flat orange under sodium, and a left-to-right gradient on the dual scenes. `chroma_preview` reports the p1..p99 spread rather than min..max, because a ratio is ill-conditioned wherever the green response is near zero and a handful of edge pixels otherwise dominate the extremes:
+
+```
+single, d65                r/g 0.489..0.495     flat to three digits
+single, hps                r/g 1.100..1.107     flat, and warm
+dual,   d65 | incandescent r/g 0.530..0.839     a real gradient
+dual,   incandescent | d65 r/g 0.531..0.843     the same two lights, mirrored
+```
 
 ```bash
 python3 demo/single_illuminant/generate_demo.py && ./demo/single_illuminant/run_demo.sh

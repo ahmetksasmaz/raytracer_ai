@@ -106,6 +106,6 @@ if [ "$failed" -gt 0 ]; then
   echo " $failed of $total failed -- see demo/dual_illuminant/*/develop.log"
   exit 1
 fi
-echo " $total developed, 9 images each"
+echo " $total developed, 10 images each"
 echo " total:    $(du -sh "$DEMO" | cut -f1)"
 echo "=============================================="

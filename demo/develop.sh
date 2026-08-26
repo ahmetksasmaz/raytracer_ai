@@ -117,6 +117,11 @@ METER
   run "$BIN/isp_srgb"         --in "$out/xyz_gt.exr"     --out "$out/9_srgb_ground_truth.png" || return 1
 
   # The viewable set. Numbered so they sort in pipeline order in a file browser.
+  # The ground-truth illuminant map, made viewable. Through the sensor's own
+  # matrix so the hues are the eye's -- matrix_no_wb, because this is the thing
+  # a white balance is derived FROM and so is unbalanced by definition.
+  run "$BIN/chroma_preview" --in "$out/illumchroma.exr" --out "$out/0_illuminant_map.png" \
+      --calibration "$out/ccm_reference.json" &&
   run "$BIN/raw_preview"  --in "$out/raw.pgm"        --out "$out/1_bayer_raw.png" --config "$cfg" --mosaic &&
   run "$BIN/isp_preview"  --in "$out/demosaiced.exr" --out "$out/2_debayered_linear.png" --linear &&
   run "$BIN/isp_preview"  --in "$out/demosaiced.exr" --out "$out/3_debayered_gamma.png" &&

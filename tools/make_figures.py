@@ -162,10 +162,12 @@ def pipeline_overview():
     prog_box(f, 52, y + 76, iw, 32, "raw_preview", "RAW, uncorrected", "tool")
     prog_box(f, 52 + iw + 34, y + 76, iw, 32, "isp_preview",
              "no colour transform", "tool")
-    f.text(52 + 2 * (iw + 34), y + 92,
+    prog_box(f, 52 + 2 * (iw + 34), y + 76, iw, 32, "chroma_preview",
+             "the illuminant map", "tool")
+    f.text(52 + 3 * (iw + 34), y + 92,
            "viewing tools — never in the measurement path", size=7.6,
            colour=MUTED)
-    f.text(52 + 2 * (iw + 34), y + 103,
+    f.text(52 + 3 * (iw + 34), y + 103,
            "isp_srgb is the only output that leaves sensor space", size=7.6,
            colour=MUTED)
 

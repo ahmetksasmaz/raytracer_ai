@@ -11,7 +11,8 @@
 #   demo/single_illuminant/rendered_<illuminant>/          the spectral cubes, one render each
 #   demo/single_illuminant/<sensor>_<illuminant>/          nine PNGs + the RAW and the calibration
 #
-# The nine are the same scene seen at nine points along the pipeline, from what
+# The ten are the same scene seen at ten points along the pipeline, from the
+# ground-truth illuminant that lit it through to what
 # the sensor physically recorded to what a display should show.
 
 set -u
@@ -111,7 +112,7 @@ if [ "$failed" -gt 0 ]; then
   echo " $failed of $total failed -- see demo/single_illuminant/*/develop.log"
   exit 1
 fi
-echo " $total developed, 9 images each"
+echo " $total developed, 10 images each"
 echo " renders:  $(du -sh "$DEMO"/rendered_* 2>/dev/null | awk '{s+=$1} END {print NR" dirs"}')"
 echo " total:    $(du -sh "$DEMO" | cut -f1)"
 echo "=============================================="
