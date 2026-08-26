@@ -34,6 +34,9 @@
 
 build/
 *.png
+# Figures are documentation, not render output -- the blanket *.png above would
+# swallow them exactly as a blanket *.txt once swallowed CMakeLists.txt.
+!docs/figures/*.png
 *.xml
 *.ply
 *.exr
@@ -45,6 +48,16 @@ tests/out/
 
 # persistent local render output folder (not part of the codebase)
 outputs/
+
+# Demo results: regenerable by demo/run_demo.sh in about five minutes, and
+# roughly 750 MB. The generator, the five scenes and the thirty sensor configs
+# ARE committed -- those are the inputs.
+demo/rendered_*/
+demo/*_d65/
+demo/*_incandescent/
+demo/*_fl11/
+demo/*_led_b3/
+demo/*_hps/
 
 # downloaded homework scene/ground-truth corpora (not part of the codebase)
 homework*/
@@ -63,6 +76,8 @@ sensortest
 
 # editor / tooling
 .DS_Store
+__pycache__/
+*.pyc
 compile_commands.json
 .cache/
 .vscode/

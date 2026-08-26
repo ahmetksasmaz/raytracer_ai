@@ -1,0 +1,15 @@
+{
+  "_pattern": "RGGB",
+  "ExposureTime": "9.768e-05",
+  "PixelPitch": "3.45e-6",
+  "FNumber": "2.8",
+  "FullWell": "60000",
+  "Gain": "3.6623",
+  "BitDepth": "14",
+  "DynamicRange": "12",
+  "ReadNoise": "2.0",
+  "DarkCurrent": "5.0",
+  "NoiseSources": "Shot Read Dark",
+  "_comment": "Measured spectral sensitivity of sony_nex_5n. The curve is the whole optical response, so it fills the three CFA curves and quantum efficiency is forced to 1. Exposure and gain are set so the ADC range lands exactly on the full well; see demo/generate_demo.py.",
+  "_ref": "sensor:sony_nex_5n"
+}

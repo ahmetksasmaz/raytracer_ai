@@ -122,6 +122,7 @@ set(RT_ISP_STAGES
   isp_whitebalance    # sensorRGB  -> neutral-corrected sensorRGB
   isp_colormatrix     # sensorRGB  -> CIE XYZ
   isp_srgb            # CIE XYZ    -> 8-bit sRGB
+  isp_preview         # any linear 3-channel image -> PNG, no colour transform
   raw_preview)        # RAW        -> viewable, uncorrected sensor space
 
 foreach(stage ${RT_ISP_STAGES})
