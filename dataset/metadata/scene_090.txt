@@ -1,0 +1,53 @@
+scene_090
+============================================================
+
+kind             specular
+resolution       512 512
+samples          512
+max recursion    12
+walls            left red, right green, other white
+
+counts
+  spheres        7
+  cubes          15
+  illuminants    6
+  materials      26
+  glass objects  5
+  mirror objects 3
+
+illuminants
+   1  local sphere   light:led_b3           scale   6.620  at (  0.11  -2.45  -1.70)  radius 0.17
+   2  local sphere   light:fl11             scale   4.890  at ( -0.33  -1.86  -0.72)  radius 0.25
+   3  local sphere   light:led_b3           scale   5.061  at (  1.17  -0.50  -1.13)  radius 0.18
+   4  global panel   light:d50              scale   2.439  at ( -0.54   2.94  -0.37)  size 2.96 x 1.95
+   5  global panel   light:d50              scale   9.548  at ( -0.17   2.94   1.80)  size 1.81 x 1.18
+   6  local sphere   light:metal_halide     scale   5.228  at (  2.50  -0.44   1.92)  radius 0.23
+
+objects
+    1  sphere  mirror    mirror     at (  1.42   0.84   2.16)  r 0.263
+    2  sphere  glass     glass      at ( -0.65   0.70  -1.28)  r 0.340
+    3  sphere  diffuse   brick      at ( -0.99  -2.51  -0.67)  r 0.487
+    4  sphere  diffuse   bone       at (  0.64  -2.00   0.13)  r 0.469
+    5  sphere  mirror    mirror     at (  2.46  -1.82   0.34)  r 0.298
+    6  sphere  diffuse   ochre      at (  0.35  -1.63   0.36)  r 0.379
+    7  sphere  glass     glass      at ( -1.39  -2.72   0.72)  r 0.276
+    8  cube    diffuse   ochre      at (  1.35  -1.95  -1.21)  r 0.457
+    9  cube    diffuse   cobalt     at ( -1.07  -2.50   1.02)  r 0.497
+   10  cube    diffuse   ochre      at ( -1.74  -2.72   2.24)  r 0.282
+   11  cube    diffuse   brick      at ( -1.49  -1.90   2.62)  r 0.247
+   12  cube    glass     glass      at ( -2.48   0.63  -2.20)  r 0.401
+   13  cube    glass     glass      at ( -2.43  -1.04   0.58)  r 0.339
+   14  cube    diffuse   olive      at (  0.82  -2.49   0.35)  r 0.509
+   15  cube    glass     glass      at (  2.68  -2.04  -0.46)  r 0.267
+   16  cube    diffuse   plum       at ( -0.46  -1.81  -0.46)  r 0.427
+   17  cube    diffuse   moss       at (  0.96  -2.60  -0.56)  r 0.404
+   18  cube    diffuse   plum       at (  1.64  -2.71  -2.03)  r 0.285
+   19  cube    diffuse   brick      at ( -1.67  -2.66   1.50)  r 0.344
+   20  cube    mirror    mirror     at (  2.15  -2.68  -1.68)  r 0.316
+   21  cube    diffuse   rose       at (  1.61  -2.57   2.44)  r 0.427
+   22  cube    diffuse   rose       at (  0.08  -2.03  -2.21)  r 0.430
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

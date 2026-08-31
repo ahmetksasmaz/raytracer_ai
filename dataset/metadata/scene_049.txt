@@ -1,0 +1,48 @@
+scene_049
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        9
+  cubes          10
+  illuminants    4
+  materials      21
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:mercury          scale   9.145  at ( -1.78  -1.28  -2.66)  radius 0.28
+   2  local sphere   light:d50              scale   6.662  at ( -2.05  -0.47   0.32)  radius 0.18
+   3  global panel   light:mercury          scale   7.497  at (  0.19   2.94   0.09)  size 1.09 x 2.95
+   4  local sphere   light:d50              scale   4.566  at ( -1.35   1.09  -2.68)  radius 0.28
+
+objects
+    1  sphere  diffuse   charcoal   at ( -1.41  -2.54   1.84)  r 0.464
+    2  sphere  diffuse   ochre      at ( -1.15  -0.33   0.74)  r 0.428
+    3  sphere  diffuse   bone       at (  1.70  -0.50  -2.55)  r 0.265
+    4  sphere  diffuse   olive      at ( -2.14   0.04   1.47)  r 0.513
+    5  sphere  diffuse   olive      at (  1.21  -2.39  -1.45)  r 0.508
+    6  sphere  diffuse   moss       at ( -1.07  -1.51  -0.62)  r 0.387
+    7  sphere  diffuse   rose       at ( -0.34  -0.90   2.52)  r 0.363
+    8  sphere  diffuse   teal       at (  0.27  -2.66   1.47)  r 0.344
+    9  sphere  diffuse   moss       at ( -1.72  -2.72   2.47)  r 0.283
+   10  cube    diffuse   slate      at (  1.18  -0.53   0.80)  r 0.255
+   11  cube    diffuse   plum       at (  2.21  -2.24   0.09)  r 0.376
+   12  cube    diffuse   moss       at (  1.14  -0.95  -2.03)  r 0.327
+   13  cube    diffuse   olive      at (  0.18   1.01  -1.84)  r 0.312
+   14  cube    diffuse   brick      at ( -0.28  -2.53   1.62)  r 0.469
+   15  cube    diffuse   brick      at (  1.71  -0.89  -1.91)  r 0.492
+   16  cube    diffuse   teal       at ( -1.78  -0.11  -2.65)  r 0.259
+   17  cube    diffuse   charcoal   at (  1.39  -1.73   1.52)  r 0.259
+   18  cube    diffuse   moss       at (  2.34   0.97  -2.30)  r 0.464
+   19  cube    diffuse   ochre      at (  0.97  -2.74   0.08)  r 0.265
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

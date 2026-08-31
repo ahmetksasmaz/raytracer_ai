@@ -1,0 +1,57 @@
+scene_039
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        18
+  cubes          13
+  illuminants    1
+  materials      33
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  global panel   light:metal_halide     scale   8.580  at ( -0.81   2.94  -1.00)  size 2.07 x 1.86
+
+objects
+    1  sphere  diffuse   charcoal   at ( -1.66   0.34  -1.30)  r 0.426
+    2  sphere  diffuse   cobalt     at ( -0.10  -1.24  -0.68)  r 0.347
+    3  sphere  diffuse   bone       at ( -1.82  -0.09   1.90)  r 0.320
+    4  sphere  diffuse   ochre      at ( -0.53  -2.64   1.27)  r 0.359
+    5  sphere  diffuse   rose       at ( -1.59  -2.74   2.65)  r 0.257
+    6  sphere  diffuse   cobalt     at (  0.32  -2.63   1.55)  r 0.371
+    7  sphere  diffuse   olive      at ( -1.10  -2.71  -0.20)  r 0.288
+    8  sphere  diffuse   rose       at ( -2.22  -2.72  -1.13)  r 0.276
+    9  sphere  diffuse   brick      at (  1.02   0.05  -2.53)  r 0.377
+   10  sphere  diffuse   bone       at ( -1.69  -2.77   1.31)  r 0.235
+   11  sphere  diffuse   slate      at (  2.45  -2.16  -2.57)  r 0.221
+   12  sphere  diffuse   charcoal   at (  0.38   0.95  -0.45)  r 0.296
+   13  sphere  diffuse   brick      at (  1.81  -0.03  -0.80)  r 0.227
+   14  sphere  diffuse   teal       at ( -1.28  -2.76  -2.52)  r 0.239
+   15  sphere  diffuse   ochre      at (  2.55  -2.40  -1.24)  r 0.376
+   16  sphere  diffuse   sand       at ( -2.50  -2.66  -0.21)  r 0.339
+   17  sphere  diffuse   rose       at ( -1.54   1.24  -2.06)  r 0.398
+   18  sphere  diffuse   cobalt     at (  1.52  -1.74  -0.75)  r 0.257
+   19  cube    diffuse   plum       at ( -0.70  -1.75  -2.05)  r 0.431
+   20  cube    diffuse   brick      at ( -0.20   0.28  -2.38)  r 0.381
+   21  cube    diffuse   ochre      at ( -0.76  -1.40   0.23)  r 0.320
+   22  cube    diffuse   moss       at (  1.95  -2.76   1.94)  r 0.238
+   23  cube    diffuse   ochre      at (  1.16  -2.40  -1.03)  r 0.352
+   24  cube    diffuse   sand       at (  1.01   0.64  -1.88)  r 0.341
+   25  cube    diffuse   moss       at (  2.46   0.17  -1.73)  r 0.296
+   26  cube    diffuse   brick      at ( -1.99  -1.76  -0.12)  r 0.408
+   27  cube    diffuse   bone       at (  0.19  -2.07  -0.31)  r 0.444
+   28  cube    diffuse   sand       at ( -1.58  -2.57  -1.63)  r 0.428
+   29  cube    diffuse   moss       at (  1.01  -2.76   0.10)  r 0.242
+   30  cube    diffuse   bone       at ( -2.49  -2.74  -1.88)  r 0.260
+   31  cube    diffuse   bone       at ( -1.51  -2.61   0.06)  r 0.393
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

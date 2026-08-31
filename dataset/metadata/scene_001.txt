@@ -1,0 +1,43 @@
+scene_001
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        9
+  cubes          3
+  illuminants    6
+  materials      14
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:metal_halide     scale   4.455  at ( -0.87  -0.65   0.05)  radius 0.19
+   2  global panel   light:a                scale   5.260  at ( -0.33   2.94  -0.64)  size 1.29 x 2.84
+   3  global panel   light:cool_white_fl    scale  12.784  at ( -0.09   2.94   0.62)  size 1.33 x 1.23
+   4  global panel   light:metal_halide     scale   8.124  at ( -1.85   2.94  -1.79)  size 1.09 x 1.37
+   5  global panel   light:mercury          scale   7.074  at (  2.13   2.94  -0.68)  size 1.13 x 2.62
+   6  local sphere   light:led_b3           scale   6.159  at (  1.92  -0.10  -0.67)  radius 0.23
+
+objects
+    1  sphere  diffuse   brick      at (  1.61  -2.68  -2.63)  r 0.325
+    2  sphere  diffuse   teal       at ( -0.69  -2.68  -1.00)  r 0.292
+    3  sphere  diffuse   bone       at (  0.63  -1.10   0.16)  r 0.526
+    4  sphere  diffuse   olive      at ( -0.78   0.66   1.76)  r 0.626
+    5  sphere  diffuse   plum       at ( -0.48  -1.82   0.19)  r 0.537
+    6  sphere  diffuse   teal       at (  0.53  -2.46   1.29)  r 0.537
+    7  sphere  diffuse   bone       at ( -1.36  -2.40   0.41)  r 0.601
+    8  sphere  diffuse   slate      at ( -1.83  -2.41  -0.69)  r 0.588
+    9  sphere  diffuse   ochre      at (  1.52   0.30  -2.11)  r 0.574
+   10  cube    diffuse   moss       at ( -2.20  -1.76  -0.03)  r 0.432
+   11  cube    diffuse   brick      at (  2.15   0.47   0.29)  r 0.314
+   12  cube    diffuse   charcoal   at (  0.65  -1.80   0.45)  r 0.469
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

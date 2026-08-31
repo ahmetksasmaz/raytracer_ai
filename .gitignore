@@ -53,6 +53,11 @@ outputs/
 # roughly 750 MB. The generator, the five scenes and the thirty sensor configs
 # ARE committed -- those are the inputs.
 demo/*/run.log
+
+# Dataset renders: ~10 GB and about 7 hours to regenerate, so the scenes,
+# metadata and scripts are committed and the output is not.
+dataset/renders/
+dataset/render.log
 demo/*/rendered_*/
 demo/*/[a-z]*_d65/
 demo/*/[a-z]*_incandescent/

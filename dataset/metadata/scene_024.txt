@@ -1,0 +1,45 @@
+scene_024
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left red, right green, other white
+
+counts
+  spheres        12
+  cubes          4
+  illuminants    4
+  materials      20
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:cool_white_fl    scale   6.463  at ( -1.96  -0.18   0.73)  radius 0.21
+   2  global panel   light:led_b3           scale   8.280  at ( -0.46   2.94   1.90)  size 2.73 x 1.15
+   3  local sphere   light:incandescent     scale   4.738  at ( -2.02  -1.53   0.69)  radius 0.20
+   4  global panel   light:d65              scale   6.620  at ( -0.20   2.94  -1.36)  size 2.95 x 1.08
+
+objects
+    1  sphere  diffuse   bone       at (  0.58  -1.68  -1.93)  r 0.304
+    2  sphere  diffuse   plum       at (  1.36  -0.05  -0.45)  r 0.314
+    3  sphere  diffuse   ochre      at ( -1.26  -0.08   1.84)  r 0.390
+    4  sphere  diffuse   olive      at ( -0.36  -2.71   0.17)  r 0.292
+    5  sphere  diffuse   cobalt     at (  0.46   0.91   0.11)  r 0.361
+    6  sphere  diffuse   moss       at ( -1.82  -2.62  -1.72)  r 0.378
+    7  sphere  diffuse   sand       at (  0.16  -2.47   1.14)  r 0.525
+    8  sphere  diffuse   moss       at ( -2.16   0.92   1.74)  r 0.489
+    9  sphere  diffuse   teal       at (  2.40  -2.26   0.75)  r 0.410
+   10  sphere  diffuse   slate      at (  0.81  -1.49   0.51)  r 0.403
+   11  sphere  diffuse   teal       at ( -1.03  -0.16   0.40)  r 0.372
+   12  sphere  diffuse   brick      at ( -0.89  -1.16  -2.36)  r 0.507
+   13  cube    diffuse   moss       at ( -1.95  -2.43   1.54)  r 0.571
+   14  cube    diffuse   bone       at ( -2.43  -2.45   1.98)  r 0.272
+   15  cube    diffuse   bone       at (  1.93   1.14   1.03)  r 0.456
+   16  cube    diffuse   teal       at ( -0.33  -2.72  -0.04)  r 0.281
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

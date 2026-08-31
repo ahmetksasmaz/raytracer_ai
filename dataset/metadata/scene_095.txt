@@ -1,0 +1,45 @@
+scene_095
+============================================================
+
+kind             specular
+resolution       512 512
+samples          512
+max recursion    12
+walls            left white, right white, other white
+
+counts
+  spheres        10
+  cubes          7
+  illuminants    3
+  materials      19
+  glass objects  3
+  mirror objects 3
+
+illuminants
+   1  local sphere   light:incandescent     scale   7.763  at (  1.23  -0.24  -2.66)  radius 0.28
+   2  global panel   light:d50              scale   3.854  at (  0.91   2.94  -0.33)  size 2.55 x 2.04
+   3  local sphere   light:cool_white_fl    scale   5.771  at ( -0.93  -0.85  -2.08)  radius 0.23
+
+objects
+    1  sphere  diffuse   brick      at ( -0.68  -0.40  -0.71)  r 0.507
+    2  sphere  diffuse   charcoal   at ( -0.08   0.64  -2.40)  r 0.355
+    3  sphere  mirror    mirror     at ( -1.15  -2.48  -1.19)  r 0.518
+    4  sphere  diffuse   brick      at ( -0.28  -2.71  -1.90)  r 0.291
+    5  sphere  diffuse   plum       at ( -0.30  -2.17  -0.41)  r 0.407
+    6  sphere  diffuse   moss       at (  2.56   0.35  -1.29)  r 0.327
+    7  sphere  diffuse   brick      at ( -1.81  -0.69  -0.12)  r 0.431
+    8  sphere  mirror    mirror     at ( -1.86  -2.51  -0.19)  r 0.492
+    9  sphere  diffuse   plum       at (  1.07   0.38   0.06)  r 0.273
+   10  sphere  glass     glass      at (  0.81  -2.60   0.11)  r 0.401
+   11  cube    diffuse   brick      at ( -1.09  -2.62   1.46)  r 0.376
+   12  cube    mirror    mirror     at ( -0.24   0.55  -2.01)  r 0.406
+   13  cube    glass     glass      at (  2.61  -2.62  -1.93)  r 0.377
+   14  cube    diffuse   cobalt     at ( -1.73  -0.07   1.58)  r 0.479
+   15  cube    diffuse   cobalt     at (  2.24  -2.48  -1.99)  r 0.523
+   16  cube    diffuse   bone       at (  2.35  -1.36  -0.11)  r 0.305
+   17  cube    glass     glass      at ( -1.49  -2.62  -0.68)  r 0.379
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

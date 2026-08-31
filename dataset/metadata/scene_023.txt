@@ -1,0 +1,46 @@
+scene_023
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        7
+  cubes          10
+  illuminants    4
+  materials      19
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:hps              scale   6.690  at ( -1.34  -1.72   2.60)  radius 0.27
+   2  global panel   light:mercury          scale   3.775  at ( -0.79   2.94   1.30)  size 2.21 x 2.37
+   3  local sphere   light:d50              scale   4.812  at ( -1.50  -1.09  -2.25)  radius 0.18
+   4  global panel   light:fl11             scale   3.850  at ( -1.14   2.94  -0.59)  size 2.20 x 2.79
+
+objects
+    1  sphere  diffuse   sand       at ( -0.55  -1.72   2.29)  r 0.441
+    2  sphere  diffuse   rose       at ( -2.25  -2.45   1.59)  r 0.546
+    3  sphere  diffuse   plum       at (  1.54  -2.57   0.97)  r 0.433
+    4  sphere  diffuse   brick      at (  1.43  -0.92  -0.52)  r 0.477
+    5  sphere  diffuse   cobalt     at (  0.73  -2.28  -1.42)  r 0.341
+    6  sphere  diffuse   bone       at ( -2.09  -2.69   1.25)  r 0.308
+    7  sphere  diffuse   moss       at (  1.30   0.49  -1.38)  r 0.458
+    8  cube    diffuse   plum       at ( -1.56  -0.33   2.17)  r 0.560
+    9  cube    diffuse   moss       at (  2.22  -2.46  -0.86)  r 0.535
+   10  cube    diffuse   plum       at (  0.00  -2.44  -0.53)  r 0.559
+   11  cube    diffuse   slate      at ( -2.36  -2.70  -0.43)  r 0.298
+   12  cube    diffuse   bone       at ( -1.25   0.75   0.82)  r 0.387
+   13  cube    diffuse   ochre      at (  1.37  -2.60   0.30)  r 0.403
+   14  cube    diffuse   charcoal   at ( -1.04  -1.75   2.21)  r 0.494
+   15  cube    diffuse   ochre      at ( -0.64  -1.58   0.58)  r 0.466
+   16  cube    diffuse   bone       at ( -0.98  -2.21  -1.49)  r 0.516
+   17  cube    diffuse   plum       at ( -2.24  -1.86  -1.79)  r 0.476
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

@@ -1,0 +1,46 @@
+scene_064
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left red, right green, other white
+
+counts
+  spheres        0
+  cubes          18
+  illuminants    3
+  materials      22
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  global panel   light:incandescent     scale   8.360  at ( -1.75   2.94   0.28)  size 1.44 x 1.54
+   2  local sphere   light:cool_white_fl    scale   8.233  at ( -2.27  -2.15   0.18)  radius 0.23
+   3  local sphere   light:mercury          scale   6.397  at ( -0.84   0.51   0.09)  radius 0.23
+
+objects
+    1  cube    diffuse   charcoal   at (  1.04  -2.66   2.59)  r 0.337
+    2  cube    diffuse   charcoal   at ( -1.94  -2.66  -1.72)  r 0.337
+    3  cube    diffuse   charcoal   at (  1.23  -2.51  -0.15)  r 0.489
+    4  cube    diffuse   charcoal   at ( -2.39  -0.94   1.96)  r 0.372
+    5  cube    diffuse   cobalt     at (  2.38  -2.17   2.33)  r 0.270
+    6  cube    diffuse   olive      at (  1.08  -0.45   1.87)  r 0.529
+    7  cube    diffuse   rose       at (  0.74  -2.18   1.45)  r 0.396
+    8  cube    diffuse   charcoal   at ( -1.73   0.91  -1.47)  r 0.301
+    9  cube    diffuse   slate      at (  1.27   1.05  -0.89)  r 0.442
+   10  cube    diffuse   rose       at ( -2.25   0.48   0.47)  r 0.471
+   11  cube    diffuse   cobalt     at ( -0.30  -0.26   2.40)  r 0.488
+   12  cube    diffuse   ochre      at (  1.54  -0.39  -0.67)  r 0.294
+   13  cube    diffuse   moss       at ( -1.83   0.36  -1.80)  r 0.425
+   14  cube    diffuse   ochre      at (  0.96  -0.15   0.96)  r 0.400
+   15  cube    diffuse   rose       at ( -1.02  -2.48  -1.91)  r 0.517
+   16  cube    diffuse   slate      at (  2.30  -2.62   0.88)  r 0.330
+   17  cube    diffuse   brick      at ( -0.91  -2.46  -2.18)  r 0.537
+   18  cube    diffuse   moss       at (  2.33  -2.51   0.94)  r 0.494
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

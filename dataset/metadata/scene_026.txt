@@ -1,0 +1,44 @@
+scene_026
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        4
+  cubes          11
+  illuminants    4
+  materials      17
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:a                scale   6.497  at ( -2.69   1.15  -0.42)  radius 0.29
+   2  global panel   light:metal_halide     scale   6.566  at (  2.10   2.94  -0.57)  size 1.05 x 2.50
+   3  global panel   light:d50              scale   4.748  at ( -1.31   2.94   0.85)  size 1.80 x 2.67
+   4  local sphere   light:mercury          scale   6.810  at (  0.46   0.56  -0.15)  radius 0.20
+
+objects
+    1  sphere  diffuse   rose       at ( -1.32  -2.57   1.72)  r 0.433
+    2  sphere  diffuse   brick      at (  2.05  -2.48   2.18)  r 0.519
+    3  sphere  diffuse   teal       at ( -1.81  -2.32  -1.94)  r 0.515
+    4  sphere  diffuse   ochre      at ( -1.39  -1.91  -2.32)  r 0.497
+    5  cube    diffuse   charcoal   at ( -0.10  -2.66  -0.21)  r 0.337
+    6  cube    diffuse   moss       at ( -0.54   0.05  -0.46)  r 0.571
+    7  cube    diffuse   olive      at (  1.56   0.99  -1.05)  r 0.521
+    8  cube    diffuse   plum       at (  1.38  -2.47   0.56)  r 0.526
+    9  cube    diffuse   ochre      at ( -0.40  -2.65  -1.05)  r 0.354
+   10  cube    diffuse   rose       at (  0.44  -2.58  -1.48)  r 0.421
+   11  cube    diffuse   teal       at ( -2.18   0.83   2.33)  r 0.550
+   12  cube    diffuse   ochre      at ( -0.21  -2.70  -1.40)  r 0.300
+   13  cube    diffuse   charcoal   at (  1.89  -2.43   1.39)  r 0.574
+   14  cube    diffuse   sand       at (  1.35  -2.42  -2.16)  r 0.581
+   15  cube    diffuse   moss       at ( -0.68   1.10   0.17)  r 0.368
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

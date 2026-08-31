@@ -1,0 +1,41 @@
+scene_051
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left red, right green, other white
+
+counts
+  spheres        12
+  cubes          0
+  illuminants    4
+  materials      16
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:d65              scale   7.508  at (  1.20  -0.62   2.15)  radius 0.17
+   2  local sphere   light:metal_halide     scale   4.503  at ( -0.56  -1.65   2.70)  radius 0.16
+   3  local sphere   light:metal_halide     scale   6.239  at (  2.51  -1.65  -1.93)  radius 0.27
+   4  local sphere   light:hps              scale   7.782  at (  2.64  -0.97   0.90)  radius 0.27
+
+objects
+    1  sphere  diffuse   moss       at (  2.45   0.24  -1.84)  r 0.313
+    2  sphere  diffuse   bone       at ( -0.57  -2.47   2.00)  r 0.532
+    3  sphere  diffuse   plum       at (  0.40  -2.59  -1.22)  r 0.409
+    4  sphere  diffuse   olive      at (  1.39  -1.44  -0.37)  r 0.415
+    5  sphere  diffuse   cobalt     at ( -1.86  -2.45  -1.40)  r 0.552
+    6  sphere  diffuse   moss       at (  2.16  -2.55  -1.32)  r 0.291
+    7  sphere  diffuse   olive      at (  1.12  -2.69   2.29)  r 0.305
+    8  sphere  diffuse   moss       at ( -1.08  -2.42  -1.03)  r 0.580
+    9  sphere  diffuse   bone       at (  0.67  -2.60   1.11)  r 0.404
+   10  sphere  diffuse   slate      at (  2.16  -2.26   1.02)  r 0.610
+   11  sphere  diffuse   ochre      at (  0.66  -2.45  -1.98)  r 0.552
+   12  sphere  diffuse   cobalt     at (  0.54  -1.12  -1.49)  r 0.370
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

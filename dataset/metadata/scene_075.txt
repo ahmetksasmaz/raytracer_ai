@@ -1,0 +1,30 @@
+scene_075
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        2
+  cubes          2
+  illuminants    1
+  materials      6
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:metal_halide     scale  11.456  at (  1.81   0.62  -0.37)  radius 0.22
+
+objects
+    1  sphere  diffuse   teal       at ( -1.43  -0.91   1.10)  r 0.515
+    2  sphere  diffuse   brick      at ( -0.97  -2.51  -1.11)  r 0.493
+    3  cube    diffuse   olive      at (  2.15   0.63  -1.33)  r 0.685
+    4  cube    diffuse   charcoal   at (  0.21  -2.43   2.08)  r 0.574
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

@@ -1,0 +1,53 @@
+scene_011
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left red, right green, other white
+
+counts
+  spheres        5
+  cubes          19
+  illuminants    4
+  materials      28
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  global panel   light:d65              scale   7.950  at ( -0.05   2.94   0.91)  size 1.07 x 2.75
+   2  global panel   light:metal_halide     scale   3.502  at ( -0.61   2.94   1.22)  size 2.89 x 1.39
+   3  global panel   light:d65              scale   6.802  at (  0.26   2.94   0.66)  size 1.13 x 1.86
+   4  local sphere   light:fl11             scale   8.535  at (  1.83  -2.40  -0.78)  radius 0.21
+
+objects
+    1  sphere  diffuse   brick      at ( -1.54  -2.62   1.82)  r 0.349
+    2  sphere  diffuse   plum       at (  1.48  -0.89  -0.38)  r 0.467
+    3  sphere  diffuse   teal       at (  2.38   0.32   2.20)  r 0.309
+    4  sphere  diffuse   slate      at (  0.24  -2.53   1.94)  r 0.466
+    5  sphere  diffuse   brick      at (  1.00  -2.31  -2.16)  r 0.308
+    6  cube    diffuse   charcoal   at (  2.09  -2.66   0.07)  r 0.342
+    7  cube    diffuse   bone       at ( -2.56  -2.58  -0.98)  r 0.424
+    8  cube    diffuse   plum       at ( -2.02  -0.37   0.49)  r 0.487
+    9  cube    diffuse   brick      at ( -1.99  -2.65   0.61)  r 0.350
+   10  cube    diffuse   cobalt     at ( -1.95   0.60   2.38)  r 0.402
+   11  cube    diffuse   charcoal   at ( -1.59  -2.58  -0.08)  r 0.416
+   12  cube    diffuse   rose       at (  1.58  -2.53  -1.59)  r 0.353
+   13  cube    diffuse   moss       at (  0.32  -1.07   0.65)  r 0.383
+   14  cube    diffuse   teal       at ( -1.98  -0.50  -2.17)  r 0.459
+   15  cube    diffuse   slate      at (  0.68  -2.73   2.46)  r 0.266
+   16  cube    diffuse   bone       at (  2.44   0.56   2.00)  r 0.446
+   17  cube    diffuse   moss       at (  0.72  -1.67  -1.76)  r 0.459
+   18  cube    diffuse   teal       at (  0.57  -2.68   1.94)  r 0.322
+   19  cube    diffuse   rose       at ( -0.98  -2.55  -0.93)  r 0.454
+   20  cube    diffuse   slate      at (  1.31   0.84  -2.45)  r 0.256
+   21  cube    diffuse   olive      at (  0.18  -2.73  -0.27)  r 0.272
+   22  cube    diffuse   brick      at (  1.74  -2.63   1.36)  r 0.366
+   23  cube    diffuse   charcoal   at (  1.80  -2.66  -0.86)  r 0.338
+   24  cube    diffuse   teal       at (  0.05  -2.08  -2.35)  r 0.331
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

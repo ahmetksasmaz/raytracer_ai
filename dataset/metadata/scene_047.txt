@@ -1,0 +1,46 @@
+scene_047
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        15
+  cubes          0
+  illuminants    6
+  materials      17
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  global panel   light:d50              scale   4.417  at (  0.65   2.94  -0.88)  size 1.89 x 2.43
+   2  global panel   light:a                scale   3.680  at (  0.95   2.94   1.03)  size 2.10 x 2.10
+   3  local sphere   light:metal_halide     scale   7.751  at (  1.63   0.96  -2.74)  radius 0.21
+   4  local sphere   light:led_b3           scale   5.437  at (  1.95   1.14   1.75)  radius 0.18
+   5  local sphere   light:metal_halide     scale   4.342  at (  1.62  -2.69   0.94)  radius 0.22
+   6  global panel   light:mercury          scale   5.496  at ( -0.46   2.94   0.75)  size 2.24 x 1.23
+
+objects
+    1  sphere  diffuse   bone       at ( -0.12  -2.73  -0.20)  r 0.274
+    2  sphere  diffuse   sand       at ( -1.31  -0.02  -0.78)  r 0.305
+    3  sphere  diffuse   teal       at ( -2.43  -0.53   2.19)  r 0.307
+    4  sphere  diffuse   moss       at ( -0.10  -1.44  -1.31)  r 0.386
+    5  sphere  diffuse   rose       at (  2.52  -2.61  -1.32)  r 0.388
+    6  sphere  diffuse   sand       at (  1.09  -2.70   1.37)  r 0.305
+    7  sphere  diffuse   ochre      at (  2.61  -2.68   0.04)  r 0.322
+    8  sphere  diffuse   teal       at (  0.35  -1.80   1.01)  r 0.556
+    9  sphere  diffuse   moss       at (  1.62   0.81  -2.38)  r 0.433
+   10  sphere  diffuse   rose       at (  1.45  -0.05   0.73)  r 0.554
+   11  sphere  diffuse   rose       at ( -0.25  -0.17   0.88)  r 0.365
+   12  sphere  diffuse   moss       at ( -1.79  -2.70   2.59)  r 0.300
+   13  sphere  diffuse   slate      at (  2.47  -1.25  -0.67)  r 0.467
+   14  sphere  diffuse   moss       at ( -0.68  -1.72  -1.45)  r 0.434
+   15  sphere  diffuse   bone       at (  0.80  -2.66  -0.67)  r 0.342
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

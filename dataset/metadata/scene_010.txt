@@ -1,0 +1,40 @@
+scene_010
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left red, right green, other white
+
+counts
+  spheres        1
+  cubes          11
+  illuminants    3
+  materials      16
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  global panel   light:fl11             scale   5.204  at (  1.14   2.94   1.45)  size 2.96 x 1.89
+   2  local sphere   light:fl11             scale  11.078  at (  1.54   0.76  -2.32)  radius 0.33
+   3  global panel   light:led_b3           scale   7.484  at (  0.04   2.94  -1.88)  size 1.81 x 1.35
+
+objects
+    1  sphere  diffuse   sand       at ( -2.29  -1.03  -1.04)  r 0.501
+    2  cube    diffuse   olive      at ( -1.95   1.17   2.26)  r 0.338
+    3  cube    diffuse   slate      at ( -2.30  -2.38   2.30)  r 0.619
+    4  cube    diffuse   rose       at ( -0.38  -0.42   1.74)  r 0.351
+    5  cube    diffuse   plum       at ( -1.87  -1.56  -0.14)  r 0.352
+    6  cube    diffuse   brick      at ( -0.44   1.03  -1.21)  r 0.472
+    7  cube    diffuse   teal       at (  1.25  -0.34   2.48)  r 0.367
+    8  cube    diffuse   bone       at (  0.12  -2.45   1.52)  r 0.549
+    9  cube    diffuse   plum       at ( -1.56  -0.70  -1.78)  r 0.425
+   10  cube    diffuse   plum       at ( -0.56  -2.33  -2.10)  r 0.447
+   11  cube    diffuse   plum       at ( -0.88  -1.36   0.31)  r 0.423
+   12  cube    diffuse   charcoal   at (  0.41  -0.12   0.32)  r 0.501
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

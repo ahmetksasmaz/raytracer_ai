@@ -1,0 +1,43 @@
+scene_027
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        1
+  cubes          16
+  illuminants    1
+  materials      19
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  global panel   light:mercury          scale   8.333  at ( -1.50   2.94   0.64)  size 2.26 x 2.24
+
+objects
+    1  sphere  diffuse   sand       at ( -0.99  -2.66   1.42)  r 0.338
+    2  cube    diffuse   teal       at ( -1.53   0.54  -1.36)  r 0.552
+    3  cube    diffuse   sand       at ( -2.20  -1.14   0.70)  r 0.425
+    4  cube    diffuse   moss       at (  1.67  -2.54   2.47)  r 0.463
+    5  cube    diffuse   brick      at (  0.46  -1.03   2.04)  r 0.264
+    6  cube    diffuse   plum       at ( -2.37  -2.36  -0.08)  r 0.510
+    7  cube    diffuse   rose       at (  1.52  -2.47  -1.45)  r 0.533
+    8  cube    diffuse   ochre      at ( -1.62  -1.54   2.21)  r 0.524
+    9  cube    diffuse   ochre      at ( -2.24  -2.73  -2.68)  r 0.267
+   10  cube    diffuse   charcoal   at ( -2.29   0.60   1.66)  r 0.532
+   11  cube    diffuse   slate      at ( -0.18  -1.77   0.02)  r 0.283
+   12  cube    diffuse   ochre      at ( -0.38  -1.40   2.42)  r 0.411
+   13  cube    diffuse   sand       at (  0.05  -2.46   0.03)  r 0.539
+   14  cube    diffuse   teal       at ( -0.20  -2.68   2.53)  r 0.322
+   15  cube    diffuse   moss       at (  2.27   0.74   1.06)  r 0.347
+   16  cube    diffuse   cobalt     at ( -2.43  -2.70   2.62)  r 0.302
+   17  cube    diffuse   teal       at (  0.19  -2.70   2.43)  r 0.302
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

@@ -1,0 +1,49 @@
+scene_098
+============================================================
+
+kind             specular
+resolution       512 512
+samples          512
+max recursion    12
+walls            left white, right white, other white
+
+counts
+  spheres        3
+  cubes          16
+  illuminants    5
+  materials      21
+  glass objects  4
+  mirror objects 4
+
+illuminants
+   1  global panel   light:mercury          scale   2.515  at (  1.05   2.94   0.65)  size 2.17 x 2.85
+   2  global panel   light:led_b3           scale   5.970  at ( -1.79   2.94  -0.42)  size 1.26 x 1.78
+   3  global panel   light:d65              scale   5.121  at ( -0.59   2.94   0.56)  size 1.38 x 2.28
+   4  local sphere   light:metal_halide     scale   6.402  at (  1.78  -2.25  -1.64)  radius 0.32
+   5  local sphere   light:hps              scale   7.816  at ( -2.30  -1.68   1.70)  radius 0.23
+
+objects
+    1  sphere  diffuse   brick      at ( -0.22   0.30   0.78)  r 0.450
+    2  sphere  glass     glass      at ( -2.39  -2.50   2.10)  r 0.499
+    3  sphere  diffuse   moss       at (  2.48  -1.04   1.33)  r 0.447
+    4  cube    mirror    mirror     at (  1.29   0.28   0.74)  r 0.424
+    5  cube    diffuse   plum       at ( -2.21   1.29   1.13)  r 0.352
+    6  cube    mirror    mirror     at (  0.00   0.00   0.85)  r 0.360
+    7  cube    diffuse   bone       at ( -0.74  -2.15   2.66)  r 0.322
+    8  cube    diffuse   bone       at ( -0.48  -0.81   1.12)  r 0.472
+    9  cube    diffuse   moss       at (  2.38  -2.56  -0.29)  r 0.413
+   10  cube    glass     glass      at (  2.52  -1.56   1.07)  r 0.325
+   11  cube    diffuse   moss       at (  2.31   0.74  -0.19)  r 0.436
+   12  cube    diffuse   olive      at (  1.70   1.16  -0.75)  r 0.301
+   13  cube    glass     glass      at (  2.26   0.25  -0.65)  r 0.487
+   14  cube    diffuse   slate      at (  0.10  -0.72   0.38)  r 0.507
+   15  cube    glass     glass      at ( -0.52  -0.20   2.26)  r 0.518
+   16  cube    diffuse   sand       at ( -2.04   1.36  -2.68)  r 0.255
+   17  cube    mirror    mirror     at (  1.25  -1.14  -2.32)  r 0.374
+   18  cube    diffuse   cobalt     at (  2.29  -2.40   0.83)  r 0.448
+   19  cube    mirror    mirror     at (  1.64  -2.70  -1.50)  r 0.301
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

@@ -1,0 +1,48 @@
+scene_054
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        16
+  cubes          4
+  illuminants    3
+  materials      22
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  global panel   light:metal_halide     scale  10.638  at ( -1.81   2.94  -1.62)  size 1.10 x 1.70
+   2  global panel   light:mercury          scale   4.809  at ( -0.07   2.94  -0.43)  size 1.37 x 3.00
+   3  local sphere   light:incandescent     scale  11.095  at ( -2.59  -2.52   1.91)  radius 0.25
+
+objects
+    1  sphere  diffuse   slate      at ( -0.08  -2.58  -0.02)  r 0.422
+    2  sphere  diffuse   moss       at (  1.09  -0.88   0.65)  r 0.394
+    3  sphere  diffuse   teal       at (  1.62   0.18  -1.28)  r 0.473
+    4  sphere  diffuse   cobalt     at ( -0.29  -2.68  -2.46)  r 0.322
+    5  sphere  diffuse   slate      at (  1.94   0.33  -0.96)  r 0.296
+    6  sphere  diffuse   bone       at ( -2.51  -2.67   1.67)  r 0.327
+    7  sphere  diffuse   plum       at (  1.99  -2.69  -1.58)  r 0.307
+    8  sphere  diffuse   bone       at ( -0.42  -1.55   0.74)  r 0.393
+    9  sphere  diffuse   ochre      at (  1.02  -0.25  -0.78)  r 0.313
+   10  sphere  diffuse   brick      at ( -1.20  -2.52  -0.17)  r 0.483
+   11  sphere  diffuse   slate      at (  0.68  -2.69  -0.12)  r 0.311
+   12  sphere  diffuse   olive      at (  0.02  -1.88   2.04)  r 0.483
+   13  sphere  diffuse   bone       at (  1.57   0.01   1.54)  r 0.390
+   14  sphere  diffuse   teal       at (  1.04   0.60   0.64)  r 0.332
+   15  sphere  diffuse   bone       at (  1.62  -0.19  -2.24)  r 0.497
+   16  sphere  diffuse   cobalt     at ( -0.59  -2.52   0.25)  r 0.475
+   17  cube    diffuse   brick      at (  1.99  -0.89  -1.43)  r 0.468
+   18  cube    diffuse   bone       at (  2.42  -2.35   2.35)  r 0.375
+   19  cube    diffuse   olive      at (  0.21  -1.28   1.27)  r 0.358
+   20  cube    diffuse   moss       at ( -1.68  -2.51   0.61)  r 0.489
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

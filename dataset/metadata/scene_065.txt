@@ -1,0 +1,44 @@
+scene_065
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        5
+  cubes          11
+  illuminants    3
+  materials      18
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:incandescent     scale   9.723  at ( -0.95  -2.17  -0.24)  radius 0.22
+   2  local sphere   light:hps              scale   7.549  at (  1.51  -1.41  -2.74)  radius 0.16
+   3  local sphere   light:d65              scale   7.223  at ( -1.51  -0.79  -1.36)  radius 0.20
+
+objects
+    1  sphere  diffuse   slate      at (  0.27  -0.53   0.64)  r 0.371
+    2  sphere  diffuse   bone       at (  2.08  -2.03   1.05)  r 0.364
+    3  sphere  diffuse   rose       at ( -0.26  -2.49  -1.11)  r 0.514
+    4  sphere  diffuse   sand       at (  1.90   1.10   1.43)  r 0.524
+    5  sphere  diffuse   moss       at (  1.80   0.78  -1.05)  r 0.306
+    6  cube    diffuse   moss       at ( -1.38  -2.49  -2.30)  r 0.513
+    7  cube    diffuse   brick      at (  2.49  -2.65   2.50)  r 0.355
+    8  cube    diffuse   olive      at (  1.28  -2.51   1.10)  r 0.374
+    9  cube    diffuse   moss       at (  1.58  -2.60   2.49)  r 0.395
+   10  cube    diffuse   rose       at (  2.03  -2.70  -0.57)  r 0.299
+   11  cube    diffuse   moss       at (  1.83  -1.57  -0.35)  r 0.447
+   12  cube    diffuse   moss       at (  2.02  -2.20  -2.25)  r 0.515
+   13  cube    diffuse   ochre      at ( -2.29  -0.84   1.37)  r 0.532
+   14  cube    diffuse   slate      at (  2.65  -2.73   0.36)  r 0.270
+   15  cube    diffuse   rose       at ( -2.21  -2.43  -1.12)  r 0.572
+   16  cube    diffuse   brick      at ( -0.15  -0.25  -1.89)  r 0.547
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

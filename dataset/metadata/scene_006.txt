@@ -1,0 +1,33 @@
+scene_006
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        6
+  cubes          0
+  illuminants    2
+  materials      8
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  local sphere   light:mercury          scale   6.708  at (  0.83  -0.46   2.74)  radius 0.25
+   2  local sphere   light:incandescent     scale   8.220  at (  2.47   0.52  -1.28)  radius 0.28
+
+objects
+    1  sphere  diffuse   ochre      at ( -1.66   0.42   1.15)  r 0.503
+    2  sphere  diffuse   rose       at (  1.99  -2.44   1.19)  r 0.556
+    3  sphere  diffuse   moss       at ( -1.78  -0.35   2.21)  r 0.469
+    4  sphere  diffuse   brick      at ( -1.76  -2.60   1.77)  r 0.402
+    5  sphere  diffuse   charcoal   at ( -2.35  -1.64   1.50)  r 0.501
+    6  sphere  diffuse   rose       at (  0.88  -1.60   2.02)  r 0.397
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

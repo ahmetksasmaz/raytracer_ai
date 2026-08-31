@@ -1,0 +1,35 @@
+scene_099
+============================================================
+
+kind             specular
+resolution       512 512
+samples          512
+max recursion    12
+walls            left red, right green, other white
+
+counts
+  spheres        6
+  cubes          1
+  illuminants    3
+  materials      11
+  glass objects  2
+  mirror objects 5
+
+illuminants
+   1  global panel   light:d50              scale  16.287  at ( -0.59   2.94  -0.42)  size 1.14 x 1.53
+   2  local sphere   light:hps              scale   6.965  at ( -0.16  -0.43  -0.69)  radius 0.27
+   3  global panel   light:a                scale   7.422  at ( -0.05   2.94  -1.24)  size 2.59 x 1.14
+
+objects
+    1  sphere  mirror    mirror     at ( -1.58  -2.56  -2.40)  r 0.445
+    2  sphere  glass     glass      at (  0.58  -1.57   0.98)  r 0.602
+    3  sphere  glass     glass      at (  0.26   0.79  -1.09)  r 0.678
+    4  sphere  mirror    mirror     at ( -1.04   0.70  -0.84)  r 0.650
+    5  sphere  mirror    mirror     at ( -0.00  -2.63   0.28)  r 0.373
+    6  sphere  mirror    mirror     at (  2.28   0.91  -1.19)  r 0.704
+    7  cube    mirror    mirror     at ( -0.45  -2.33  -0.09)  r 0.670
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.

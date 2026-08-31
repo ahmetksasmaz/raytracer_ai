@@ -1,0 +1,54 @@
+scene_082
+============================================================
+
+kind             diffuse
+resolution       512 512
+samples          512
+max recursion    8
+walls            left white, right white, other white
+
+counts
+  spheres        14
+  cubes          12
+  illuminants    3
+  materials      28
+  glass objects  0
+  mirror objects 0
+
+illuminants
+   1  global panel   light:a                scale   6.500  at (  0.74   2.94  -1.13)  size 1.99 x 1.32
+   2  local sphere   light:d50              scale  11.541  at (  1.56  -1.89  -1.61)  radius 0.28
+   3  local sphere   light:hps              scale   5.814  at (  2.42  -1.61  -1.87)  radius 0.24
+
+objects
+    1  sphere  diffuse   plum       at ( -2.38  -2.70   0.32)  r 0.301
+    2  sphere  diffuse   rose       at ( -1.39  -2.61   1.76)  r 0.386
+    3  sphere  diffuse   teal       at ( -1.91  -2.61  -1.12)  r 0.394
+    4  sphere  diffuse   slate      at (  2.40  -2.61  -0.35)  r 0.394
+    5  sphere  diffuse   slate      at (  2.16   0.99  -0.61)  r 0.456
+    6  sphere  diffuse   moss       at (  0.70  -0.20  -1.17)  r 0.297
+    7  sphere  diffuse   plum       at (  1.11  -1.29   2.02)  r 0.466
+    8  sphere  diffuse   cobalt     at ( -2.19  -2.67   0.03)  r 0.326
+    9  sphere  diffuse   rose       at (  0.67  -2.66  -2.57)  r 0.344
+   10  sphere  diffuse   rose       at (  1.89  -2.41  -2.19)  r 0.411
+   11  sphere  diffuse   cobalt     at ( -1.62  -2.63  -1.22)  r 0.369
+   12  sphere  diffuse   plum       at (  0.10  -2.54  -1.23)  r 0.458
+   13  sphere  diffuse   charcoal   at (  0.78   0.44   0.54)  r 0.415
+   14  sphere  diffuse   moss       at ( -1.22   0.84   0.01)  r 0.401
+   15  cube    diffuse   moss       at ( -1.37  -0.20   1.65)  r 0.389
+   16  cube    diffuse   slate      at (  1.49   1.04   1.65)  r 0.346
+   17  cube    diffuse   charcoal   at ( -0.12  -0.77  -1.65)  r 0.268
+   18  cube    diffuse   brick      at ( -1.12   0.15  -0.50)  r 0.427
+   19  cube    diffuse   rose       at (  0.54  -0.02  -1.84)  r 0.269
+   20  cube    diffuse   brick      at (  0.31  -2.55   0.37)  r 0.451
+   21  cube    diffuse   sand       at (  1.82  -2.24   0.95)  r 0.367
+   22  cube    diffuse   olive      at ( -1.95  -2.73  -0.53)  r 0.272
+   23  cube    diffuse   teal       at ( -2.11  -1.20   1.10)  r 0.419
+   24  cube    diffuse   olive      at (  0.30  -1.79   0.91)  r 0.239
+   25  cube    diffuse   slate      at ( -0.50  -2.55   0.93)  r 0.450
+   26  cube    diffuse   bone       at (  0.24  -2.70   1.81)  r 0.296
+
+All objects above are inside the box and project wholly
+inside the frame. Overlap is permitted, so one may still be
+hidden behind another -- 'visible' here means in frame, not
+unoccluded.
